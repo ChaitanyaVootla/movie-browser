@@ -126,7 +126,9 @@ Beta EC2 role (`movie-browser-beta-ec2-role`) provides:
 
 Beta uses its own Lambda: `movie-ratings-scraper-beta` (separate from production `movie-ratings-scraper`).
 Configurable via `LAMBDA_FUNCTION_NAME` env var in `.env.local` (defaults to `movie-ratings-scraper` if unset).
-The Google scraping Lambda (`puppeteer-node14`) is shared between beta and production.
+Since 2026-10-08 it is the browserless v2 scraper (arm64/256MB/30s, no Chromium layer) and the
+ONLY scraper called — `puppeteer-node14` (Google panel) is dead (0 ratings in 16k calls) and no
+longer invoked; its IAM grant can be dropped. Full reference: `.claude/rules/enrichment-scraper.md`.
 
 ## MongoDB (Temporary)
 
@@ -207,6 +209,7 @@ No migrations — schema SQL is authoritative. Re-deploy recreates containers. P
 | Job | Schedule | Heap Limit |
 |-----|----------|------------|
 | `next` | Always | 600MB |
+| `imdb-ratings-sync` | 20:00 UTC | 900MB (IMDb dataset → ratings) |
 | `popularity-sync` | 21:00 UTC | 500MB |
 | `sitemap-generator` | 22:00 UTC | 1024MB |
 | `isr-cache-prune` | 23:00 UTC | 512MB (keeps ISR route cache ≤ 5GB — Jun 10 disk-fill) |

@@ -40,6 +40,8 @@ export interface ScrapedWatchLink {
   provider: string;
   link: string;
   price: string;
+  /** ISO country the deep link is valid in. Absent = India (legacy Google scrape). */
+  country?: string;
 }
 
 export interface EnrichedExternalIds {
@@ -70,6 +72,12 @@ export interface EnrichedData {
   source: "mongodb" | "lambda" | "postgres";
   /** When the enriched data was scraped */
   scrapedAt: Date | null;
+  /**
+   * Countries whose deep-link set is authoritative for this scrape (the
+   * scraper answered for them) — stale links there are replaced. Absent/empty
+   * = merge-only, never delete.
+   */
+  watchLinkCountries?: string[];
 }
 
 // =============================================================================

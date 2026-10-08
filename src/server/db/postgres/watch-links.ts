@@ -1,8 +1,9 @@
 /**
  * PostgreSQL Watch Links Queries
  *
- * Provides functions to fetch scraped deep links from PostgreSQL.
- * These are India-specific deep links that go directly to the streaming player.
+ * Provides functions to fetch scraped deep links from PostgreSQL — per-title,
+ * per-country links straight to the streaming player (JustWatch via the
+ * enrichment Lambda; India-only before Oct 2026).
  */
 
 import { prisma } from "./index";
@@ -22,18 +23,16 @@ export interface ScrapedWatchLink {
 // ============================================
 
 /**
- * Get scraped watch links (deep links) for a movie or series
- * These are India-specific links scraped from Google search results
+ * Get scraped watch links (deep links) for a movie or series in one country.
  */
 export async function getScrapedWatchLinksFromPostgres(
   id: number,
-  mediaType: "movie" | "series"
+  mediaType: "movie" | "series",
+  countryCode = "IN"
 ): Promise<ScrapedWatchLink[]> {
   try {
     const where =
-      mediaType === "movie"
-        ? { movieId: id, countryCode: "IN" }
-        : { seriesId: id, countryCode: "IN" };
+      mediaType === "movie" ? { movieId: id, countryCode } : { seriesId: id, countryCode };
 
     const links = await prisma.scrapedWatchLink.findMany({
       where,

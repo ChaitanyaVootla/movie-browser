@@ -705,9 +705,13 @@ async function getEnrichedData(
   tmdbData: {
     title?: string;
     name?: string;
+    original_title?: string;
+    original_name?: string;
     imdb_id?: string | null;
     release_date?: string | null;
     first_air_date?: string | null;
+    popularity?: number;
+    adult?: boolean;
     external_ids?: {
       wikidata_id?: string | null;
       imdb_id?: string | null;
@@ -754,7 +758,9 @@ async function getEnrichedData(
     console.log(
       `[Hydration] ${mediaType} ${id}: FORCE REFRESH - calling Lambda (will merge with existing)`
     );
-    const lambdaEnriched = await fetchFromLambda(mediaType, id, tmdbData, existingEnriched);
+    const lambdaEnriched = await fetchFromLambda(mediaType, id, tmdbData, existingEnriched, {
+      force: true,
+    });
     return {
       enriched: lambdaEnriched,
       enrichedSource: "lambda",

@@ -51,6 +51,8 @@ export interface EnrichmentDoc {
   googleData?: {
     ratings?: LegacyGoogleRating[];
     allWatchOptions?: LegacyWatchOption[];
+    /** Deep links for EVERY scraped country (JustWatch, Oct 2026) — read by getWatchOptionsForCountry. */
+    watchLinksByCountry?: Record<string, LegacyWatchOption[]>;
   };
   external_data?: {
     ratings?: {
@@ -156,6 +158,15 @@ function buildEnrichmentDoc(
       price: l.price ?? undefined,
     }));
 
+  const watchLinksByCountry: Record<string, LegacyWatchOption[]> = {};
+  for (const l of watchLinkRows) {
+    (watchLinksByCountry[l.countryCode] ??= []).push({
+      name: l.providerName,
+      link: l.link,
+      price: l.price ?? undefined,
+    });
+  }
+
   const hasRt = rtCritic || rtAudience;
   const externalRatings =
     imdb || hasRt
@@ -179,6 +190,7 @@ function buildEnrichmentDoc(
     googleData: {
       ...(googleRatings.length > 0 ? { ratings: googleRatings } : {}),
       ...(indiaWatchOptions.length > 0 ? { allWatchOptions: indiaWatchOptions } : {}),
+      ...(watchLinkRows.length > 0 ? { watchLinksByCountry } : {}),
     },
     ...(externalRatings ? { external_data: { ratings: externalRatings } } : {}),
   };

@@ -51,6 +51,29 @@ module.exports = {
         NODE_OPTIONS: "--heapsnapshot-signal=SIGUSR2 --max-old-space-size=3072",
       },
     },
+    // IMDb Ratings Sync - daily at 20:00 UTC (01:30 IST)
+    // IMDb's official daily ratings dataset (8.7MB) → `ratings` (source imdb)
+    // for every catalog title with an IMDb id. Replaces per-title IMDb
+    // scraping, which IMDb's WAF silently blocked (202 + empty body).
+    {
+      name: "imdb-ratings-sync",
+      cwd: "/home/ubuntu/movie-browser-next",
+      script: "bash",
+      args: ["-c", "exec nice -n 19 npx tsx scripts/sync-imdb-ratings.ts"],
+      cron_restart: "0 20 * * *",
+      autorestart: false,
+      restart_delay: 5000,
+      max_restarts: 2,
+      min_uptime: "1s",
+      watch: false,
+      max_memory_restart: "900M",
+      error_file: "./logs/imdb-ratings-sync-error.log",
+      out_file: "./logs/imdb-ratings-sync-out.log",
+      log_file: "./logs/imdb-ratings-sync-combined.log",
+      time: true,
+      env: { NODE_ENV: "production", CRON_HOUR_UTC: "20" },
+      kill_timeout: 600000,
+    },
     // Popularity Sync - daily at 21:00 UTC (02:30 IST)
     // Downloads TMDB daily exports (streaming) and updates changed popularity
     // rows for movies, series, persons.

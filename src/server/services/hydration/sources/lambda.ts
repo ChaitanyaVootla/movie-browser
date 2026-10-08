@@ -1,69 +1,56 @@
 /**
- * Lambda Source for Hydration
+ * Lambda Source for Hydration — enrichment scraper v2 (Oct 2026 overhaul).
  *
- * Calls TWO Lambda functions in parallel for fresh enriched data:
- * 1. puppeteer-node14 (Google Lambda) - Deep watch links, basic ratings
- * 2. movie-ratings-scraper (Ratings Lambda) - Detailed IMDb/RT ratings via Wikidata
+ * ONE browserless Lambda (`movie-ratings-scraper-beta`, source in `lambda/`)
+ * returns, per title: Rotten Tomatoes critic + audience, Metacritic,
+ * Letterboxd, JustWatch deep links for several countries, and the external
+ * ids it resolved (Wikidata). Every source reports a status
+ * (ok/empty/not_found/no_id/blocked/http_error/parse_error/timeout/error/skipped)
+ * which is tracked to ClickHouse `api_calls` as `service='scraper'` — so
+ * "is a source broken?" is a GROUP BY, not a log dig. See
+ * `.claude/rules/enrichment-scraper.md`.
  *
- * External ID Resolution Flow:
- * - TMDB provides wikidata_id in external_ids
- * - Ratings Lambda calls Wikidata API to get rottentomatoes_id
- * - RT scraper uses rottentomatoes_id for detailed ratings
- * - If RT ID not in Wikidata, falls back to Google-scraped RT link
+ * NOT here any more, and why:
+ * - IMDb: IMDb's WAF answers AWS IPs with 202 + empty body; the old scraper
+ *   counted that as success (100% null ratings, unnoticed for months). IMDb
+ *   ratings now come from IMDb's official daily dataset
+ *   (`scripts/sync-imdb-ratings.ts`, nightly PM2 job).
+ * - The Google-panel Lambda (`puppeteer-node14`): Google moved these queries
+ *   to AI Overviews; 0 ratings in 16,086/16,086 calls. Deep links now come
+ *   from JustWatch. Google audience % is no longer refreshed.
  *
- * ✅ KEEP FOREVER - this is the primary enrichment source after MongoDB deprecation
- *
- * Prerequisites:
- *   yarn add @aws-sdk/client-lambda
- *   Set GOOGLE_LAMBDA_ARN and RATINGS_LAMBDA_ARN in environment
+ * Cost gate: adult titles and popularity < SCRAPE_MIN_POPULARITY (default 1)
+ * are not scraped — measured yield there is ~17% and it was 61% of calls
+ * (crawler-driven). A skipped title is stamped as attempted so it is not
+ * re-considered on every crawler visit; it is reconsidered after the normal
+ * freshness TTL (popularity may have grown).
  */
 
-import type { EnrichedData, MediaType } from "../types";
+import type { EnrichedData, EnrichedRatings, MediaType, ScrapedWatchLink } from "../types";
 import { trackAPICall } from "@/lib/analytics/track";
 
 // =============================================================================
-// Type Guards
+// Configuration
 // =============================================================================
 
-/**
- * Type guard to check if an error is an AWS SDK error with a name property
- */
-function isNamedError(error: unknown): error is { name: string; message?: string } {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "name" in error &&
-    typeof (error as { name: unknown }).name === "string"
-  );
-}
-
-/**
- * Get error message from unknown error type
- */
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (typeof error === "string") {
-    return error;
-  }
-  return String(error);
-}
-
-// =============================================================================
-// Configuration (hardcoded - no env vars needed)
-// =============================================================================
-
-/** Google scraping lambda - deep watch links, basic ratings */
-const GOOGLE_LAMBDA_FN = "puppeteer-node14";
-
-/** Ratings scraping lambda - detailed IMDb/RT via Wikidata */
 const RATINGS_LAMBDA_FN = process.env.LAMBDA_FUNCTION_NAME || "movie-ratings-scraper";
-
-/** AWS region where lambdas are deployed */
 const AWS_REGION = "ap-south-2";
 
-// Lazy load Lambda client to avoid startup cost if not used
+/** Below this TMDB popularity a scrape is skipped (see header). */
+const SCRAPE_MIN_POPULARITY = Number(process.env.SCRAPE_MIN_POPULARITY ?? 1);
+
+/** Countries to fetch deep links for. Audience is global (US #1). */
+const SCRAPE_WATCH_COUNTRIES = (process.env.SCRAPE_WATCH_COUNTRIES ?? "IN,US,GB,CA,AU")
+  .split(",")
+  .map((c) => c.trim().toUpperCase())
+  .filter((c) => /^[A-Z]{2}$/.test(c));
+
+/** DEV: Lambda is slow/absent locally and would block the synchronous miss-path
+ *  hydration (~30s tx timeout → dev-server saturation). Off by default in
+ *  non-prod; set ENABLE_DEV_LAMBDA=true to opt in. */
+const DEV_LAMBDA_DISABLED =
+  process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_LAMBDA !== "true";
+
 let lambdaClient: import("@aws-sdk/client-lambda").LambdaClient | null = null;
 
 async function getLambdaClient() {
@@ -74,310 +61,317 @@ async function getLambdaClient() {
   return lambdaClient;
 }
 
-/** Item context for tracking */
-interface ItemContext {
-  tmdbId: number;
-  mediaType: MediaType;
+// =============================================================================
+// Response contract (mirror of lambda/lib/types.ts — keep in sync)
+// =============================================================================
+
+export type ScrapeSourceStatus =
+  | "ok"
+  | "empty"
+  | "not_found"
+  | "no_id"
+  | "blocked"
+  | "http_error"
+  | "parse_error"
+  | "timeout"
+  | "error"
+  | "skipped";
+
+interface SourceResult {
+  status: ScrapeSourceStatus;
+  ms: number;
+  http?: number;
+  url?: string;
+  detail?: string;
 }
 
-// Module-level context for tracking (set by fetchFromLambda)
-let currentItemContext: ItemContext | null = null;
+interface RtScoreV2 {
+  score: number | null;
+  ratingCount: number | null;
+  certified: boolean | null;
+  sentiment: string | null;
+  consensus: string | null;
+  sourceUrl: string;
+}
 
-/**
- * Track Lambda invocation for analytics
- */
-function trackLambdaCall(
-  functionName: string,
+interface SimpleRatingV2 {
+  score: number;
+  voteCount: number | null;
+  sourceUrl: string;
+}
+
+export interface EnrichResponseV2 {
+  version: 2;
+  externalIds: Partial<
+    Record<
+      | "wikidata"
+      | "imdb"
+      | "rottentomatoes"
+      | "metacritic"
+      | "letterboxd"
+      | "netflix"
+      | "amazon"
+      | "apple"
+      | "hotstar"
+      | "justwatch",
+      string
+    >
+  >;
+  ratings: {
+    rtCritic?: RtScoreV2;
+    rtAudience?: RtScoreV2;
+    metacritic?: SimpleRatingV2;
+    letterboxd?: SimpleRatingV2;
+  };
+  watchLinks: Array<{ country: string; provider: string; link: string; price: string }>;
+  watchLinkCountries: string[];
+  sources: Record<string, SourceResult>;
+  durationMs: number;
+}
+
+function isEnrichResponseV2(v: unknown): v is EnrichResponseV2 {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    (v as { version?: unknown }).version === 2 &&
+    typeof (v as { sources?: unknown }).sources === "object" &&
+    Array.isArray((v as { watchLinks?: unknown }).watchLinks)
+  );
+}
+
+// =============================================================================
+// Gate
+// =============================================================================
+
+interface TmdbLike {
+  title?: string;
+  name?: string;
+  original_title?: string;
+  original_name?: string;
+  imdb_id?: string | null;
+  release_date?: string | null;
+  first_air_date?: string | null;
+  popularity?: number;
+  adult?: boolean;
+  external_ids?: { wikidata_id?: string | null; imdb_id?: string | null };
+  original_language?: string;
+}
+
+/** Why a title should NOT be scraped, or null to scrape. Exported for tests. */
+export function scrapeSkipReason(tmdb: TmdbLike): "adult" | "low_popularity" | "no_title" | null {
+  if (tmdb.adult === true) return "adult";
+  if (!(tmdb.title || tmdb.name)) return "no_title";
+  if (typeof tmdb.popularity === "number" && tmdb.popularity < SCRAPE_MIN_POPULARITY) {
+    return "low_popularity";
+  }
+  return null;
+}
+
+// =============================================================================
+// Tracking
+// =============================================================================
+
+const STATUS_CODE: Record<ScrapeSourceStatus, number> = {
+  ok: 200,
+  empty: 204,
+  skipped: 204,
+  not_found: 404,
+  no_id: 424,
+  blocked: 403,
+  http_error: 502,
+  parse_error: 422,
+  timeout: 504,
+  error: 500,
+};
+
+function trackSources(mediaType: MediaType, id: number, sources: Record<string, SourceResult>): void {
+  try {
+    for (const [name, r] of Object.entries(sources)) {
+      trackAPICall({
+        service: "scraper",
+        endpoint: `${name}:${mediaType}:${id}`,
+        method: "SCRAPE",
+        statusCode: r.status === "http_error" && r.http ? r.http : STATUS_CODE[r.status] ?? 500,
+        durationMs: r.ms,
+        cached: false,
+        errorType: r.status === "ok" ? null : r.status,
+        errorMessage: r.detail ? r.detail.slice(0, 300) : null,
+      });
+    }
+  } catch {
+    // tracking must never break hydration
+  }
+}
+
+function trackInvoke(
+  mediaType: MediaType,
+  id: number,
   startTime: number,
   statusCode: number,
   errorType: string | null,
   errorMessage: string | null
 ): void {
   try {
-    const durationMs = Date.now() - startTime;
-    // Include item context in endpoint for filtering (e.g., "puppeteer-node14:movie:550")
-    const endpoint = currentItemContext
-      ? `${functionName}:${currentItemContext.mediaType}:${currentItemContext.tmdbId}`
-      : functionName;
     trackAPICall({
       service: "lambda",
-      endpoint,
+      endpoint: `${RATINGS_LAMBDA_FN}:${mediaType}:${id}`,
       method: "INVOKE",
       statusCode,
-      durationMs,
+      durationMs: Date.now() - startTime,
       cached: false,
       errorType,
       errorMessage,
     });
   } catch {
-    // Don't let tracking errors break Lambda calls
+    // ignore
   }
 }
 
 // =============================================================================
-// Types
+// Invoke
 // =============================================================================
 
-/** Google Lambda response (puppeteer-node14) */
-interface GoogleLambdaResponse {
-  ratings?: Array<{ rating: string; name: string; link: string }>;
-  allWatchOptions?: Array<{ link: string; name: string; price?: string }>;
-  imdbId?: string | null;
-  directorName?: string | null;
-}
-
-/** Ratings Lambda response (movie-ratings-scraper) */
-interface RatingsLambdaResponse {
-  ratings?: Array<{ rating: string; name: string; link: string }>;
-  allWatchOptions?: Array<{ link: string; name: string; price?: string }>;
-  imdbId?: string | null;
-  directorName?: string | null;
-  externalIds?: {
-    imdb_id?: string | null;
-    tmdb_id?: string | null;
-    rottentomatoes_id?: string | null;
-    metacritic_id?: string | null;
-    letterboxd_id?: string | null;
-    netflix_id?: string | null;
-    prime_id?: string | null;
-    apple_id?: string | null;
-    hotstar_id?: string | null;
-  };
-  detailedRatings?: {
-    imdb?: {
-      rating: number | null;
-      ratingCount: number | null;
-      sourceUrl?: string;
-      error?: string | null;
-    } | null;
-    rottenTomatoes?: {
-      critic?: {
-        score: number | null;
-        ratingCount: number | null;
-        certified: boolean | null;
-        sentiment: string | null;
-        consensus?: string | null;
-      } | null;
-      audience?: {
-        score: number | null;
-        ratingCount: number | null;
-        certified: boolean | null;
-        sentiment: string | null;
-        consensus?: string | null;
-      } | null;
-      sourceUrl?: string;
-      error?: string | null;
-    } | null;
-  };
-  debugText?: string;
-  googleError?: string;
-}
-
-// =============================================================================
-// Individual Lambda Callers
-// =============================================================================
-
-/**
- * Call Google Lambda (puppeteer-node14) for deep watch links
- */
-/** DEV: AWS Lambda enrichment is slow/absent locally and would block the
- *  synchronous miss-path hydration (~30s tx timeout → dev-server saturation).
- *  Off by default in non-prod; set ENABLE_DEV_LAMBDA=true to opt in. */
-const DEV_LAMBDA_DISABLED =
-  process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_LAMBDA !== "true";
-
-async function callGoogleLambda(searchString: string): Promise<GoogleLambdaResponse | null> {
-  if (DEV_LAMBDA_DISABLED) return null;
+async function invokeScraper(
+  mediaType: MediaType,
+  id: number,
+  tmdb: TmdbLike
+): Promise<EnrichResponseV2 | null> {
   const startTime = Date.now();
-  let statusCode = 200;
-  let errorType: string | null = null;
-  let errorMessage: string | null = null;
+  const date = mediaType === "movie" ? tmdb.release_date : tmdb.first_air_date;
+  const year = date ? Number(date.slice(0, 4)) || undefined : undefined;
+  const title = (mediaType === "movie" ? tmdb.title : tmdb.name) ?? "";
+  const originalTitle = mediaType === "movie" ? tmdb.original_title : tmdb.original_name;
+  const payload = {
+    tmdbId: id,
+    mediaType: mediaType === "movie" ? "movie" : "tv",
+    title,
+    originalTitle: originalTitle && originalTitle !== title ? originalTitle : undefined,
+    year,
+    imdbId: tmdb.imdb_id || tmdb.external_ids?.imdb_id || undefined,
+    wikidataId: tmdb.external_ids?.wikidata_id || undefined,
+    countries: SCRAPE_WATCH_COUNTRIES,
+  };
 
   try {
     const client = await getLambdaClient();
     const { InvokeCommand } = await import("@aws-sdk/client-lambda");
-
-    const command = new InvokeCommand({
-      FunctionName: GOOGLE_LAMBDA_FN,
-      InvocationType: "RequestResponse",
-      Payload: JSON.stringify({
-        queryStringParameters: {
-          searchString,
-        },
-      }),
-    });
-
-    console.log(`[Hydration/Lambda] Calling Google Lambda: ${GOOGLE_LAMBDA_FN}`);
-    const response = await client.send(command);
-
-    if (response.FunctionError) {
-      console.error("[Hydration/Lambda] Google Lambda error:", response.FunctionError);
-      statusCode = 500;
-      errorType = "FunctionError";
-      errorMessage = response.FunctionError;
-      trackLambdaCall(GOOGLE_LAMBDA_FN, startTime, statusCode, errorType, errorMessage);
-      return null;
-    }
-
-    if (!response.Payload) {
-      trackLambdaCall(GOOGLE_LAMBDA_FN, startTime, statusCode, null, null);
-      return null;
-    }
-
-    const payloadStr = new TextDecoder().decode(response.Payload);
-    console.log(`[Hydration/Lambda] Google Lambda RAW response:\n${payloadStr.slice(0, 2000)}`);
-
-    const parsed = JSON.parse(payloadStr) as GoogleLambdaResponse;
-    console.log(
-      `[Hydration/Lambda] Google Lambda PARSED:`,
-      JSON.stringify({
-        ratingsCount: parsed.ratings?.length ?? 0,
-        watchOptionsCount: parsed.allWatchOptions?.length ?? 0,
-        imdbId: parsed.imdbId,
-        directorName: parsed.directorName,
+    const response = await client.send(
+      new InvokeCommand({
+        FunctionName: RATINGS_LAMBDA_FN,
+        InvocationType: "RequestResponse",
+        Payload: JSON.stringify(payload),
       })
     );
-
-    trackLambdaCall(GOOGLE_LAMBDA_FN, startTime, statusCode, null, null);
-    return parsed;
-  } catch (error: unknown) {
-    statusCode = 500;
-    errorType = isNamedError(error) ? error.name : "UnknownError";
-    errorMessage = getErrorMessage(error);
-
-    // Quieter logging for known "not a problem" errors
-    if (isNamedError(error) && error.name === "ResourceNotFoundException") {
-      console.warn(`[Hydration/Lambda] Google Lambda not deployed: ${GOOGLE_LAMBDA_FN}`);
-    } else if (isNamedError(error) && error.name === "CredentialsProviderError") {
-      console.warn("[Hydration/Lambda] AWS credentials not configured");
-    } else {
-      console.error("[Hydration/Lambda] Google Lambda failed:", errorMessage);
+    if (response.FunctionError) {
+      const detail = response.Payload ? new TextDecoder().decode(response.Payload).slice(0, 300) : "";
+      console.error(`[Hydration/Lambda] ${mediaType} ${id}: FunctionError ${response.FunctionError} ${detail}`);
+      trackInvoke(mediaType, id, startTime, 500, "FunctionError", detail || response.FunctionError);
+      return null;
     }
+    const raw: unknown = response.Payload ? JSON.parse(new TextDecoder().decode(response.Payload)) : null;
+    if (!isEnrichResponseV2(raw)) {
+      console.error(`[Hydration/Lambda] ${mediaType} ${id}: unexpected response shape`);
+      trackInvoke(mediaType, id, startTime, 502, "BadResponse", JSON.stringify(raw).slice(0, 300));
+      return null;
+    }
+    trackInvoke(mediaType, id, startTime, 200, null, null);
+    trackSources(mediaType, id, raw.sources);
 
-    trackLambdaCall(GOOGLE_LAMBDA_FN, startTime, statusCode, errorType, errorMessage);
+    const summary = Object.entries(raw.sources)
+      .map(([k, v]) => `${k}=${v.status}`)
+      .join(" ");
+    const broken = Object.values(raw.sources).some(
+      (s) => s.status === "blocked" || s.status === "parse_error"
+    );
+    const line = `[Hydration/Lambda] ${mediaType} ${id}: ${raw.durationMs}ms ${summary} links=${raw.watchLinks.length}`;
+    if (broken) console.warn(line);
+    else console.log(line);
+    return raw;
+  } catch (error: unknown) {
+    const name =
+      typeof error === "object" && error !== null && "name" in error && typeof error.name === "string"
+        ? error.name
+        : "UnknownError";
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[Hydration/Lambda] ${mediaType} ${id}: invoke failed (${name}): ${message}`);
+    trackInvoke(mediaType, id, startTime, 500, name, message.slice(0, 300));
     return null;
   }
 }
 
-/**
- * Call Ratings Lambda (movie-ratings-scraper) for detailed ratings
- */
-async function callRatingsLambda(
-  searchString: string,
-  tmdbId: number,
-  imdbId: string | null | undefined,
-  wikidataId: string | null | undefined,
-  mediaType: "movie" | "tv"
-): Promise<RatingsLambdaResponse | null> {
-  if (DEV_LAMBDA_DISABLED) return null;
-  const startTime = Date.now();
-  let statusCode = 200;
-  let errorType: string | null = null;
-  let errorMessage: string | null = null;
+// =============================================================================
+// Mapping
+// =============================================================================
 
-  try {
-    const client = await getLambdaClient();
-    const { InvokeCommand } = await import("@aws-sdk/client-lambda");
-
-    const command = new InvokeCommand({
-      FunctionName: RATINGS_LAMBDA_FN,
-      InvocationType: "RequestResponse",
-      Payload: JSON.stringify({
-        queryStringParameters: {
-          searchString,
-          tmdbId: String(tmdbId),
-          imdbId: imdbId || undefined,
-          wikidataId: wikidataId || undefined,
-          mediaType,
-          // Note: No googleScraperMode - we call Google Lambda separately
-        },
-      }),
-    });
-
-    console.log(`[Hydration/Lambda] Calling Ratings Lambda: ${RATINGS_LAMBDA_FN}`);
-    const response = await client.send(command);
-
-    if (response.FunctionError) {
-      console.warn("[Hydration/Lambda] Ratings Lambda error:", response.FunctionError);
-      statusCode = 500;
-      errorType = "FunctionError";
-      errorMessage = response.FunctionError;
-      trackLambdaCall(RATINGS_LAMBDA_FN, startTime, statusCode, errorType, errorMessage);
-      return null;
-    }
-
-    if (!response.Payload) {
-      trackLambdaCall(RATINGS_LAMBDA_FN, startTime, statusCode, null, null);
-      return null;
-    }
-
-    const payloadStr = new TextDecoder().decode(response.Payload);
-    console.log(`[Hydration/Lambda] Ratings Lambda RAW response:\n${payloadStr.slice(0, 3000)}`);
-
-    const apiGatewayResponse = JSON.parse(payloadStr) as {
-      statusCode?: number;
-      body?: string;
+/** Map a v2 response onto EnrichedData. Pure — exported for tests. */
+export function mapEnrichResponse(
+  r: EnrichResponseV2,
+  existing?: EnrichedData | null,
+  scrapedAt: Date = new Date()
+): EnrichedData {
+  const ratings: EnrichedRatings = { ...(existing?.ratings ?? {}) };
+  const { rtCritic, rtAudience, metacritic, letterboxd } = r.ratings;
+  if (rtCritic?.score != null) {
+    ratings.rtCritic = {
+      score: rtCritic.score,
+      voteCount: rtCritic.ratingCount ?? undefined,
+      certified: rtCritic.certified ?? undefined,
+      consensus: rtCritic.consensus ?? undefined,
+      sentiment: rtCritic.sentiment ?? undefined,
+      sourceUrl: rtCritic.sourceUrl,
     };
-
-    // Handle API Gateway response format (Ratings Lambda returns { statusCode, body: "..." })
-    let parsed: RatingsLambdaResponse;
-    if (apiGatewayResponse.statusCode && apiGatewayResponse.body) {
-      statusCode = apiGatewayResponse.statusCode;
-      if (apiGatewayResponse.statusCode !== 200) {
-        console.error("[Hydration/Lambda] Ratings Lambda non-200:", apiGatewayResponse.statusCode);
-        trackLambdaCall(
-          RATINGS_LAMBDA_FN,
-          startTime,
-          statusCode,
-          "Non200Response",
-          `Status: ${statusCode}`
-        );
-        return null;
-      }
-      console.log(
-        `[Hydration/Lambda] Ratings Lambda BODY (before parse):\n${apiGatewayResponse.body.slice(0, 2000)}`
-      );
-      parsed = JSON.parse(apiGatewayResponse.body) as RatingsLambdaResponse;
-    } else {
-      // Direct response format (no API Gateway wrapper)
-      parsed = apiGatewayResponse as RatingsLambdaResponse;
-    }
-
-    console.log(
-      `[Hydration/Lambda] Ratings Lambda PARSED:`,
-      JSON.stringify({
-        hasDetailedRatings: !!parsed.detailedRatings,
-        imdb: parsed.detailedRatings?.imdb
-          ? `${parsed.detailedRatings.imdb.rating} (${parsed.detailedRatings.imdb.ratingCount} votes)`
-          : null,
-        rtCritic: parsed.detailedRatings?.rottenTomatoes?.critic?.score ?? null,
-        rtAudience: parsed.detailedRatings?.rottenTomatoes?.audience?.score ?? null,
-        basicRatingsCount: parsed.ratings?.length ?? 0,
-        watchOptionsCount: parsed.allWatchOptions?.length ?? 0,
-        externalIds: parsed.externalIds ?? null,
-        googleError: parsed.googleError ?? null,
-      })
-    );
-
-    trackLambdaCall(RATINGS_LAMBDA_FN, startTime, statusCode, null, null);
-    return parsed;
-  } catch (error: unknown) {
-    statusCode = 500;
-    errorType = isNamedError(error) ? error.name : "UnknownError";
-    errorMessage = getErrorMessage(error);
-
-    // Quieter logging for known "not a problem" errors
-    if (isNamedError(error) && error.name === "ResourceNotFoundException") {
-      console.warn(`[Hydration/Lambda] Ratings Lambda not deployed: ${RATINGS_LAMBDA_FN}`);
-    } else if (isNamedError(error) && error.name === "CredentialsProviderError") {
-      console.warn("[Hydration/Lambda] AWS credentials not configured");
-    } else {
-      console.error("[Hydration/Lambda] Ratings Lambda failed:", errorMessage);
-    }
-
-    trackLambdaCall(RATINGS_LAMBDA_FN, startTime, statusCode, errorType, errorMessage);
-    return null;
   }
+  if (rtAudience?.score != null) {
+    ratings.rtAudience = {
+      score: rtAudience.score,
+      voteCount: rtAudience.ratingCount ?? undefined,
+      certified: rtAudience.certified ?? undefined,
+      sentiment: rtAudience.sentiment ?? undefined,
+      sourceUrl: rtAudience.sourceUrl,
+    };
+  }
+  if (metacritic) {
+    ratings.metacritic = {
+      score: metacritic.score,
+      voteCount: metacritic.voteCount ?? undefined,
+      sourceUrl: metacritic.sourceUrl,
+    };
+  }
+  if (letterboxd) {
+    // native 0-5 scale (movies.ts normalises ×20 for display)
+    ratings.letterboxd = {
+      score: letterboxd.score,
+      voteCount: letterboxd.voteCount ?? undefined,
+      sourceUrl: letterboxd.sourceUrl,
+    };
+  }
+
+  const scrapedWatchLinks: ScrapedWatchLink[] = r.watchLinks.map((l) => ({
+    provider: l.provider,
+    link: l.link,
+    price: l.price,
+    country: l.country,
+  }));
+
+  const ids = r.externalIds;
+  return {
+    ratings: Object.keys(ratings).length > 0 ? ratings : null,
+    scrapedWatchLinks,
+    watchLinkCountries: r.watchLinkCountries,
+    externalIds: {
+      ...(existing?.externalIds ?? {}),
+      ...(ids.rottentomatoes && { rottentomatoes: ids.rottentomatoes }),
+      ...(ids.metacritic && { metacritic: ids.metacritic }),
+      ...(ids.letterboxd && { letterboxd: ids.letterboxd }),
+      ...(ids.netflix && { netflix: ids.netflix }),
+      ...(ids.apple && { apple: ids.apple }),
+      ...(ids.amazon && { amazon: ids.amazon }),
+      ...(ids.hotstar && { hotstar: ids.hotstar }),
+      ...(ids.wikidata && { wikidata: ids.wikidata }),
+    },
+    source: "lambda",
+    scrapedAt,
+  };
 }
 
 // =============================================================================
@@ -385,334 +379,55 @@ async function callRatingsLambda(
 // =============================================================================
 
 /**
- * Fetch enriched data from BOTH Lambda functions in parallel
+ * Fetch enriched data for a title.
  *
- * @param mediaType - "movie" or "series"
- * @param id - TMDB ID
- * @param tmdbData - TMDB data with title, imdb_id, wikidata_id, release_date
- * @param existingEnriched - Optional existing enriched data to merge with (preserves ratings Lambda doesn't return)
+ * Freshness contract (`ratingsScrapedAt` is stamped iff `scrapedAt` is set):
+ * - scrape ran (even with partial/negative results) → stamped
+ * - gate skipped the title → stamped (re-evaluated after the freshness TTL)
+ * - invoke FAILED outright → NOT stamped, so the next visit retries. (The old
+ *   code stamped every attempt, so a dead scraper marked titles fresh for up
+ *   to 90 days with no data.)
+ *
+ * @param options.force - admin force-refresh: bypass the cost gate.
  */
 export async function fetchFromLambda(
   mediaType: MediaType,
   id: number,
-  tmdbData: {
-    title?: string;
-    name?: string;
-    imdb_id?: string | null;
-    release_date?: string | null;
-    first_air_date?: string | null;
-    external_ids?: {
-      wikidata_id?: string | null;
-      imdb_id?: string | null;
-    };
-    original_language?: string;
-  },
-  existingEnriched?: EnrichedData | null
+  tmdbData: TmdbLike,
+  existingEnriched?: EnrichedData | null,
+  options: { force?: boolean } = {}
 ): Promise<EnrichedData> {
-  // Set item context for tracking
-  currentItemContext = { tmdbId: id, mediaType };
+  if (DEV_LAMBDA_DISABLED) return emptyEnriched(null);
 
-  try {
-    const title = mediaType === "movie" ? tmdbData.title : tmdbData.name;
-    const releaseYear =
-      mediaType === "movie"
-        ? tmdbData.release_date?.split("-")[0]
-        : tmdbData.first_air_date?.split("-")[0];
-
-    // Build search strings
-    const dateInfo = mediaType === "movie" ? `${releaseYear} movie` : "tv series";
-    const searchString = `${sanitizeString(title || "")} ${dateInfo}`.trim();
-
-    // Get wikidata_id from TMDB external_ids
-    const wikidataId = tmdbData.external_ids?.wikidata_id;
-    const imdbId = tmdbData.imdb_id || tmdbData.external_ids?.imdb_id;
-
-    // Call BOTH lambdas in parallel (like legacy app)
-    const [googleResult, ratingsResult] = await Promise.allSettled([
-      callGoogleLambda(searchString),
-      callRatingsLambda(
-        searchString,
-        id,
-        imdbId,
-        wikidataId,
-        mediaType === "movie" ? "movie" : "tv"
-      ),
-    ]);
-
-    const googleData = googleResult.status === "fulfilled" ? googleResult.value : null;
-    const ratingsData = ratingsResult.status === "fulfilled" ? ratingsResult.value : null;
-
-    console.log(
-      `[Hydration/Lambda] Results - Google Lambda: ${googleData ? "✓" : "✗"}, Ratings Lambda: ${ratingsData ? "✓" : "✗"}`
-    );
-
-    // Log raw results for debugging
-    if (googleData?.ratings?.length) {
-      console.log(`[Hydration/Lambda] Google Lambda ratings:`);
-      for (const r of googleData.ratings) {
-        console.log(`  → ${r.name}: ${r.rating}`);
-      }
+  const skip = options.force ? null : scrapeSkipReason(tmdbData);
+  if (skip) {
+    try {
+      trackAPICall({
+        service: "scraper",
+        endpoint: `gate:${mediaType}:${id}`,
+        method: "SKIP",
+        statusCode: 204,
+        durationMs: 0,
+        cached: false,
+        errorType: `skipped_${skip}`,
+        errorMessage: null,
+      });
+    } catch {
+      // ignore
     }
-    if (googleData?.allWatchOptions?.length) {
-      console.log(
-        `[Hydration/Lambda] Google Lambda watch options: ${googleData.allWatchOptions.length} providers`
-      );
-      for (const w of googleData.allWatchOptions) {
-        console.log(`  → ${w.name}: ${w.link} (${w.price || "N/A"})`);
-      }
-    }
-    if (ratingsData?.detailedRatings) {
-      console.log(`[Hydration/Lambda] Ratings Lambda detailed ratings:`);
-      if (ratingsData.detailedRatings.imdb?.rating != null) {
-        console.log(
-          `  → IMDb: ${ratingsData.detailedRatings.imdb.rating} (${ratingsData.detailedRatings.imdb.ratingCount} votes)`
-        );
-      }
-      if (ratingsData.detailedRatings.rottenTomatoes?.critic?.score != null) {
-        console.log(`  → RT Critic: ${ratingsData.detailedRatings.rottenTomatoes.critic.score}%`);
-      }
-      if (ratingsData.detailedRatings.rottenTomatoes?.audience?.score != null) {
-        console.log(
-          `  → RT Audience: ${ratingsData.detailedRatings.rottenTomatoes.audience.score}%`
-        );
-      }
-    }
-    if (existingEnriched?.ratings) {
-      console.log(`[Hydration/Lambda] Existing ratings to merge:`);
-      if (existingEnriched.ratings.imdb?.score)
-        console.log(`  → IMDb: ${existingEnriched.ratings.imdb.score}`);
-      if (existingEnriched.ratings.rtCritic?.score)
-        console.log(`  → RT Critic: ${existingEnriched.ratings.rtCritic.score}%`);
-      if (existingEnriched.ratings.rtAudience?.score)
-        console.log(`  → RT Audience: ${existingEnriched.ratings.rtAudience.score}%`);
-      if (existingEnriched.ratings.google?.score)
-        console.log(`  → Google: ${existingEnriched.ratings.google.score}%`);
-      if (existingEnriched.ratings.letterboxd?.score)
-        console.log(`  → Letterboxd: ${existingEnriched.ratings.letterboxd.score}`);
-      if (existingEnriched.ratings.metacritic?.score)
-        console.log(`  → Metacritic: ${existingEnriched.ratings.metacritic.score}`);
-    }
-
-    // Merge results with existing data (preserves ratings Lambda doesn't return, like Google)
-    return mergeResponse(googleData, ratingsData, existingEnriched);
-  } finally {
-    // Clear item context
-    currentItemContext = null;
+    return emptyEnriched(new Date());
   }
-}
 
-// =============================================================================
-// Helpers
-// =============================================================================
-
-function sanitizeString(str: string): string {
-  return str.replaceAll("&", "and").replaceAll("?", "").trim();
+  const response = await invokeScraper(mediaType, id, tmdbData);
+  if (!response) return emptyEnriched(null);
+  return mapEnrichResponse(response, existingEnriched);
 }
 
 /**
- * Merge responses from both lambdas into EnrichedData
- *
- * Priority (same as legacy Nuxt app):
- * 1. Ratings Lambda detailedRatings (IMDb, RT) - highest priority
- * 2. Google Lambda basic ratings (Google, Letterboxd, Metacritic, etc.)
- * 3. Existing enriched data (preserves ratings that Lambda doesn't return)
- *
- * Key behavior (matching legacy app):
- * - If Lambda returns empty ratings but existing has ratings → keep existing
- * - If both have ratings → merge: new ratings + old ratings that don't exist in new
- * - This preserves Google ratings which only come from Google Lambda
+ * No new data. Carries NO ratings on purpose: the upserts treat "has ratings"
+ * as "scrape attempted" and would stamp freshness. Existing PG ratings/links/ids
+ * are untouched by an empty payload (all three upserts are merge-only for it).
  */
-function mergeResponse(
-  google: GoogleLambdaResponse | null,
-  ratings: RatingsLambdaResponse | null,
-  existingEnriched?: EnrichedData | null
-): EnrichedData {
-  const detailed = ratings?.detailedRatings;
-  const externalIds = ratings?.externalIds || {};
-  const existingRatings = existingEnriched?.ratings || {};
-
-  // Merge watch options: Google has deep links, use those
-  // Legacy app logic: use new if available, otherwise keep existing
-  const newWatchLinks = (google?.allWatchOptions || ratings?.allWatchOptions || []).map((opt) => ({
-    provider: opt.name,
-    link: opt.link,
-    price: opt.price || "Unknown",
-  }));
-  const scrapedWatchLinks =
-    newWatchLinks.length > 0 ? newWatchLinks : existingEnriched?.scrapedWatchLinks || [];
-
-  // Try to extract RT ID from Google ratings link if not in Wikidata
-  const allRatings = [...(google?.ratings || []), ...(ratings?.ratings || [])];
-  let rtIdFromGoogle: string | undefined;
-  if (!externalIds.rottentomatoes_id) {
-    for (const r of allRatings) {
-      if (r.link?.includes("rottentomatoes.com/")) {
-        const match = r.link.match(/rottentomatoes\.com\/(m|tv)\/([^/?]+)/);
-        if (match) {
-          rtIdFromGoogle = match[2];
-          console.log(`[Hydration/Lambda] Extracted RT ID from Google: ${rtIdFromGoogle}`);
-          break;
-        }
-      }
-    }
-  }
-
-  // Build ratings from detailed data (Ratings Lambda)
-  const enrichedRatings: EnrichedData["ratings"] = {};
-
-  // IMDb from Ratings Lambda (detailed) - or preserve existing
-  if (detailed?.imdb?.rating != null) {
-    enrichedRatings.imdb = {
-      score: detailed.imdb.rating,
-      voteCount: detailed.imdb.ratingCount ?? undefined,
-      sourceUrl: detailed.imdb.sourceUrl,
-    };
-  } else if (existingRatings.imdb?.score) {
-    // Preserve existing IMDb if Lambda didn't return one
-    enrichedRatings.imdb = existingRatings.imdb;
-    console.log(`[Hydration/Lambda] Preserved existing IMDb rating: ${existingRatings.imdb.score}`);
-  }
-
-  // RT Critic from Ratings Lambda - or preserve existing
-  if (detailed?.rottenTomatoes?.critic?.score != null) {
-    enrichedRatings.rtCritic = {
-      score: detailed.rottenTomatoes.critic.score,
-      voteCount: detailed.rottenTomatoes.critic.ratingCount ?? undefined,
-      certified: detailed.rottenTomatoes.critic.certified ?? undefined,
-      consensus: detailed.rottenTomatoes.critic.consensus ?? undefined,
-      sentiment: detailed.rottenTomatoes.critic.sentiment ?? undefined,
-      sourceUrl: detailed.rottenTomatoes.sourceUrl,
-    };
-  } else if (existingRatings.rtCritic?.score) {
-    enrichedRatings.rtCritic = existingRatings.rtCritic;
-    console.log(
-      `[Hydration/Lambda] Preserved existing RT Critic rating: ${existingRatings.rtCritic.score}`
-    );
-  }
-
-  // RT Audience from Ratings Lambda - or preserve existing
-  if (detailed?.rottenTomatoes?.audience?.score != null) {
-    enrichedRatings.rtAudience = {
-      score: detailed.rottenTomatoes.audience.score,
-      voteCount: detailed.rottenTomatoes.audience.ratingCount ?? undefined,
-      certified: detailed.rottenTomatoes.audience.certified ?? undefined,
-      sentiment: detailed.rottenTomatoes.audience.sentiment ?? undefined,
-    };
-  } else if (existingRatings.rtAudience?.score) {
-    enrichedRatings.rtAudience = existingRatings.rtAudience;
-    console.log(
-      `[Hydration/Lambda] Preserved existing RT Audience rating: ${existingRatings.rtAudience.score}`
-    );
-  }
-
-  // Process Google Lambda basic ratings for additional sources
-  // These sources (Google, Letterboxd, Metacritic) only come from Google Lambda
-  const basicRatings = google?.ratings || ratings?.ratings || [];
-
-  for (const r of basicRatings) {
-    const score = parseFloat(r.rating.replace("%", ""));
-    if (isNaN(score)) continue;
-
-    const nameLower = r.name.toLowerCase();
-
-    // IMDb fallback (only if not already set from detailed)
-    if (nameLower.includes("imdb") && !enrichedRatings.imdb) {
-      enrichedRatings.imdb = { score, sourceUrl: r.link };
-    }
-    // RT fallback (only if not already set from detailed)
-    else if (nameLower.includes("rotten") && !enrichedRatings.rtCritic) {
-      enrichedRatings.rtCritic = { score, sourceUrl: r.link };
-    }
-    // Google rating - CRITICAL: this only comes from Google Lambda
-    else if (nameLower === "google" && !enrichedRatings.google) {
-      enrichedRatings.google = { score };
-    }
-    // Letterboxd - only from Google Lambda
-    else if (nameLower.includes("letterboxd") && !enrichedRatings.letterboxd) {
-      enrichedRatings.letterboxd = { score };
-    }
-    // Metacritic - only from Google Lambda
-    else if (nameLower.includes("metacritic") && !enrichedRatings.metacritic) {
-      enrichedRatings.metacritic = { score };
-    }
-  }
-
-  // CRITICAL: Preserve existing ratings that Lambda didn't return
-  // This is the key fix - Google ratings get lost on force refresh without this
-  if (!enrichedRatings.google && existingRatings.google?.score) {
-    enrichedRatings.google = existingRatings.google;
-    console.log(
-      `[Hydration/Lambda] Preserved existing Google rating: ${existingRatings.google.score}`
-    );
-  }
-  if (!enrichedRatings.letterboxd && existingRatings.letterboxd?.score) {
-    enrichedRatings.letterboxd = existingRatings.letterboxd;
-    console.log(
-      `[Hydration/Lambda] Preserved existing Letterboxd rating: ${existingRatings.letterboxd.score}`
-    );
-  }
-  if (!enrichedRatings.metacritic && existingRatings.metacritic?.score) {
-    enrichedRatings.metacritic = existingRatings.metacritic;
-    console.log(
-      `[Hydration/Lambda] Preserved existing Metacritic rating: ${existingRatings.metacritic.score}`
-    );
-  }
-
-  // Merge external IDs: new > existing
-  const mergedExternalIds: EnrichedData["externalIds"] = {
-    // RT ID: prefer Wikidata, then Google scrape, then existing
-    rottentomatoes:
-      externalIds.rottentomatoes_id ??
-      rtIdFromGoogle ??
-      existingEnriched?.externalIds?.rottentomatoes,
-    metacritic: externalIds.metacritic_id ?? existingEnriched?.externalIds?.metacritic,
-    letterboxd: externalIds.letterboxd_id ?? existingEnriched?.externalIds?.letterboxd,
-    netflix: externalIds.netflix_id ?? existingEnriched?.externalIds?.netflix,
-    apple: externalIds.apple_id ?? existingEnriched?.externalIds?.apple,
-    amazon: externalIds.prime_id ?? existingEnriched?.externalIds?.amazon,
-    hotstar: externalIds.hotstar_id ?? existingEnriched?.externalIds?.hotstar,
-  };
-
-  const finalRatings = Object.keys(enrichedRatings).length > 0 ? enrichedRatings : null;
-
-  // Log final merged result
-  console.log(`[Hydration/Lambda] Final merged ratings:`);
-  if (finalRatings) {
-    if (finalRatings.imdb?.score) console.log(`  → IMDb: ${finalRatings.imdb.score}`);
-    if (finalRatings.rtCritic?.score) console.log(`  → RT Critic: ${finalRatings.rtCritic.score}%`);
-    if (finalRatings.rtAudience?.score)
-      console.log(`  → RT Audience: ${finalRatings.rtAudience.score}%`);
-    if (finalRatings.google?.score) console.log(`  → Google: ${finalRatings.google.score}%`);
-    if (finalRatings.letterboxd?.score)
-      console.log(`  → Letterboxd: ${finalRatings.letterboxd.score}`);
-    if (finalRatings.metacritic?.score)
-      console.log(`  → Metacritic: ${finalRatings.metacritic.score}`);
-  } else {
-    console.log(`  (no ratings)`);
-  }
-  console.log(`[Hydration/Lambda] Final watch links: ${scrapedWatchLinks.length} providers`);
-  for (const w of scrapedWatchLinks) {
-    console.log(`  → ${w.provider}: ${w.link}`);
-  }
-
-  return {
-    ratings: finalRatings,
-    scrapedWatchLinks,
-    externalIds: mergedExternalIds,
-    source: "lambda",
-    scrapedAt: new Date(),
-  };
-}
-
-/**
- * Create empty enriched data structure
- */
-function emptyEnriched(): EnrichedData {
-  return {
-    ratings: null,
-    scrapedWatchLinks: [],
-    externalIds: {},
-    source: "lambda",
-    scrapedAt: null,
-  };
+function emptyEnriched(scrapedAt: Date | null): EnrichedData {
+  return { ratings: null, scrapedWatchLinks: [], externalIds: {}, source: "lambda", scrapedAt };
 }

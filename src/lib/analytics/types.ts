@@ -324,7 +324,7 @@ export interface APICallEvent {
   /** Request ID */
   request_id: string;
   /** Service name (tmdb, youtube, mongodb, lambda, embedding) */
-  service: "tmdb" | "youtube" | "mongodb" | "lambda" | "embedding";
+  service: "tmdb" | "youtube" | "mongodb" | "lambda" | "embedding" | "scraper";
   /** API endpoint */
   endpoint: string;
   /** HTTP method */

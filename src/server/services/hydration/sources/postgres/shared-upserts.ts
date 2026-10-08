@@ -135,6 +135,7 @@ export async function upsertExternalIds(
     ["twitter", "twitter"],
   ];
 
+  const enrichedSourceNames = new Set(enrichedIdEntries.map(([, source]) => source));
   for (const [key, source] of enrichedIdEntries) {
     const value = enrichedIds[key];
     if (value) {
@@ -155,12 +156,21 @@ export async function upsertExternalIds(
     select: { id: true, source: true, externalId: true },
   });
 
-  const diff = diffChildRows(
+  const rawDiff = diffChildRows(
     existing,
     deduped,
     (r) => r.source,
     (a, b) => a.externalId === b.externalId
   );
+  // Scraper-resolved ids (RT/Metacritic/Letterboxd/Netflix/…) are MERGE-ONLY:
+  // a refresh where the scraper failed or skipped returns none of them, and a
+  // full reconcile used to DELETE every stored slug on exactly those refreshes.
+  // Only ids TMDB itself owns are reconciled with deletes.
+  const tmdbOwned = new Set(Object.values(tmdbIdMapping));
+  const diff = {
+    ...rawDiff,
+    toDelete: rawDiff.toDelete.filter((r) => tmdbOwned.has(r.source) && !enrichedSourceNames.has(r.source)),
+  };
   if (!hasChanges(diff)) return;
   logChildReconcile("external_ids", mediaType, mediaId, diff);
 

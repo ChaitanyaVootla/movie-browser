@@ -342,10 +342,26 @@ export interface DailyLambdaUsage {
   estimatedCost: number;
 }
 
+export interface ScraperSourceRow {
+  source: string;
+  total: number;
+  ok: number;
+  empty: number;
+  notFound: number;
+  noId: number;
+  blocked: number;
+  parseError: number;
+  timeout: number;
+  otherError: number;
+  avgMs: number;
+}
+
 export interface LambdaData {
   overview: LambdaMetrics;
   byFunction: LambdaFunction[];
   daily: DailyLambdaUsage[];
+  /** Per-source scraper outcomes (service='scraper'); absent on older API responses. */
+  scraper?: { sources: ScraperSourceRow[]; gate: Array<{ reason: string; count: number }> };
 }
 
 // =============================================================================

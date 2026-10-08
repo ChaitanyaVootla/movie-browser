@@ -15,7 +15,88 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ChartTooltip, DonutChart, useChartColors } from "../analytics-charts";
 import { EmptyState, formatChartDate } from "../analytics-shared";
-import type { LambdaMetrics, LambdaData, TimeRange } from "../analytics-types";
+import type { LambdaMetrics, LambdaData, ScraperSourceRow, TimeRange } from "../analytics-types";
+
+// =============================================================================
+// Scraper sources table
+// =============================================================================
+
+const pct = (n: number, d: number) => (d > 0 ? `${Math.round((n / d) * 100)}%` : "–");
+
+/**
+ * "Found" = ok + empty (the title exists at the source). "Broken" = blocked +
+ * parse_error — the only columns that mean a scraper needs fixing; not_found /
+ * no_id are normal for long-tail titles.
+ */
+function ScraperSourcesTable({
+  rows,
+  gate,
+}: {
+  rows: ScraperSourceRow[];
+  gate: Array<{ reason: string; count: number }>;
+}) {
+  return (
+    <div className="space-y-2 text-xs">
+      <div className="overflow-x-auto">
+        <table className="w-full tabular-nums">
+          <thead className="text-muted-foreground">
+            <tr className="text-left">
+              <th className="py-1 pr-3 font-medium">Source</th>
+              <th className="py-1 pr-3 font-medium text-right">Calls</th>
+              <th className="py-1 pr-3 font-medium text-right">Value</th>
+              <th className="py-1 pr-3 font-medium text-right">Found</th>
+              <th className="py-1 pr-3 font-medium text-right">Not found</th>
+              <th className="py-1 pr-3 font-medium text-right">Broken</th>
+              <th className="py-1 pr-3 font-medium text-right">Timeout/err</th>
+              <th className="py-1 font-medium text-right">Avg</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const broken = r.blocked + r.parseError;
+              const brokenRate = r.total > 0 ? broken / r.total : 0;
+              return (
+                <tr key={r.source} className="border-t">
+                  <td className="py-1 pr-3">
+                    <code className="bg-muted px-1 py-0.5 rounded">{r.source}</code>
+                  </td>
+                  <td className="py-1 pr-3 text-right">{r.total.toLocaleString()}</td>
+                  <td className="py-1 pr-3 text-right">{pct(r.ok, r.total)}</td>
+                  <td className="py-1 pr-3 text-right">{pct(r.ok + r.empty, r.total)}</td>
+                  <td className="py-1 pr-3 text-right text-muted-foreground">
+                    {pct(r.notFound + r.noId, r.total)}
+                  </td>
+                  <td className="py-1 pr-3 text-right">
+                    {broken > 0 ? (
+                      <Badge
+                        variant={brokenRate >= 0.05 ? "destructive" : "secondary"}
+                        className="text-[9px] h-4"
+                      >
+                        {broken.toLocaleString()} ({r.blocked} blocked · {r.parseError} parse)
+                      </Badge>
+                    ) : (
+                      "0"
+                    )}
+                  </td>
+                  <td className="py-1 pr-3 text-right text-muted-foreground">
+                    {(r.timeout + r.otherError).toLocaleString()}
+                  </td>
+                  <td className="py-1 text-right text-muted-foreground">{r.avgMs.toFixed(0)}ms</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {gate.length > 0 && (
+        <p className="text-muted-foreground">
+          Not scraped (cost gate):{" "}
+          {gate.map((g) => `${g.count.toLocaleString()} ${g.reason.replace("_", " ")}`).join(" · ")}
+        </p>
+      )}
+    </div>
+  );
+}
 
 // =============================================================================
 // Fetch Function
@@ -141,6 +222,22 @@ export function LambdaTab({ range, overview, isLoading: overviewLoading }: Lambd
             </div>
           ) : (
             <EmptyState message="No Lambda function data" height={96} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Scraper source health */}
+      <Card className="md:col-span-2">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Scraper sources</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : data?.scraper?.sources.length ? (
+            <ScraperSourcesTable rows={data.scraper.sources} gate={data.scraper.gate} />
+          ) : (
+            <EmptyState message="No scraper data for this period" height={96} />
           )}
         </CardContent>
       </Card>

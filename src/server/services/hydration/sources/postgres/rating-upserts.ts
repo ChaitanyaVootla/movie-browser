@@ -258,9 +258,13 @@ export async function upsertRatings(
           ...baseData,
           sourceId,
           score: enrichedRatings.letterboxd.score,
+          voteCount: enrichedRatings.letterboxd.voteCount ?? null,
+          sourceUrl: enrichedRatings.letterboxd.sourceUrl ?? null,
         },
         update: {
           score: enrichedRatings.letterboxd.score,
+          voteCount: enrichedRatings.letterboxd.voteCount ?? null,
+          sourceUrl: enrichedRatings.letterboxd.sourceUrl ?? null,
           updatedAt: new Date(),
         },
       });
@@ -296,90 +300,85 @@ export async function upsertRatings(
 // =============================================================================
 
 /**
- * Upsert scraped watch links - UPDATE existing or CREATE new, but NEVER delete existing
+ * Upsert scraped deep links, per country.
  *
- * This ensures that if Lambda fails to return watch links, the existing ones are preserved.
+ * - A link with no `country` is treated as India (the pre-JustWatch Google
+ *   scrape was India-only).
+ * - `replaceCountries`: countries whose link set the scraper answered for
+ *   AUTHORITATIVELY (JustWatch returned a result, even an empty one). For
+ *   those, rows not in the new set are deleted — a title that left Netflix
+ *   must stop showing a Netflix deep link. Countries NOT listed are never
+ *   touched, so a failed/blocked scrape preserves whatever we had.
  */
 export async function upsertScrapedWatchLinks(
   tx: PrismaTx,
   mediaId: number,
   mediaType: MediaType,
-  links: ScrapedWatchLink[]
+  links: ScrapedWatchLink[],
+  replaceCountries: string[] = []
 ): Promise<void> {
-  // DO NOT delete existing links - preserve them if Lambda doesn't return new ones
-  // Only upsert the links we have
-
-  if (links.length === 0) {
-    console.log(`[Hydration/Postgres] No watch links to upsert for ${mediaType} ${mediaId}`);
-    return;
-  }
-
-  console.log(
-    `[Hydration/Postgres] Upserting ${links.length} watch links for ${mediaType} ${mediaId}:`
-  );
-
+  const mediaWhereClause = mediaType === "movie" ? { movieId: mediaId } : { seriesId: mediaId };
   const baseData = {
     movieId: mediaType === "movie" ? mediaId : null,
     seriesId: mediaType === "series" ? mediaId : null,
   };
-
-  const countryCode = "IN"; // Scraped links are currently India-only
+  const withCountry = links.map((l) => ({ ...l, country: l.country ?? "IN" }));
+  const countries = [...new Set([...withCountry.map((l) => l.country), ...replaceCountries])];
+  if (countries.length === 0) return;
 
   // Change-detection: skip per-link upserts whose stored values already match
   // (the upsert's `updatedAt` write otherwise churns a dead row per link).
   const existingLinks = await tx.scrapedWatchLink.findMany({
-    where: {
-      ...(mediaType === "movie" ? { movieId: mediaId } : { seriesId: mediaId }),
-      countryCode,
-    },
-    select: { providerName: true, link: true, price: true },
+    where: { ...mediaWhereClause, countryCode: { in: countries } },
+    select: { id: true, providerName: true, link: true, price: true, countryCode: true },
   });
-  const existingByProvider = new Map(existingLinks.map((l) => [l.providerName, l]));
+  const keyOf = (country: string, provider: string) => `${country}|${provider}`;
+  const existingByKey = new Map(existingLinks.map((l) => [keyOf(l.countryCode, l.providerName), l]));
+  const incomingKeys = new Set(withCountry.map((l) => keyOf(l.country, l.provider)));
 
-  for (const link of links) {
-    const ex = existingByProvider.get(link.provider);
-    if (ex && ex.link === link.link && (ex.price ?? null) === (link.price || null)) {
-      continue;
-    }
-    console.log(`  → ${link.provider}: ${link.link} (${link.price || "Free"})`);
-
-    try {
-      await tx.scrapedWatchLink.upsert({
-        where:
-          mediaType === "movie"
-            ? {
-                movieId_providerName_countryCode: {
-                  movieId: mediaId,
-                  providerName: link.provider,
-                  countryCode,
-                },
-              }
-            : {
-                seriesId_providerName_countryCode: {
-                  seriesId: mediaId,
-                  providerName: link.provider,
-                  countryCode,
-                },
-              },
-        create: {
-          ...baseData,
-          providerName: link.provider,
-          link: link.link,
-          price: link.price || null,
-          countryCode,
-        },
-        update: {
-          link: link.link,
-          price: link.price || null,
-          updatedAt: new Date(),
-        },
-      });
-    } catch (error) {
-      // Log but don't fail - some links might have issues
-      console.warn(`[Hydration/Postgres] Failed to upsert watch link ${link.provider}:`, error);
-    }
+  const replace = new Set(replaceCountries);
+  const stale = existingLinks.filter(
+    (l) => replace.has(l.countryCode) && !incomingKeys.has(keyOf(l.countryCode, l.providerName))
+  );
+  if (stale.length > 0) {
+    await tx.scrapedWatchLink.deleteMany({ where: { id: { in: stale.map((l) => l.id) } } });
   }
 
-  console.log(`[Hydration/Postgres] Watch links upsert complete for ${mediaType} ${mediaId}`);
+  let written = 0;
+  for (const link of withCountry) {
+    const ex = existingByKey.get(keyOf(link.country, link.provider));
+    if (ex && ex.link === link.link && (ex.price ?? null) === (link.price || null)) continue;
+    written++;
+    await tx.scrapedWatchLink.upsert({
+      where:
+        mediaType === "movie"
+          ? {
+              movieId_providerName_countryCode: {
+                movieId: mediaId,
+                providerName: link.provider,
+                countryCode: link.country,
+              },
+            }
+          : {
+              seriesId_providerName_countryCode: {
+                seriesId: mediaId,
+                providerName: link.provider,
+                countryCode: link.country,
+              },
+            },
+      create: {
+        ...baseData,
+        providerName: link.provider,
+        link: link.link,
+        price: link.price || null,
+        countryCode: link.country,
+      },
+      update: { link: link.link, price: link.price || null, updatedAt: new Date() },
+    });
+  }
+  if (written > 0 || stale.length > 0) {
+    console.log(
+      `[Hydration/Postgres] Watch links ${mediaType} ${mediaId}: ${written} written, ${stale.length} stale removed (${countries.join(",")})`
+    );
+  }
 }
-

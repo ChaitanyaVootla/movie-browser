@@ -151,7 +151,13 @@ export async function upsertSeriesToPostgres(
         await upsertImages(tx, tmdb.id, "series", tmdb.images);
 
         // 6. Upsert scraped watch links
-        await upsertScrapedWatchLinks(tx, tmdb.id, "series", enriched.scrapedWatchLinks);
+        await upsertScrapedWatchLinks(
+          tx,
+          tmdb.id,
+          "series",
+          enriched.scrapedWatchLinks,
+          enriched.watchLinkCountries
+        );
 
         // 7. Upsert seasons
         await upsertSeasons(tx, tmdb.id, tmdb.seasons || []);

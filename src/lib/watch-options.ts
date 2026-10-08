@@ -246,107 +246,100 @@ export function processScrapedWatchLinksFromPostgres(
   });
 }
 
+/** Provider-name key for matching scraped links to TMDB providers ("Disney Plus" ≈ "Disney+"). */
+export function providerKey(name: string): string {
+  return name.toLowerCase().replace(/\+/g, "plus").replace(/[^a-z0-9]/g, "");
+}
+
+type LinkLike = { name: string; link: string; price?: string };
+
+/**
+ * Overlay scraped deep links onto TMDB's provider list for one country.
+ *
+ * TMDB's list is complete and carries logos, but every entry links to the
+ * JustWatch landing page. The scraper (JustWatch GraphQL — the same data TMDB
+ * shows, so names match) has the per-title deep link. Matching is by provider
+ * name: exact key first, then prefix ("Apple TV" ↔ "Apple TV Store"). Scraped
+ * links with no TMDB counterpart are appended only if we have an icon for them.
+ */
+export function mergeDeepLinks(tmdbOptions: WatchOption[], links: LinkLike[]): WatchOption[] {
+  const remaining = links.filter((l) => l.link);
+  const merged = tmdbOptions.map((opt) => {
+    const key = providerKey(opt.name);
+    let idx = remaining.findIndex((l) => providerKey(l.name) === key);
+    if (idx < 0) {
+      idx = remaining.findIndex((l) => {
+        const k = providerKey(l.name);
+        return k.length > 3 && key.length > 3 && (k.startsWith(key) || key.startsWith(k));
+      });
+    }
+    if (idx < 0) return opt;
+    const [hit] = remaining.splice(idx, 1);
+    const morph = mapWatchProvider(hit.name, hit.link);
+    return {
+      ...opt,
+      link: morph?.link ?? hit.link,
+      price: hit.price?.replace("Premium", "") || opt.price,
+      isJustWatch: false,
+    };
+  });
+  const extras = processScrapedWatchLinksFromPostgres({ XX: remaining }, "XX").filter(
+    (e) => !merged.some((m) => m.link === e.link)
+  );
+  // deep-linked entries first; stable otherwise (TMDB order = flatrate first)
+  return [...merged.filter((m) => !m.isJustWatch), ...extras, ...merged.filter((m) => m.isJustWatch)];
+}
+
 /**
  * Get watch options for a specific country with fallback logic
  *
  * @param countryCode - User's country code (e.g., "IN", "US")
- * @param googleData - Scraped watch data from MongoDB (only valid for India)
+ * @param googleData - Legacy-shaped enrichment doc from `cached-queries`. Its
+ *   `watchLinksByCountry` (all countries) is used when `scrapedWatchLinks` is
+ *   not passed; `allWatchOptions` is the India-only legacy field.
  * @param watchProviders - TMDB watch providers by country
  * @param scrapedWatchLinks - Scraped deep links from PostgreSQL (country-keyed)
  */
 export function getWatchOptionsForCountry(
   countryCode: string,
   googleData:
-    | { allWatchOptions?: Array<{ name: string; link: string; price?: string }> }
+    | {
+        allWatchOptions?: Array<{ name: string; link: string; price?: string }>;
+        watchLinksByCountry?: ScrapedWatchLinksMap;
+      }
     | undefined,
   watchProviders: Record<string, WatchProviderData> | undefined,
   scrapedWatchLinks?: ScrapedWatchLinksMap
 ): ProcessedWatchOptions {
   const normalizedCode = countryCode?.toUpperCase() || "IN";
+  const scraped = scrapedWatchLinks ?? googleData?.watchLinksByCountry;
 
-  // Priority 1: PostgreSQL scraped deep links (any country, but typically India)
-  if (scrapedWatchLinks?.[normalizedCode]) {
-    const scraped = processScrapedWatchLinksFromPostgres(scrapedWatchLinks, normalizedCode);
-    if (scraped.length > 0) {
-      return {
-        options: scraped,
-        sourceCountry: normalizedCode,
-        isFromFallback: false,
-      };
+  const optionsFor = (code: string): WatchOption[] => {
+    const links =
+      scraped?.[code] ?? (code === "IN" ? googleData?.allWatchOptions : undefined) ?? [];
+    const tmdb = watchProviders?.[code] ? normalizeTMDBWatchProviders(watchProviders[code], code) : [];
+    if (links.length > 0 && tmdb.length > 0) return mergeDeepLinks(tmdb, links);
+    if (links.length > 0) {
+      const only = processScrapedWatchLinksFromPostgres({ [code]: links }, code);
+      if (only.length > 0) return only;
     }
+    return tmdb;
+  };
+
+  const primary = optionsFor(normalizedCode);
+  if (primary.length > 0) {
+    return { options: primary, sourceCountry: normalizedCode, isFromFallback: false };
   }
 
-  // Priority 2: MongoDB scraped data (India only, legacy)
-  if (normalizedCode === "IN") {
-    const scraped = processScrapedWatchOptions(googleData);
-    if (scraped.length > 0) {
-      return {
-        options: scraped,
-        sourceCountry: "IN",
-        isFromFallback: false,
-      };
-    }
-  }
-
-  // Priority 3: TMDB providers for the requested country
-  if (watchProviders?.[normalizedCode]) {
-    const options = normalizeTMDBWatchProviders(watchProviders[normalizedCode], normalizedCode);
-    if (options.length > 0) {
-      return {
-        options,
-        sourceCountry: normalizedCode,
-        isFromFallback: false,
-      };
-    }
-  }
-
-  // Fallback to major countries
   for (const fallbackCode of FALLBACK_COUNTRIES) {
     if (fallbackCode === normalizedCode) continue;
-
-    // Try PostgreSQL scraped links for fallback country
-    if (scrapedWatchLinks?.[fallbackCode]) {
-      const scraped = processScrapedWatchLinksFromPostgres(scrapedWatchLinks, fallbackCode);
-      if (scraped.length > 0) {
-        return {
-          options: scraped,
-          sourceCountry: fallbackCode,
-          isFromFallback: true,
-        };
-      }
-    }
-
-    // For India fallback, try MongoDB scraped data
-    if (fallbackCode === "IN") {
-      const scraped = processScrapedWatchOptions(googleData);
-      if (scraped.length > 0) {
-        return {
-          options: scraped,
-          sourceCountry: "IN",
-          isFromFallback: true,
-        };
-      }
-    }
-
-    // Try TMDB providers
-    if (watchProviders?.[fallbackCode]) {
-      const options = normalizeTMDBWatchProviders(watchProviders[fallbackCode], fallbackCode);
-      if (options.length > 0) {
-        return {
-          options,
-          sourceCountry: fallbackCode,
-          isFromFallback: true,
-        };
-      }
+    const options = optionsFor(fallbackCode);
+    if (options.length > 0) {
+      return { options, sourceCountry: fallbackCode, isFromFallback: true };
     }
   }
 
-  // No options found
-  return {
-    options: [],
-    sourceCountry: normalizedCode,
-    isFromFallback: false,
-  };
+  return { options: [], sourceCountry: normalizedCode, isFromFallback: false };
 }
 
 // Common countries to include in API response for client-side country switching

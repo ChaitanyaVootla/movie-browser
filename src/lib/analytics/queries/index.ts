@@ -101,8 +101,10 @@ export {
   getLambdaUsageOverview,
   getLambdaByFunction,
   getDailyLambdaUsage,
+  getScraperSourceHealth,
   estimateLambdaCost,
 } from "./lambda";
+export type { ScraperSourceHealth, ScraperGateSkip } from "./lambda";
 
 // Item-specific queries
 export {

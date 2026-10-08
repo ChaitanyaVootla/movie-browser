@@ -61,19 +61,17 @@ export async function GET(
 
     const tmdbWatchProviders = watchProvidersResponse?.results;
 
-    // Get scraped deep links for India (if requesting India)
+    // Scraped deep links for the requested country (any country since Oct 2026)
     let scrapedWatchLinksMap = undefined;
-    if (country === "IN") {
-      const scrapedLinks = await getScrapedWatchLinksFromPostgres(id, mediaType);
-      if (scrapedLinks && scrapedLinks.length > 0) {
-        scrapedWatchLinksMap = {
-          IN: scrapedLinks.map((l) => ({
-            name: l.provider,
-            link: l.link,
-            price: l.price ?? undefined,
-          })),
-        };
-      }
+    const scrapedLinks = await getScrapedWatchLinksFromPostgres(id, mediaType, country);
+    if (scrapedLinks.length > 0) {
+      scrapedWatchLinksMap = {
+        [country]: scrapedLinks.map((l) => ({
+          name: l.provider,
+          link: l.link,
+          price: l.price ?? undefined,
+        })),
+      };
     }
 
     // Process watch options for the requested country

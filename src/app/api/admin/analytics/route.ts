@@ -72,6 +72,7 @@ import {
   getLambdaUsageOverview,
   getLambdaByFunction,
   getDailyLambdaUsage,
+  getScraperSourceHealth,
   // Embedding
   getEmbeddingUsageOverview,
   // Costs
@@ -320,16 +321,18 @@ export async function GET(request: NextRequest) {
       // Lambda Dashboard
       // =======================================================================
       case "lambda": {
-        const [overview, byFunction, daily] = await Promise.all([
+        const [overview, byFunction, daily, scraper] = await Promise.all([
           getLambdaUsageOverview(range),
           getLambdaByFunction(range),
           getDailyLambdaUsage(range),
+          getScraperSourceHealth(range),
         ]);
 
         return NextResponse.json({
           overview,
           byFunction,
           daily,
+          scraper,
         });
       }
 

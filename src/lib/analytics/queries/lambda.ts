@@ -20,12 +20,13 @@ import {
 /**
  * Lambda pricing estimates (in USD per invocation + duration)
  * Based on AWS Lambda pricing for ap-south-2 region
- * Assumes 512MB memory allocation
+ * Assumes 256MB (the browserless v2 scraper, Oct 2026; the Chromium-era
+ * functions were 1GB, so pre-Oct-8 estimates read ~4x low).
  */
 const LAMBDA_PRICING = {
   perRequest: 0.0000002, // $0.20 per 1M requests
-  perGbSecond: 0.0000166667, // $0.0000166667 per GB-second
-  memoryGb: 0.5, // 512MB = 0.5 GB
+  perGbSecond: 0.0000133334, // arm64 rate (x86 is $0.0000166667)
+  memoryGb: 0.25,
 };
 
 /**
@@ -161,4 +162,84 @@ export async function getDailyLambdaUsage(range: TimeRange): Promise<DailyLambda
       parseFloat(row.total_duration)
     ),
   }));
+}
+
+// =============================================================================
+// Scraper source health (service='scraper', one row per source per scrape)
+// =============================================================================
+
+export interface ScraperSourceHealth {
+  source: string;
+  total: number;
+  ok: number;
+  empty: number;
+  notFound: number;
+  noId: number;
+  blocked: number;
+  parseError: number;
+  timeout: number;
+  otherError: number;
+  avgMs: number;
+}
+
+export interface ScraperGateSkip {
+  reason: string;
+  count: number;
+}
+
+/**
+ * Per-source outcome mix. `blocked` + `parseError` are the "a human must look"
+ * columns (bot wall / selector rot) — the same two the CloudWatch
+ * `scraper-sources-broken` alarm keys on. `notFound`/`noId` are normal for
+ * long-tail titles and are NOT failures.
+ */
+export async function getScraperSourceHealth(range: TimeRange): Promise<{
+  sources: ScraperSourceHealth[];
+  gate: ScraperGateSkip[];
+}> {
+  const timeCondition = getTimeRangeCondition(range);
+  const [rows, gate] = await Promise.all([
+    query<Record<string, string>>(`
+      SELECT
+        splitByChar(':', endpoint)[1] AS source,
+        count() AS total,
+        countIf(error_type IS NULL) AS ok,
+        countIf(error_type = 'empty') AS empty,
+        countIf(error_type = 'not_found') AS not_found,
+        countIf(error_type = 'no_id') AS no_id,
+        countIf(error_type = 'blocked') AS blocked,
+        countIf(error_type = 'parse_error') AS parse_error,
+        countIf(error_type = 'timeout') AS timeout,
+        countIf(error_type IN ('http_error', 'error')) AS other_error,
+        avg(duration_ms) AS avg_ms
+      FROM api_calls
+      WHERE service = 'scraper' AND method = 'SCRAPE' AND ${timeCondition}
+      GROUP BY source
+      ORDER BY source
+    `),
+    query<{ reason: string; count: string }>(`
+      SELECT error_type AS reason, count() AS count
+      FROM api_calls
+      WHERE service = 'scraper' AND method = 'SKIP' AND ${timeCondition}
+      GROUP BY reason
+      ORDER BY count DESC
+    `),
+  ]);
+  const n = (v: string | undefined) => parseInt(v || "0", 10);
+  return {
+    sources: rows.map((r) => ({
+      source: r.source ?? "",
+      total: n(r.total),
+      ok: n(r.ok),
+      empty: n(r.empty),
+      notFound: n(r.not_found),
+      noId: n(r.no_id),
+      blocked: n(r.blocked),
+      parseError: n(r.parse_error),
+      timeout: n(r.timeout),
+      otherError: n(r.other_error),
+      avgMs: parseFloat(r.avg_ms || "0"),
+    })),
+    gate: gate.map((g) => ({ reason: (g.reason ?? "").replace(/^skipped_/, ""), count: n(g.count) })),
+  };
 }

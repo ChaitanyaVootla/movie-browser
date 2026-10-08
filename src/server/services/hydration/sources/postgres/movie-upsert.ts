@@ -124,7 +124,13 @@ export async function upsertMovieToPostgres(
         await upsertImages(tx, tmdb.id, "movie", tmdb.images);
 
         // 6. Upsert scraped watch links
-        await upsertScrapedWatchLinks(tx, tmdb.id, "movie", enriched.scrapedWatchLinks);
+        await upsertScrapedWatchLinks(
+          tx,
+          tmdb.id,
+          "movie",
+          enriched.scrapedWatchLinks,
+          enriched.watchLinkCountries
+        );
 
         // 7. Upsert certifications (from release_dates)
         if (tmdb.release_dates?.results) {

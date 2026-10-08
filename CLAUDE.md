@@ -66,7 +66,7 @@ ENABLE_TEST_AUTH=true <above> yarn dev   # then GET/POST /api/test-auth/login fo
 - `lambda:InvokeFunction` — `movie-ratings-scraper-beta` + `puppeteer-node14`
 - S3 backup access, CloudWatch logs
 
-**Lambda**: Beta uses `movie-ratings-scraper-beta` (configurable via `LAMBDA_FUNCTION_NAME` env var, defaults to `movie-ratings-scraper`).
+**Lambda**: Beta uses `movie-ratings-scraper-beta` (configurable via `LAMBDA_FUNCTION_NAME` env var, defaults to `movie-ratings-scraper`). **v2 since 2026-10-08**: browserless (no Chromium, arm64/256MB), returns RT/Metacritic/Letterboxd + JustWatch deep links (IN/US/GB/CA/AU) with a per-source status; IMDb comes from IMDb's daily dataset (`imdb-ratings-sync`), NOT scraping. `puppeteer-node14` (Google panel) is no longer called. See `.claude/rules/enrichment-scraper.md`.
 
 **AWS credentials**: On EC2, omit `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` — the instance profile provides Bedrock access. Set them only for local dev. Use project IAM user `moviebrowser` (account `620733889764`), never default machine creds.
 
@@ -223,6 +223,7 @@ Path-scoped rules in `.claude/rules/` load automatically when editing matching f
 | `performance.md` | `app/**`, `server/**`, `hydration/**`, `search/**`, `docker-compose.yml`, workflows | Diagnosing/fixing/testing perf: measure-first playbook, ISR, non-blocking hydration, ClickHouse CPU cap, deploy gotchas, cold-start stampede + freeze recovery, heap-OOM crash loop from unbounded render concurrency (Sep 2026) |
 | `cdn.md` | `terraform/cloudfront*`, `Caddyfile`, `public/robots.txt`, `next.config.mjs` | CloudFront in front of the origin: topology, the RSC/Set-Cookie/cookie/image/server-action-skew/geo/Accept-Encoding/stale-if-error footguns, edge bot-shedding (incl. the forged-persona Accept-header sheds), Caddy admission control + /metrics, origin lockdown (unresolved), cost (Cloudflare-vs-CloudFront) |
 | `seo-search-console.md` | `scripts/gsc.sh`, `scripts/generate-sitemap.js`, `public/robots.txt`, sitemap/SEO work | Programmatic Search Console access (service-account key `gcp_service.json`, gitignored + local-only; `scripts/gsc.sh` for sitemaps/inspection/analytics), the Jul-2026 Google-vs-Bing diagnosis (outages + domain NXDOMAIN → crawl back-off), IndexNow coverage map, adult-persons sitemap gotcha, monitoring recipe |
+| `enrichment-scraper.md` | `lambda/**`, `hydration/sources/lambda.ts`, `scripts/sync-imdb-ratings.ts`, `lib/watch-options.ts`, `rating-upserts.ts` | Where IMDb/RT/Metacritic/Letterboxd ratings + JustWatch deep links come from, per-source status + alarms + admin panel, the v1 silent-failure traps (202-as-success, CSS-class rot, stamping failed scrapes fresh, deleting ids), cost gate, Lambda deploy/rollback |
 | `llm-friendly.md` | `src/lib/llm/**`, `src/app/api/md/**`, `public/llms.txt`, `src/proxy.ts` (`.md` branch) | LLM-friendly layer: `.md` page twins + `llms.txt` + `/search.md`; read-only-PG cost-safety, `hybridQuickSearchLexical` (NOT `hybridQuickSearch`) on `/search.md`, proxy shed-bypass, route-handler-not-ISR caching, discovery links |
 
 Cursor IDE also has separate rules in `.cursor/rules/*.mdc` — those are independent from these.
@@ -281,6 +282,7 @@ This is an **AI-agent-first codebase**. Use `/frontend-design` skill for all UI 
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
+| `imdb-ratings-sync` | 20:00 UTC (01:30 IST) | IMDb official `title.ratings.tsv.gz` → `ratings` (imdb) for every catalog title with an IMDb id; writes only meaningful changes |
 | `popularity-sync` | 21:00 UTC (02:30 IST) | TMDB daily exports → update popularity (streaming, diff-only) |
 | `sitemap-generator` | 22:00 UTC (03:30 IST) | Generate sitemaps from PG (quality-gated top 50k movies / 25k series / 25k persons via `SITEMAP_*_LIMIT` envs, honest `lastmod` from `updated_at`, 50k-URL file chunking) |
 | `isr-cache-prune` | 23:00 UTC (04:30 IST) | Keep `.next/server/app/{movie,series,person}` under `ISR_CACHE_BUDGET_MB` (5GB). Jun 10 2026: unbounded ISR cache hit 41GB → disk-full outage loop |
