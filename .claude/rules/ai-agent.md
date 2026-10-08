@@ -52,6 +52,15 @@ Each API call gets a unique `invocationId` (UUID) scoped in a `Map<string, Invoc
 
 **PageContext** (sent from frontend):
 - `path`, `mediaType`, `itemId`, `itemTitle` -- always sent
+- `query` -- WHITELISTED query params of the current URL (Oct 2026), because view
+  state lives in the URL now (`/library?tab=ratings&rating=loved`,
+  `/discussions?tab=following`, `/search?q=&type=`). Per-route allowlist +
+  length caps in `src/lib/ai-page-query.ts` (`pickPageQuery`), applied in
+  `use-chat-stream.ts` at send time (reads `window.location` — the chat is in the
+  root layout, so NO `useSearchParams`) AND re-applied in `/api/ai/chat` (the body
+  is client-controlled). `get_page_context` echoes it and names the library tab in
+  its hint (`describeLibraryView`). Add a route to the allowlist rather than
+  forwarding the raw search string.
 - `genres`, `rating`, `year`, `status` -- sent when on a detail page (from media context store)
 - `get_page_context` tool also fetches user status (watched/watchlisted/rated) for the current item
 

@@ -532,6 +532,7 @@ export async function clearThread(threadId: string): Promise<void> {
  */
 interface PageContextInput {
   path: string;
+  query?: Record<string, string>;
   mediaType?: "movie" | "series" | "person";
   itemId?: number;
   itemTitle?: string;
