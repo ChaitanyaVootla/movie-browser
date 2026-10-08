@@ -51,8 +51,8 @@ a field is missing from its `isSame` comparator in `shared-upserts.ts` /
 matching `isSame` lambda too, or real changes are silently skipped. Float
 fields TMDB jitters (aspectRatio, voteAverage, score) compare via `floatEq3`
 (3-decimal tolerance — popularity-sync precedent). The whole-set comparators in
-`upsert-diff.ts` are legacy (still used by seasons/episodes/certifications/
-junction upserts only). Helper files split out for the 800-line limit:
+`upsert-diff.ts` are legacy (still used by certifications + junction upserts
+only; seasons/episodes and aggregate credits moved to in-place diffs Oct 2026). Helper files split out for the 800-line limit:
 `rating-upserts.ts`, `credit-upserts.ts`, `series-junction-upserts.ts`,
 `diff-reconcile.ts`.
 
@@ -89,6 +89,10 @@ episodes 1,619 del/min vs 52 ins/min, persons 122 upd/min, movie_countries
    (`imageVotesEquivalent`: <0.1 average, ≤max(2,10%) count). CORRECTION after
    measuring the deploy: this only took images 712 → 570 UPDATEs/min — vote
    drift was NOT the main driver; trap 5 was.
+4. **A TMDB 404 is permanent for a refresh.** `hydration/tmdb-gone.ts` caches
+   404'd ids (24h TTL, 10k cap) and the background refresh skips them; before,
+   10,622 refresh failures in `next-error.log` were 404s (series 324537: 877),
+   each holding one of the 3 refresh slots.
 5. **NEVER upsert PG's own read transform back as TMDB core data (the real
    churn engine, fixed Oct 8 2026).** The core-fresh / enriched-stale refresh
    used to hand `getMovieFromPostgres`/`getSeriesFromPostgres` output to the
@@ -110,10 +114,20 @@ episodes 1,619 del/min vs 52 ins/min, persons 122 upd/min, movie_countries
    shows up as a cliff, not a drift.
 6. Title rows are written ONCE per refresh: the enrichment/freshness stamps
    (`RowStamps`) ride on the core upsert instead of a second UPDATE.
-4. **A TMDB 404 is permanent for a refresh.** `hydration/tmdb-gone.ts` caches
-   404'd ids (24h TTL, 10k cap) and the background refresh skips them; before,
-   10,622 refresh failures in `next-error.log` were 404s (series 324537: 877),
-   each holding one of the 3 refresh slots.
+7. **Whole-set rewrite comparators are a churn bomb for anything TMDB
+   re-jitters — reconcile in place.** Seasons+episodes and series aggregate
+   credits were compared as one unit and delete-all+reinserted on ANY
+   difference. TMDB's per-episode votes drift on almost every fetch (field diff
+   of PG vs live TMDB: Stranger Things 42/42, Silo 24/31 episodes differed only
+   in `vote_average`/`vote_count`), and aggregate `total_episode_count`/order
+   move whenever an episode airs, so every real refresh of a watched series
+   rewrote it wholesale (~120 episode and ~150 credit ins+del per minute; 93% of
+   recent credit inserts were whole aggregate sets). Now `season-upserts.ts`
+   (`reconcileSeasons`) and the aggregate-credits block use `diffChildRows`:
+   UPDATE in place, ids survive, episode votes use the image tolerance. Field
+   diff recipe (worked first time): pull the PG rows as JSON via a
+   `BEGIN READ ONLY` psql, fetch the same title from TMDB, project both exactly
+   like the comparator, and count differing fields per column.
 
 Also: the person-page write-back (`services/person-persist.ts`) is
 change-detected (one read, write only changed fields).
