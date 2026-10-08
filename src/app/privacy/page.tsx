@@ -5,6 +5,9 @@ import { SectionHeading } from "@/components/features/layout/section-heading";
 import { OVERLINE } from "@/lib/design";
 import { SITE_URL } from "@/lib/constants";
 
+// Bound edge staleness after deploys (static default is a 1-year s-maxage) — see library/page.tsx.
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:

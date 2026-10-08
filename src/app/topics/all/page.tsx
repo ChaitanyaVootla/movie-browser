@@ -7,6 +7,9 @@ import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { ALL_TOPICS, GENRE_TOPICS, THEME_TOPICS } from "@/lib/topics";
 import { cn } from "@/lib/utils";
 
+// Bound edge staleness after deploys (static default is a 1-year s-maxage) — see library/page.tsx.
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   // Layout template appends "- Movie Browser" — no brand suffix here
   title: "All Topics",

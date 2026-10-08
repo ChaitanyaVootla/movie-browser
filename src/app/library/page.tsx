@@ -4,6 +4,12 @@ import { LibraryClient } from "./client";
 import { PageMain } from "@/components/features/layout/page-main";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Static pages default to s-maxage=31536000, and Cloudflare honours it — a
+// deploy that changes this page would stay invisible at the edge for up to a
+// year (Oct 2026: /library served 38h-old HTML after its redesign). ISR at 1h
+// (+ expireTime 7200 → SWR 1h) bounds edge staleness to ~2h. See cdn.md.
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   // Private user page: robots.txt disallows these, but belt-and-braces —
   // robots.txt is advisory while the meta tag is authoritative for indexing.

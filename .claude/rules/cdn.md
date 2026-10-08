@@ -1051,3 +1051,24 @@ up within the hour, and layer 3 shows the PG value on every page load meanwhile.
 See also: `.claude/rules/performance.md` (cold-start stampede, freeze recovery),
 `.claude/rules/infrastructure.md` (EC2/SG/deploy),
 `.claude/rules/llm-friendly.md` (the `.md`/llms.txt layer these TTLs serve).
+
+## STATIC pages are pinned at the edge for a YEAR unless they set `revalidate` (Oct 8 2026)
+
+A route with no `revalidate`/dynamic API builds as `○` static, and Next sends
+`s-maxage=31536000` for it. `expireTime: 7200` does NOT apply (it only bounds ISR
+pages). The Cloudflare anon cache rule respects origin TTL, so the edge keeps that
+HTML for up to a year, across every deploy. Found when `/library` (rebuilt into a
+4-tab hub) served 38-hour-old HTML at the edge after deploy, while the origin had
+the new page. A route changed to a redirect (`/watched` → 308) kept serving its
+old static page the same way. Old chunk URLs kept working only because Cloudflare
+had cached them too; don't rely on that.
+- Rule: every server page must be either dynamic or ISR. Static marketing/legal
+  pages get `export const revalidate = 3600` (s-maxage 1h + SWR 1h via expireTime).
+  Check the `next build` route table: a `○` row with an EMPTY revalidate column is
+  a year-long edge pin. Client-component page files (`"use client"`) can't export
+  segment config; keep those to internal/offline pages.
+- Next ignores `Cache-Control` from `next.config.mjs` `headers()` for pages, so
+  you can't fix this there.
+- Objects ALREADY pinned need an explicit purge (prefix purge also covers
+  `?_rsc=` variants). After any deploy that changes a static page or turns one
+  into a redirect, purge those paths.
