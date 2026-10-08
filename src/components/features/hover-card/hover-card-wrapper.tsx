@@ -80,28 +80,35 @@ export function HoverCardWrapper({
   }, []);
 
   // Desktop: Mouse hover handlers
-  const handleMouseEnter = useCallback(() => {
-    if (!enabled) return;
+  const handleMouseEnter = useCallback(
+    (e: React.MouseEvent) => {
+      if (!enabled) return;
 
-    // Don't show on mobile/touch devices
-    if (window.innerWidth < 768) return;
+      // A button is held: the pointer is sweeping across mid-drag (row scroll,
+      // text selection), not resting on this card — don't arm the hover card.
+      if (e.buttons !== 0) return;
 
-    clearHoverTimeout();
+      // Don't show on mobile/touch devices
+      if (window.innerWidth < 768) return;
 
-    // Warm the hover data cache after a short hover-intent pause so the card
-    // has data (or an in-flight request) by the time it opens. Cancelled on
-    // mouse-out; results are cached, so an item is fetched at most once.
-    warmTimeoutRef.current = setTimeout(() => {
-      fetchHoverCardData(item.id, isMovie ? "movie" : "series");
-    }, DATA_WARM_DELAY);
+      clearHoverTimeout();
 
-    hoverTimeoutRef.current = setTimeout(() => {
-      if (containerRef.current) {
-        const bounds = containerRef.current.getBoundingClientRect();
-        openHoverCard(item, bounds);
-      }
-    }, delay);
-  }, [enabled, delay, item, isMovie, openHoverCard, clearHoverTimeout]);
+      // Warm the hover data cache after a short hover-intent pause so the card
+      // has data (or an in-flight request) by the time it opens. Cancelled on
+      // mouse-out; results are cached, so an item is fetched at most once.
+      warmTimeoutRef.current = setTimeout(() => {
+        fetchHoverCardData(item.id, isMovie ? "movie" : "series");
+      }, DATA_WARM_DELAY);
+
+      hoverTimeoutRef.current = setTimeout(() => {
+        if (containerRef.current) {
+          const bounds = containerRef.current.getBoundingClientRect();
+          openHoverCard(item, bounds);
+        }
+      }, delay);
+    },
+    [enabled, delay, item, isMovie, openHoverCard, clearHoverTimeout]
+  );
 
   const handleMouseLeave = useCallback(() => {
     clearHoverTimeout();

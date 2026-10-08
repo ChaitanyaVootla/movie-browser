@@ -10,6 +10,7 @@ import { Plus, Check, Eye, EyeOff, Clock, Tv2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHoverCardContext } from "./hover-card-context";
 import { fetchHoverCardData } from "./hover-data-cache";
+import { usePressDragDismiss } from "./use-press-drag-dismiss";
 import type { HoverCardData } from "@/server/actions/hover-card";
 import { getBackdropSources } from "@/lib/image";
 import { cn, getMediaHref, getMediaPath } from "@/lib/utils";
@@ -518,6 +519,9 @@ export function HoverCardOverlay() {
   // keeps the card (and its spinner) open even if the mouse wanders off.
   const [navPending, setNavPending] = useState(false);
 
+  // Pressing on the card to drag the row underneath dismisses it (no navigation).
+  const pressDragHandlers = usePressDragDismiss(closeHoverCard);
+
   // Use useSyncExternalStore for SSR-safe mounted detection
   const mounted = useSyncExternalStore(emptySubscribe, getSnapshot, getServerSnapshot);
 
@@ -628,6 +632,7 @@ export function HoverCardOverlay() {
             "shadow-[0_0_60px_20px_rgba(0,0,0,0.9)]",
             "cursor-pointer"
           )}
+          {...pressDragHandlers}
           onMouseEnter={keepOpen}
           onMouseLeave={() => {
             // Don't dismiss mid-navigation — the pending overlay is the
