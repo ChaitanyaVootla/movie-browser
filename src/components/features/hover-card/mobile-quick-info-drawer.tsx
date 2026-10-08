@@ -407,12 +407,14 @@ function QuickInfoContent({ data, isMovie }: { data: HoverCardData; isMovie: boo
           {/* No instant close on tap: the spinner inside the button is the
               feedback while the page renders; the drawer closes when the
               route changes (pathname effect in QuickInfoProvider). */}
-          <Link href={href} prefetch={false} className="flex-1">
-            <Button className="w-full gap-2" size="lg">
+          {/* asChild: one focusable <a>, not a <button> nested in a link. The
+              spinner stays a descendant of <Link> (useLinkStatus). */}
+          <Button asChild className="flex-1 gap-2" size="lg">
+            <Link href={href} prefetch={false}>
               View Details
               <InlinePendingSpinner />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
 
           {session && (
             <>

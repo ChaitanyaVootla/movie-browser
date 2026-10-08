@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useScrollDrag } from "@/hooks/use-scroll-drag";
 import { SectionHeading } from "@/components/features/layout/section-heading";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { buildBrowseUrl, type DiscoverParams } from "@/lib/discover";
@@ -110,6 +111,9 @@ interface MoodCardsProps {
 
 export function MoodCards({ className }: MoodCardsProps) {
   const { trackAction } = useAnalytics();
+  // Mouse drag-to-scroll (desktop) — touch keeps native scroll; a drag never
+  // opens the link it ends on.
+  const { setScrollRef, isDragging, dragHandlers } = useScrollDrag();
 
   return (
     <div className={cn("w-full", className)}>
@@ -119,7 +123,14 @@ export function MoodCards({ className }: MoodCardsProps) {
       </SectionHeading>
 
       {/* Horizontal scrollable cards */}
-      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide touch-manipulation -mx-4 px-4 md:mx-0 md:px-0">
+      <div
+        ref={setScrollRef}
+        {...dragHandlers}
+        className={cn(
+          "flex gap-3 overflow-x-auto pb-2 scrollbar-hide touch-manipulation -mx-4 px-4 md:mx-0 md:px-0",
+          isDragging && "cursor-grabbing select-none"
+        )}
+      >
         {MOODS.map((mood) => (
           <Link
             key={mood.id}
@@ -151,9 +162,7 @@ export function MoodCards({ className }: MoodCardsProps) {
                 {mood.label}
               </span>
               {mood.sublabel && (
-                <span className="text-xs text-white/70 text-center">
-                  {mood.sublabel}
-                </span>
+                <span className="text-xs text-white/70 text-center">{mood.sublabel}</span>
               )}
             </div>
           </Link>

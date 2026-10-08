@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useScrollDrag } from "@/hooks/use-scroll-drag";
 import { useAnalytics } from "@/hooks/use-analytics";
 import type { PopularTopicItem } from "@/lib/topics";
 
@@ -61,12 +62,22 @@ interface TopicPillsProps {
 
 export function TopicPills({ topics, className }: TopicPillsProps) {
   const { trackAction } = useAnalytics();
+  // Mouse drag-to-scroll (desktop) — touch keeps native scroll; a drag never
+  // opens the link it ends on.
+  const { setScrollRef, isDragging, dragHandlers } = useScrollDrag();
 
   if (topics.length === 0) return null;
 
   return (
     <div className={cn("w-full", className)}>
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide touch-manipulation">
+      <div
+        ref={setScrollRef}
+        {...dragHandlers}
+        className={cn(
+          "flex gap-2 overflow-x-auto pb-2 scrollbar-hide touch-manipulation",
+          isDragging && "cursor-grabbing select-none"
+        )}
+      >
         {topics.map((topic) => (
           <Link
             key={topic.key}
