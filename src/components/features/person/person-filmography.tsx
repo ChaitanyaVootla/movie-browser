@@ -368,17 +368,18 @@ export function PersonFilmography({ person, className }: PersonFilmographyProps)
             </div>
 
             {/* Browse all link */}
-            <Link
-              href={getBrowseUrl(
-                activeTab === "movies" ? "movie" : "tv",
-                filterBy === "crew" ? "crew" : "cast"
-              )}
-            >
-              <Button variant="ghost" size="sm" className="h-9 text-brand">
+            {/* asChild: one focusable <a>, not a <button> nested in a link. */}
+            <Button asChild variant="ghost" size="sm" className="h-9 text-brand">
+              <Link
+                href={getBrowseUrl(
+                  activeTab === "movies" ? "movie" : "tv",
+                  filterBy === "crew" ? "crew" : "cast"
+                )}
+              >
                 Browse All
                 <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
         </div>
 

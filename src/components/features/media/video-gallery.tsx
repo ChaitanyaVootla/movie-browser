@@ -149,7 +149,9 @@ function PlayerFacade({ video, onPlay }: { video: Video; onPlay: () => void }) {
     <button
       type="button"
       onClick={onPlay}
-      className="group absolute inset-0 w-full h-full"
+      // Negative offset: the frame is overflow-hidden, so the default outside
+      // focus ring would be clipped away entirely.
+      className="group absolute inset-0 w-full h-full focus-visible:-outline-offset-4"
       aria-label={`Play ${video.name}`}
     >
       <Image

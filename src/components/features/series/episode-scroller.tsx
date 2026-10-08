@@ -130,7 +130,13 @@ function EpisodeCard({
           highlight && "ring-2 ring-brand ring-offset-2 ring-offset-background"
         )}
       >
-        <button onClick={onClick} className="absolute inset-0 text-left" aria-label={episode.name}>
+        {/* -outline-offset: the thumbnail frame is overflow-hidden, which clipped
+            the default outside focus ring away (invisible keyboard focus). */}
+        <button
+          onClick={onClick}
+          className="absolute inset-0 text-left focus-visible:-outline-offset-4"
+          aria-label={episode.name}
+        >
           {stillUrl && !imageError ? (
             <Image
               src={stillUrl}

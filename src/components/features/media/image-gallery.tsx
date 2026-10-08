@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { MediaScroller } from "./media-scroller";
 
 /** Minimal image type for gallery (supports both full TMDBImage and light PersonProfileImage) */
@@ -36,6 +37,8 @@ export function ImageGallery({
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const thumbnailsRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lightboxRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const { trackAction } = useAnalytics();
 
   const handleOpen = useCallback(
@@ -74,6 +77,19 @@ export function ImageGallery({
   const handleClose = useCallback(() => {
     setSelectedIndex(null);
   }, []);
+
+  // Mobile Back closes the lightbox instead of navigating the page behind it
+  // (pwa-mobile.md: every overlay routes through useHistoryDismiss).
+  useHistoryDismiss(isOpen, handleClose);
+
+  // Focus moves into the lightbox on open and back to the opener on close, so
+  // keyboard users aren't left focused on a thumbnail hidden behind it.
+  useEffect(() => {
+    if (!isOpen) return;
+    const opener = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+    return () => opener?.focus?.();
+  }, [isOpen]);
 
   // Touch swipe handlers for lightbox
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -128,6 +144,24 @@ export function ImageGallery({
       if (e.key === "ArrowLeft") goToPrevious();
       if (e.key === "ArrowRight") goToNext();
       if (e.key === "Escape") handleClose();
+      // Trap Tab inside the lightbox (it is aria-modal; the page behind is
+      // scroll-locked and covered, so focus must not wander into it).
+      if (e.key === "Tab" && lightboxRef.current) {
+        const focusables = Array.from(
+          lightboxRef.current.querySelectorAll<HTMLElement>("button:not([disabled])")
+        ).filter((el) => el.offsetParent !== null);
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+        if (e.shiftKey && (active === first || !lightboxRef.current.contains(active))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (active === last || !lightboxRef.current.contains(active))) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -211,16 +245,22 @@ export function ImageGallery({
       {/* Lightbox Modal - Custom full screen overlay */}
       {isOpen && (
         <div
+          ref={lightboxRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${title} — image ${selectedIndex + 1} of ${images.length}`}
           className="fixed inset-0 z-50 bg-black touch-pan-y"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
           {/* Close button */}
           <Button
+            ref={closeButtonRef}
             variant="ghost"
             size="icon"
             className="absolute right-4 top-4 z-50 rounded-full bg-white/10 hover:bg-white/20 text-white h-10 w-10"
             onClick={handleClose}
+            aria-label="Close gallery"
           >
             <X className="h-5 w-5" />
           </Button>
@@ -231,6 +271,7 @@ export function ImageGallery({
             size="icon"
             className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-50 rounded-full bg-white/10 hover:bg-white/20 text-white h-12 w-12"
             onClick={goToPrevious}
+            aria-label="Previous image"
           >
             <ChevronLeft className="h-7 w-7" />
           </Button>
@@ -239,6 +280,7 @@ export function ImageGallery({
             size="icon"
             className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-50 rounded-full bg-white/10 hover:bg-white/20 text-white h-12 w-12"
             onClick={goToNext}
+            aria-label="Next image"
           >
             <ChevronRight className="h-7 w-7" />
           </Button>
@@ -282,6 +324,8 @@ export function ImageGallery({
                       <button
                         key={image.file_path}
                         onClick={() => setSelectedIndex(index)}
+                        aria-label={`Show image ${index + 1}`}
+                        aria-current={selectedIndex === index ? "true" : undefined}
                         className={cn(
                           "relative flex-shrink-0 h-[60px] rounded overflow-hidden transition-all",
                           selectedIndex === index
