@@ -102,3 +102,11 @@ export interface UpsertOutcome {
   written: boolean;
   contentChanged: boolean;
 }
+
+/** Enrichment/freshness stamps written on the title row once per refresh. */
+export interface RowStamps {
+  enrichmentSource: string | null;
+  ratingsScrapedAt?: Date;
+  watchLinksScrapedAt?: Date;
+  tmdbUpdatedAt?: Date;
+}
