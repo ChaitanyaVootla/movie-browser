@@ -16,6 +16,8 @@ import type { TmdbSeriesData } from "../tmdb";
 import type { PrismaTx, SeasonWithEpisodes, UpsertOutcome, RowStamps } from "./types";
 import { isPrismaError, getErrorMessage } from "./error-utils";
 import { ensurePersons } from "./lookup-upserts";
+import { hasSeasonWrites, reconcileSeasons } from "./season-upserts";
+import { diffChildRows, hasChanges, keyPart } from "./diff-reconcile";
 import { upsertRatings, upsertScrapedWatchLinks } from "./rating-upserts";
 import {
   upsertSeriesGenres,
@@ -37,9 +39,7 @@ import {
 import {
   dedupeBy,
   logChildRewrite,
-  seasonsUnchanged,
   seriesCertificationsUnchanged,
-  aggregateCreditsUnchanged,
   type AggregateCreditProjection,
 } from "./upsert-diff";
 
@@ -311,93 +311,20 @@ async function upsertSeasons(
   seriesId: number,
   seasons: SeasonWithEpisodes[]
 ): Promise<void> {
-  // SUMMARY-ONLY GUARD (Oct 2026). The rewrite below is delete-all-seasons
-  // (cascading to episodes) + reinsert, so it must only run with COMPLETE
-  // episode data. Callers routinely pass seasons WITHOUT episodes: the
-  // core-fresh enriched-only refresh hands back PG's own season summary
-  // (getSeriesFromPostgres selects no episodes), hover-card partial hydration
-  // passes TMDB's details-level seasons, and a failed per-season fetch omits
-  // them. Each of those used to look "changed" (stored episodes vs none) and
-  // WIPED the series' episodes — prod measured ~1,619 episode deletes/min vs
-  // ~52 inserts/min. Summary-only input may only seed seasons for a series
-  // that has none yet; it never rewrites existing ones.
+  // SUMMARY-ONLY GUARD (Oct 2026): seasons without episodes (PG round-trip,
+  // hover-card partials, a failed per-season fetch) are not authoritative.
+  // They may only seed seasons for a series that has none; they never rewrite
+  // existing ones (that used to wipe episodes: ~1,619 deletes/min).
   if (isSummaryOnly(seasons)) {
     const existingCount = await tx.season.count({ where: { seriesId } });
     if (existingCount > 0) return;
   }
 
-  // Change-detection: seasons+episodes compared as one canonical unit. When
-  // unchanged (the common case), the whole delete cascade (seasons → episodes
-  // → images) and reinsert is skipped.
-  if (await seasonsUnchanged(tx, seriesId, seasons)) return;
-  logChildRewrite("seasons", "series", seriesId);
-
-  // Delete existing seasons (cascades to episodes)
-  await tx.season.deleteMany({ where: { seriesId } });
-
-  // Create seasons first
-  const seasonsToCreate = seasons.map((s) => ({
-    seriesId,
-    tmdbSeasonId: s.id,
-    seasonNumber: s.season_number,
-    name: s.name,
-    overview: s.overview || null,
-    posterPath: s.poster_path,
-    airDate: s.air_date ? new Date(s.air_date) : null,
-    episodeCount: s.episode_count,
-  }));
-
-  if (seasonsToCreate.length > 0) {
-    await tx.season.createMany({ data: seasonsToCreate });
-  }
-
-  // Get created seasons to map season_number -> id
-  const createdSeasons = await tx.season.findMany({
-    where: { seriesId },
-    select: { id: true, seasonNumber: true },
-  });
-  const seasonIdMap = new Map(createdSeasons.map((s) => [s.seasonNumber, s.id]));
-
-  // Create episodes for each season
-  const episodesToCreate: Array<{
-    seasonId: number;
-    tmdbEpisodeId: number;
-    episodeNumber: number;
-    name: string | null;
-    overview: string | null;
-    stillPath: string | null;
-    airDate: Date | null;
-    runtime: number | null;
-    voteAverage: number | null;
-    voteCount: number | null;
-    episodeType: string | null;
-    productionCode: string | null;
-  }> = [];
-
-  for (const season of seasons) {
-    const seasonId = seasonIdMap.get(season.season_number);
-    if (!seasonId || !season.episodes) continue;
-
-    for (const ep of season.episodes) {
-      episodesToCreate.push({
-        seasonId,
-        tmdbEpisodeId: ep.id,
-        episodeNumber: ep.episode_number,
-        name: ep.name || null,
-        overview: ep.overview || null,
-        stillPath: ep.still_path,
-        airDate: ep.air_date ? new Date(ep.air_date) : null,
-        runtime: ep.runtime ?? null,
-        voteAverage: ep.vote_average ?? null,
-        voteCount: ep.vote_count ?? null,
-        episodeType: ep.episode_type || null,
-        productionCode: ep.production_code || null,
-      });
-    }
-  }
-
-  if (episodesToCreate.length > 0) {
-    await tx.episode.createMany({ data: episodesToCreate });
+  // In-place reconciliation (season-upserts.ts): zero writes when unchanged,
+  // UPDATE-in-place for changed rows, episode vote drift ignored.
+  const stats = await reconcileSeasons(tx, seriesId, seasons);
+  if (hasSeasonWrites(stats)) {
+    logChildRewrite("seasons", "series", seriesId);
   }
 }
 
@@ -520,21 +447,71 @@ async function upsertSeriesAggregateCredits(
       });
     }
   }
-  if (await aggregateCreditsUnchanged(tx, seriesId, incoming)) return;
+  // Diff-reconciled IN PLACE (Oct 2026). This used to delete+reinsert EVERY
+  // aggregate credit on any difference — aggregate total_episode_count / order
+  // move whenever an episode airs, so each real refresh of a running series
+  // rewrote hundreds of rows (prod: 93% of recent credits inserts were whole
+  // aggregate sets, e.g. 891/891 rows for one series). Now only the delta is
+  // written. The (series, person, type, character, is_aggregate) unique index
+  // collapses duplicate non-NULL characters, so dedupe the same way.
+  const deduped = dedupeBy(incoming, (c) =>
+    c.character !== null ? `${c.creditType}|${c.personTmdbId}|${c.character}` : null
+  );
+  const existingRaw = await tx.credit.findMany({
+    where: { seriesId, isAggregate: true },
+    select: {
+      id: true,
+      creditType: true,
+      character: true,
+      job: true,
+      department: true,
+      creditOrder: true,
+      totalEpisodeCount: true,
+      person: { select: { tmdbId: true } },
+    },
+  });
+  const existing = existingRaw.map((r) => ({
+    id: r.id,
+    personTmdbId: r.person.tmdbId,
+    creditType: String(r.creditType),
+    character: r.character,
+    job: r.job,
+    department: r.department,
+    creditOrder: r.creditOrder,
+    totalEpisodeCount: r.totalEpisodeCount,
+  }));
+  const diff = diffChildRows(
+    existing,
+    deduped,
+    (r) =>
+      `${r.creditType}|${r.personTmdbId}|${keyPart(r.character)}|${keyPart(r.job)}|${keyPart(r.department)}`,
+    (a, b) => a.creditOrder === b.creditOrder && a.totalEpisodeCount === b.totalEpisodeCount
+  );
+  if (!hasChanges(diff)) return;
   logChildRewrite("credits_aggregate", "series", seriesId);
 
-  // Delete existing AGGREGATE credits only (preserve non-aggregate regular credits)
-  await tx.credit.deleteMany({ where: { seriesId, isAggregate: true } });
+  if (diff.toDelete.length > 0) {
+    await tx.credit.deleteMany({ where: { id: { in: diff.toDelete.map((r) => r.id) } } });
+  }
+  for (const { existing: row, incoming: inc } of diff.toUpdate) {
+    await tx.credit.update({
+      where: { id: row.id },
+      data: { creditOrder: inc.creditOrder, totalEpisodeCount: inc.totalEpisodeCount },
+    });
+  }
+  if (diff.toInsert.length === 0) return;
 
-  // Persons in one race-safe pass, then every credit in one ON CONFLICT DO
-  // NOTHING insert (the old per-row `.create().catch()` aborted the whole
-  // series transaction on a duplicate — see lookup-upserts.ts).
-  const personIds = await ensurePersons(tx, [
-    ...(aggregateCredits.cast || []),
-    ...(aggregateCredits.crew || []),
-  ]);
+  // Persons for the inserted delta in one race-safe pass, then one ON CONFLICT
+  // DO NOTHING insert (see lookup-upserts.ts for why never create().catch()).
+  const insertTmdbIds = new Set(diff.toInsert.map((c) => c.personTmdbId));
+  const personIds = await ensurePersons(
+    tx,
+    [...(aggregateCredits.cast || []), ...(aggregateCredits.crew || [])].filter((p) =>
+      insertTmdbIds.has(p.id)
+    )
+  );
   const rows: Prisma.CreditCreateManyInput[] = [];
-  for (const row of incoming) {
+  for (const row of diff.toInsert) {
     const personId = personIds.get(row.personTmdbId);
     if (personId === undefined) continue;
     rows.push({

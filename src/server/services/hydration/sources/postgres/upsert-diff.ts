@@ -20,7 +20,7 @@
  */
 
 import { dataLogger } from "@/lib/logger";
-import type { PrismaTx, SeasonWithEpisodes } from "./types";
+import type { PrismaTx } from "./types";
 
 type CanonicalPrimitive = string | number | boolean | bigint | null | undefined;
 
@@ -310,120 +310,8 @@ export interface AggregateCreditProjection extends CreditProjection {
   totalEpisodeCount: number | null;
 }
 
-export async function aggregateCreditsUnchanged(
-  tx: PrismaTx,
-  seriesId: number,
-  incoming: ReadonlyArray<AggregateCreditProjection>
-): Promise<boolean> {
-  const existing = await tx.credit.findMany({
-    where: { seriesId, isAggregate: true },
-    select: {
-      creditType: true,
-      character: true,
-      job: true,
-      department: true,
-      creditOrder: true,
-      totalEpisodeCount: true,
-      person: { select: { tmdbId: true } },
-    },
-  });
-  return sameRows(
-    existing.map((r) => ({
-      personTmdbId: r.person.tmdbId,
-      creditType: r.creditType,
-      character: r.character,
-      job: r.job,
-      department: r.department,
-      creditOrder: r.creditOrder,
-      totalEpisodeCount: r.totalEpisodeCount,
-    })),
-    incoming
-  );
-}
 
-function projectEpisodes(
-  episodes: NonNullable<SeasonWithEpisodes["episodes"]>
-): CanonicalRow[] {
-  return episodes
-    .map((ep) => ({
-      tmdbEpisodeId: ep.id,
-      episodeNumber: ep.episode_number,
-      name: ep.name || null,
-      overview: ep.overview || null,
-      stillPath: ep.still_path ?? null,
-      airDate: ep.air_date ? new Date(ep.air_date) : null,
-      runtime: ep.runtime ?? null,
-      voteAverage: ep.vote_average ?? null,
-      voteCount: ep.vote_count ?? null,
-      episodeType: ep.episode_type || null,
-      productionCode: ep.production_code || null,
-    }))
-    .sort((a, b) => a.episodeNumber - b.episodeNumber);
-}
 
-/**
- * Seasons + episodes compared as one canonical unit — when unchanged, the
- * whole delete-cascade (seasons → episodes → images) is skipped.
- */
-export async function seasonsUnchanged(
-  tx: PrismaTx,
-  seriesId: number,
-  seasons: ReadonlyArray<SeasonWithEpisodes>
-): Promise<boolean> {
-  const incoming: CanonicalRow[] = seasons.map((s) => ({
-    tmdbSeasonId: s.id,
-    seasonNumber: s.season_number,
-    name: s.name,
-    overview: s.overview || null,
-    posterPath: s.poster_path ?? null,
-    airDate: s.air_date ? new Date(s.air_date) : null,
-    episodeCount: s.episode_count,
-    episodes: projectEpisodes(s.episodes ?? []),
-  }));
-
-  const existing = await tx.season.findMany({
-    where: { seriesId },
-    select: {
-      tmdbSeasonId: true,
-      seasonNumber: true,
-      name: true,
-      overview: true,
-      posterPath: true,
-      airDate: true,
-      episodeCount: true,
-      episodes: {
-        select: {
-          tmdbEpisodeId: true,
-          episodeNumber: true,
-          name: true,
-          overview: true,
-          stillPath: true,
-          airDate: true,
-          runtime: true,
-          voteAverage: true,
-          voteCount: true,
-          episodeType: true,
-          productionCode: true,
-        },
-      },
-    },
-  });
-
-  const existingProjected: CanonicalRow[] = existing.map((s) => ({
-    tmdbSeasonId: s.tmdbSeasonId,
-    seasonNumber: s.seasonNumber,
-    name: s.name,
-    overview: s.overview,
-    posterPath: s.posterPath,
-    airDate: s.airDate,
-    episodeCount: s.episodeCount,
-    episodes: s.episodes
-      .map((ep) => ({ ...ep }))
-      .sort((a, b) => a.episodeNumber - b.episodeNumber),
-  }));
-
-  return sameRows(existingProjected, incoming);
-}
 
 export async function movieCertificationsUnchanged(
   tx: PrismaTx,
