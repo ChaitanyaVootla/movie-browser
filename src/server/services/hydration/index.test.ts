@@ -475,3 +475,42 @@ describe("content-changed signal (origin ISR + Cloudflare purge)", () => {
     expect(mockNotifyChanged).not.toHaveBeenCalled();
   });
 });
+
+describe("TMDB-deleted titles (negative cache)", () => {
+  it("a TMDB 404 in the background refresh stops further refreshes (no TMDB call, no Lambda)", async () => {
+    const id = 950;
+    mockFetchMovieRaw.mockResolvedValue(makePgRawMovie());
+    mockIsPostgresFresh.mockReturnValue(false); // core stale forever: refresh can never succeed
+    mockIsPostgresEnrichedFresh.mockReturnValue(false);
+    mockGetMoviePg.mockResolvedValue(makePgMovie(id) as never);
+    mockFetchMovieFromTmdb.mockRejectedValue(new Error("TMDB API error: 404 Not Found"));
+
+    await hydrateMovie(id);
+    await vi.waitFor(() => expect(mockFetchMovieFromTmdb).toHaveBeenCalledTimes(1));
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Second and third visits: served from PG, but no new refresh is attempted.
+    const second = await hydrateMovie(id);
+    await hydrateMovie(id);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(second.source).toBe("postgres_stale");
+    expect(mockFetchMovieFromTmdb).toHaveBeenCalledTimes(1);
+    expect(mockFetchFromLambda).not.toHaveBeenCalled();
+    expect(mockUpsertMovie).not.toHaveBeenCalled();
+  });
+
+  it("a transient TMDB 5xx is NOT cached (next visit retries)", async () => {
+    const id = 951;
+    mockFetchMovieRaw.mockResolvedValue(makePgRawMovie());
+    mockIsPostgresFresh.mockReturnValue(false);
+    mockIsPostgresEnrichedFresh.mockReturnValue(false);
+    mockGetMoviePg.mockResolvedValue(makePgMovie(id) as never);
+    mockFetchMovieFromTmdb.mockRejectedValue(new Error("TMDB API error: 500 Internal Server Error"));
+
+    await hydrateMovie(id);
+    await vi.waitFor(() => expect(mockFetchMovieFromTmdb).toHaveBeenCalledTimes(1));
+    await new Promise((r) => setTimeout(r, 0));
+    await hydrateMovie(id);
+    await vi.waitFor(() => expect(mockFetchMovieFromTmdb).toHaveBeenCalledTimes(2));
+  });
+});
