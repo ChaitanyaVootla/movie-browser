@@ -10,7 +10,7 @@ const path = require("node:path");
 const fx = (name) => fs.readFileSync(path.join(__dirname, "fixtures", name), "utf8");
 const { parseRtPage, parseRtSearch, pickRtMatch, rtUrlFromId, rtIdFromUrl } = require("../dist/sources/rottenTomatoes");
 const { readLdTitle, letterboxdIdFromUrl } = require("../dist/sources/jsonLdRatings");
-const { collapseOffers, pickNode } = require("../dist/sources/justwatch");
+const { collapseOffers, pickNode, cleanDeepLink } = require("../dist/sources/justwatch");
 const { parseClaims } = require("../dist/sources/wikidata");
 const { looksLikeChallenge } = require("../dist/lib/http");
 const { normalizeTitle, slugify } = require("../dist/lib/text");
@@ -133,4 +133,16 @@ test("RT 'no results' page is not_found, not a parse_error (non-Latin titles hit
   } finally {
     global.fetch = realFetch;
   }
+});
+
+test("JustWatch: physical media dropped, affiliate/tracking params stripped", () => {
+  const out = collapseOffers("US", [
+    { monetizationType: "BUY", presentationType: "DVD", standardWebURL: "https://www.amazon.com/dp/B0?tag=justwatch09-20", package: { clearName: "Amazon DVD / Blu-ray" } },
+    { monetizationType: "BUY", presentationType: "HD", standardWebURL: "https://www.barnesandnoble.com/w/x", package: { clearName: "Barnes & Noble" } },
+    { monetizationType: "RENT", presentationType: "HD", standardWebURL: "https://www.amazon.com/gp/video/detail/B0X?tag=justwatch09-20&linkCode=ll1&utm_source=jw", retailPrice: "$3.99", package: { clearName: "Amazon Video" } },
+  ]);
+  assert.deepEqual(out.map((o) => o.provider), ["Amazon Video"]);
+  assert.equal(out[0].link, "https://www.amazon.com/gp/video/detail/B0X");
+  assert.equal(cleanDeepLink("https://app.primevideo.com/detail?gti=amzn1.dv.gti.x"), "https://app.primevideo.com/detail?gti=amzn1.dv.gti.x");
+  assert.equal(cleanDeepLink("not a url"), "not a url");
 });

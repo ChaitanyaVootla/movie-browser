@@ -18,7 +18,27 @@ const SEARCH_QUERY = `query S($q:String!,$c:Country!,$l:Language!,$t:[ObjectType
   }
 }`;
 
-const OFFER_FIELDS = "monetizationType standardWebURL retailPrice(language:$l) package{ clearName }";
+const OFFER_FIELDS =
+  "monetizationType presentationType standardWebURL retailPrice(language:$l) package{ clearName }";
+
+/** Physical-media offers (Amazon DVD, Barnes & Noble…) are not "where to watch". */
+const PHYSICAL_PRESENTATION = new Set(["DVD", "BLURAY"]);
+const PHYSICAL_NAME = /dvd|blu-?ray|barnes\s*&?\s*noble/i;
+
+/** Tracking params JustWatch adds (incl. its own Amazon affiliate tag) — never pass them on. */
+const TRACKING_PARAMS = /^(tag|ascsubtag|linkCode|ref_?|utm_[a-z]+|u[0-9]+|subId[0-9]*|irclickid|clickref)$/i;
+
+export function cleanDeepLink(url: string): string {
+  try {
+    const u = new URL(url);
+    for (const key of [...u.searchParams.keys()]) {
+      if (TRACKING_PARAMS.test(key)) u.searchParams.delete(key);
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
 
 function offersQuery(countries: string[]): string {
   const aliases = countries.map((c) => `${c}: offers(country:${c}, platform:WEB){ ${OFFER_FIELDS} }`).join(" ");
@@ -93,6 +113,8 @@ export function collapseOffers(country: string, offers: unknown): WatchLink[] {
     const provider = pkg && typeof pkg.clearName === "string" ? pkg.clearName : null;
     const monetization = typeof o.monetizationType === "string" ? o.monetizationType : "";
     if (!provider) continue;
+    if (PHYSICAL_NAME.test(provider)) continue;
+    if (typeof o.presentationType === "string" && PHYSICAL_PRESENTATION.has(o.presentationType)) continue;
     const rank = MONETIZATION_RANK[monetization] ?? 9;
     const existing = best.get(provider);
     if (existing && existing.rank <= rank) continue;
@@ -101,7 +123,7 @@ export function collapseOffers(country: string, offers: unknown): WatchLink[] {
       link: {
         country,
         provider,
-        link: o.standardWebURL,
+        link: cleanDeepLink(o.standardWebURL),
         price: priceLabel(monetization, o.retailPrice),
         monetization,
       },
