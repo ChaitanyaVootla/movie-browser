@@ -3,7 +3,7 @@
  * The handler must NEVER let disk usage exceed BOUNDED_CACHE_MB and must
  * never throw (failures degrade to cache misses). See Jun 10 2026 incident.
  */
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -17,7 +17,7 @@ interface HandlerInstance {
   set(key: string, data: unknown, ctx: { tags?: string[] }): Promise<void>;
   revalidateTag(tags: string | string[]): Promise<void>;
   ready: Promise<void>;
-  store: { ready: Promise<void> };
+  store: { ready: Promise<void>; scan: Promise<void> };
   totalBytes: number;
 }
 
@@ -113,12 +113,14 @@ describe("BoundedCacheHandler", () => {
 
   it("revalidateTag removes matching entries (including pre-restart ones)", async () => {
     const first = makeHandler();
-    await first.set("tagged", { kind: "FETCH", data: "a" }, { tags: ["_N_T_/movie/1"] });
-    await first.set("other", { kind: "FETCH", data: "b" }, { tags: ["_N_T_/series/2"] });
+    // Non-path tags → the bounded background scan (path tags take the fast path).
+    await first.set("tagged", { kind: "FETCH", data: "a" }, { tags: ["tmdb:movie:1"] });
+    await first.set("other", { kind: "FETCH", data: "b" }, { tags: ["tmdb:series:2"] });
 
     BoundedCacheHandler._clearStores();
     const second = makeHandler(); // tags must be recoverable from disk
-    await second.revalidateTag("_N_T_/movie/1");
+    await second.revalidateTag("tmdb:movie:1");
+    await second.store.scan;
     expect(await second.get("tagged")).toBeNull();
     expect(await second.get("other")).not.toBeNull();
   });
@@ -263,6 +265,15 @@ describe("page invalidation (Oct 2026: revalidatePath was a silent no-op for pag
     expect(await handler.get("/movie/2/keep")).not.toBeNull();
   });
 
+  it("revalidateTag also marks Next's own tags manifest (immediate, any tag shape)", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { tagsManifest } = require("next/dist/server/lib/incremental-cache/tags-manifest.external");
+    const handler = makeHandler();
+    await handler.revalidateTag(["_N_T_/u/someone", "custom:tag"]);
+    expect(tagsManifest.get("_N_T_/u/someone")?.expired).toBeGreaterThan(0);
+    expect(tagsManifest.get("custom:tag")?.expired).toBeGreaterThan(0);
+  });
+
   it("is reachable through the process-wide registry and never throws", async () => {
     const reg = (globalThis as Record<symbol, unknown>)[
       Symbol.for("movie-browser.bounded-isr")
@@ -270,4 +281,76 @@ describe("page invalidation (Oct 2026: revalidatePath was a silent no-op for pag
     expect(typeof reg.invalidateKeys).toBe("function");
     await expect(reg.invalidateKeys([null, 42, ""])).resolves.toBe(0);
   });
+});
+
+describe("revalidateTag on a large index (prod: ~300k entries / ~24GB)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fsp: typeof import("fs/promises") = require("fs/promises");
+  const N = 5000;
+
+  /** Write N gzipped entries straight to disk, then boot a fresh handler (all tags unknown). */
+  async function bootWithLargeIndex(): Promise<HandlerInstance> {
+    const dir = path.join(tmpDir, "cache", "bounded-isr", "dev");
+    fs.mkdirSync(dir, { recursive: true });
+    const zlib = await import("zlib");
+    const crypto = await import("crypto");
+    const payload = zlib.gzipSync(
+      JSON.stringify({ lastModified: 1, tags: ["tmdb:x"], value: { kind: "FETCH", data: "x" } }),
+    );
+    for (let i = 0; i < N; i++) {
+      const hash = crypto.createHash("sha1").update(`/movie/${i}/t`).digest("hex");
+      fs.writeFileSync(path.join(dir, `${hash}.json`), payload);
+    }
+    BoundedCacheHandler._clearStores();
+    const handler = makeHandler();
+    await handler.store.ready;
+    return handler;
+  }
+
+  it("an exact-path tag (revalidatePath) reads ZERO entry files — no index scan", { timeout: 30_000 }, async () => {
+    const handler = await bootWithLargeIndex();
+    const spy = vi.spyOn(fsp, "readFile");
+    try {
+      await handler.revalidateTag(["_N_T_/movie/1/x"]);
+      await handler.store.scan;
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("revalidatePath(exact path) deletes that entry durably without a scan", { timeout: 30_000 }, async () => {
+    const handler = await bootWithLargeIndex();
+    await handler.revalidateTag(["_N_T_/movie/7/t"]);
+    BoundedCacheHandler._clearStores();
+    expect(await makeHandler().get("/movie/7/t")).toBeNull();
+    expect(await makeHandler().get("/movie/8/t")).not.toBeNull();
+  });
+
+  it("the fallback scan never has more than SCAN_CONCURRENCY reads in flight", async () => {
+    const handler = await bootWithLargeIndex();
+    const limit: number = BoundedCacheHandler._internals.SCAN_CONCURRENCY ?? 32;
+    const real = fsp.readFile.bind(fsp);
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const spy = vi.spyOn(fsp, "readFile").mockImplementation((async (...args: unknown[]) => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      try {
+        await new Promise((r) => setTimeout(r, 0));
+        return await (real as (...a: unknown[]) => Promise<Buffer>)(...args);
+      } finally {
+        inFlight--;
+      }
+    }) as typeof fsp.readFile);
+    try {
+      await handler.revalidateTag(["tmdb:x"]);
+      await handler.store.scan;
+      expect(spy.mock.calls.length).toBe(N);
+      expect(maxInFlight).toBeLessThanOrEqual(limit);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await handler.get("/movie/1/t")).toBeNull(); // the scan still did its job
+  }, 30_000);
 });

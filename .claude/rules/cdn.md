@@ -991,6 +991,27 @@ up within the hour, and layer 3 shows the PG value on every page load meanwhile.
   stored entry had `tags: []` while its header held `_N_T_/movie/382544/loha`. The
   handler now unions both (`entryTags`). The deploy's `/api/revalidate` of `/` was
   therefore never doing anything (harmless: BUILD_ID namespacing already cold-starts).
+- **Making tags work made the old tag loader DANGEROUS — never scan the ISR index
+  unbounded.** `revalidateTag` used to `Promise.all(readFile+gunzip+parse)` over
+  EVERY index entry on its first call after boot; harmless while no tag ever
+  matched, but prod holds ~300k entries / ~24GB, so the first profile save
+  (`revalidatePath('/u/<name>')`, 4 call sites in `profile.ts`) would have put
+  hundreds of thousands of buffers in flight (the Aug 18 / Sep heap-OOM classes,
+  `performance.md` 1b + 14). Now `revalidateTag` does three things: (1) marks the
+  tags in Next's own `tags-manifest.external` (what the default FileSystemCache
+  does — `IncrementalCache.get()` then treats matching page/fetch entries as
+  expired immediately, zero I/O, any tag shape; in-memory, lost on restart);
+  (2) exact-path implicit tags `_N_T_<pathname>` (what `revalidatePath(p)` emits
+  — NOT the derived `…/layout`, `…/[...params]/page`, `…/route` tags) map straight
+  to cache keys and are deleted durably with NO scan; (3) anything else runs a
+  single-flight BACKGROUND scan with 32 reads in flight, a yield between batches
+  and a 20k-read / 15s budget per call. With a cache-life profile (`durations`)
+  only (1) runs. Pinned by `cache-handler.test.ts` on a 5k-entry index (0 reads on
+  the fast path; ≤32 in flight on the scan — verified to FAIL, 5000 in flight,
+  against the old code).
+- `/api/admin/enrich`'s `revalidatePath('/movie/<id>')` (slugless) never matched a
+  cached page — they live under the canonical slug key. It now also calls
+  `notifyTitleContentChanged` with the PG title.
 - `revalidatePath` also cannot be called from the background refresh at all — it
   needs a request work-store ("static generation store missing") and throws during
   render. Hence the registry.

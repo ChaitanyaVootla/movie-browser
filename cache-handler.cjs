@@ -64,6 +64,73 @@ function hashNameFor(key) {
   return crypto.createHash("sha1").update(key).digest("hex") + ".json";
 }
 
+const IMPLICIT_TAG_PREFIX = "_N_T_";
+
+/**
+ * Exact-path implicit tag → cache keys, or null.
+ *
+ * `revalidatePath(p)` (no type) emits `_N_T_<p>` (plus `_N_T_/index` for `/`),
+ * and Next stores every page under its pathname — so these tags map straight
+ * to cache keys with NO index scan. Derived route tags (`_N_T_/layout`,
+ * `_N_T_/movie/layout`, `_N_T_/movie/[...params]/page`, `/route`) belong to
+ * MANY pages and return null (→ bounded scan). A real pathname that happens to
+ * end in /page|/layout|/route (e.g. `/u/page`) is ambiguous and also scans.
+ * Format verified against next@16.1.0 server/lib/implicit-tags.js +
+ * web/spec-extension/revalidate.js.
+ */
+function pathKeysForTag(tag) {
+  if (typeof tag !== "string" || !tag.startsWith(IMPLICIT_TAG_PREFIX + "/")) return null;
+  const p = tag.slice(IMPLICIT_TAG_PREFIX.length);
+  if (p.includes("[")) return null;
+  if (/\/(layout|page|route)$/.test(p)) return null;
+  if (p === "/" || p === "/index") return ["/", "/index"];
+  return [p.replace(/\/+$/, "") || "/"];
+}
+
+// Next's own in-memory tags manifest (what the default FileSystemCache
+// updates). IncrementalCache.get() consults it for every entry — page entries
+// via their x-next-cache-tags header, fetch entries via soft tags — so marking
+// a tag here makes Next treat matching entries as stale/expired IMMEDIATELY,
+// with zero I/O, for any tag shape. The `.external` module is a process
+// singleton shared with Next's server runtime. Lost on restart (same as the
+// default handler) — the durable deletes below cover that.
+let nextTagsManifest = null;
+try {
+  nextTagsManifest = require("next/dist/server/lib/incremental-cache/tags-manifest.external")
+    .tagsManifest;
+} catch {
+  nextTagsManifest = null;
+}
+
+/** Mirrors FileSystemCache.revalidateTag (next@16.1.0) exactly. */
+function markTagsInNextManifest(tags, durations) {
+  if (!nextTagsManifest || typeof nextTagsManifest.set !== "function") return;
+  const now = Date.now();
+  for (const tag of tags) {
+    const existing = nextTagsManifest.get(tag) || {};
+    if (durations) {
+      const updates = { ...existing, stale: now };
+      if (durations.expire !== undefined) updates.expired = now + durations.expire * 1000;
+      nextTagsManifest.set(tag, updates);
+    } else {
+      nextTagsManifest.set(tag, { ...existing, expired: now });
+    }
+  }
+}
+
+// Bounded fallback scan for non-path tags. Prod holds ~300k entries / ~24GB;
+// the old unbounded Promise.all(readFile+gunzip+parse) over the whole index
+// would have put hundreds of thousands of buffers in flight (the Aug 18 and
+// Sep heap-OOM outage classes). Now: SCAN_CONCURRENCY reads at a time, a yield
+// to the event loop between batches, and a per-call read + time budget.
+// Loaded tags are remembered on the index entry, so repeated scans make
+// progress; anything not reached stays stale-until-revalidate (correctness is
+// already immediate via the Next tags manifest above).
+const SCAN_CONCURRENCY = 32;
+const SCAN_MAX_READS = 20_000;
+const SCAN_TIME_BUDGET_MS = 15_000;
+const yieldToLoop = () => new Promise((resolve) => setImmediate(resolve));
+
 /**
  * Drop the cached entries for exact cache keys (= route pathnames, e.g.
  * "/movie/157336/interstellar") from every live store — memory LRU, index,
@@ -209,7 +276,8 @@ class BoundedCacheHandler {
         /** @type {Map<string, {file: string, size: number, lastAccess: number, tags: string[] | null}>} */
         index: new Map(), // insertion order ≈ LRU order (re-inserted on access)
         totalBytes: 0,
-        tagsLoaded: false,
+        /** single-flight chain of background tag scans */
+        scan: Promise.resolve(),
         /** @type {Map<string, {lastModified: number, value: unknown, approxBytes: number}>} hot-page LRU */
         memory: new Map(),
         memoryBytes: 0,
@@ -296,29 +364,59 @@ class BoundedCacheHandler {
     }
   }
 
-  async #loadTagsIfNeeded() {
-    if (this.store.tagsLoaded) return;
-    this.store.tagsLoaded = true; // set first so concurrent calls don't double-scan
-    const loads = [];
-    for (const entry of this.store.index.values()) {
-      if (entry.tags !== null) continue;
-      loads.push(
-        fsp
-          .readFile(path.join(this.cacheDir, entry.file))
-          .then(async (raw) => {
-            const text =
-              raw[0] === GZIP_MAGIC_0 && raw[1] === GZIP_MAGIC_1
-                ? (await gunzipAsync(raw)).toString("utf8")
-                : raw.toString("utf8");
-            const stored = deserialize(text);
-            entry.tags = entryTags({ tags: stored.tags }, stored.value);
-          })
-          .catch(() => {
-            entry.tags = [];
-          }),
-      );
+  async #readEntryTags(entry) {
+    try {
+      const raw = await fsp.readFile(path.join(this.cacheDir, entry.file));
+      const text =
+        raw[0] === GZIP_MAGIC_0 && raw[1] === GZIP_MAGIC_1
+          ? (await gunzipAsync(raw)).toString("utf8")
+          : raw.toString("utf8");
+      const stored = deserialize(text);
+      entry.tags = entryTags({ tags: stored.tags }, stored.value);
+    } catch {
+      entry.tags = [];
     }
-    await Promise.all(loads);
+  }
+
+  /**
+   * Drop every entry carrying any of `wanted`, loading unknown (post-restart)
+   * tags in bounded batches. Never more than SCAN_CONCURRENCY reads in flight.
+   */
+  async #scanAndDrop(wanted) {
+    const started = Date.now();
+    let reads = 0;
+    const hashNames = Array.from(this.store.index.keys());
+    for (let i = 0; i < hashNames.length; i += SCAN_CONCURRENCY) {
+      const batch = [];
+      for (const hashName of hashNames.slice(i, i + SCAN_CONCURRENCY)) {
+        const entry = this.store.index.get(hashName);
+        if (entry) batch.push([hashName, entry]);
+      }
+      const unknown = batch.filter(([, e]) => e.tags === null);
+      if (unknown.length) {
+        if (reads >= SCAN_MAX_READS || Date.now() - started > SCAN_TIME_BUDGET_MS) {
+          // Out of budget: entries with KNOWN tags can still be matched cheaply.
+          for (const [hashName, entry] of batch) {
+            if (entry.tags !== null) await this.#dropIfTagged(hashName, entry, wanted);
+          }
+          continue;
+        }
+        reads += unknown.length;
+        await Promise.all(unknown.map(([, e]) => this.#readEntryTags(e)));
+      }
+      for (const [hashName, entry] of batch) await this.#dropIfTagged(hashName, entry, wanted);
+      await yieldToLoop();
+    }
+  }
+
+  async #dropIfTagged(hashName, entry, wanted) {
+    const entryTagList = entry.tags || [];
+    if (!wanted.some((t) => entryTagList.includes(t))) return;
+    if (this.store.index.get(hashName) !== entry) return; // replaced meanwhile
+    this.store.index.delete(hashName);
+    this.#memoryDelete(hashName);
+    this.store.totalBytes -= entry.size;
+    await fsp.unlink(path.join(this.cacheDir, entry.file)).catch(() => {});
   }
 
   #touch(hashName, entry) {
@@ -427,20 +525,35 @@ class BoundedCacheHandler {
     }
   }
 
-  async revalidateTag(tags) {
+  /**
+   * 1. Mark the tags in Next's tags manifest (immediate, zero I/O, any tag).
+   * 2. Exact-path tags (what revalidatePath emits) → delete those cache keys
+   *    directly — no index scan, durable across restarts.
+   * 3. Any other tag → bounded background scan (single-flight, not awaited).
+   * With a cache-life profile (`durations`, stale-while-revalidate semantics)
+   * only step 1 runs — deleting would turn "serve stale once" into "expire".
+   */
+  async revalidateTag(tags, durations) {
     try {
       await this.store.ready;
-      const wanted = Array.isArray(tags) ? tags : [tags];
+      const wanted = (Array.isArray(tags) ? tags : [tags]).filter(
+        (t) => typeof t === "string" && t,
+      );
       if (wanted.length === 0) return;
-      await this.#loadTagsIfNeeded();
-      for (const [hashName, entry] of [...this.store.index]) {
-        const entryTags = entry.tags || [];
-        if (wanted.some((t) => entryTags.includes(t))) {
-          this.store.index.delete(hashName);
-          this.#memoryDelete(hashName);
-          this.store.totalBytes -= entry.size;
-          await fsp.unlink(path.join(this.cacheDir, entry.file)).catch(() => {});
-        }
+      markTagsInNextManifest(wanted, durations);
+      if (durations) return;
+      const keys = [];
+      const scanTags = [];
+      for (const tag of wanted) {
+        const k = pathKeysForTag(tag);
+        if (k) keys.push(...k);
+        else scanTags.push(tag);
+      }
+      if (keys.length) await invalidateKeys(keys);
+      if (scanTags.length) {
+        this.store.scan = this.store.scan
+          .then(() => this.#scanAndDrop(scanTags))
+          .catch(() => {});
       }
     } catch {
       /* failed revalidation degrades to stale-until-revalidate */
@@ -454,7 +567,7 @@ class BoundedCacheHandler {
 
 module.exports = BoundedCacheHandler;
 // Exported for unit tests:
-module.exports._internals = { serialize, deserialize, BUFFER_TAG, entryTags };
+module.exports._internals = { serialize, deserialize, BUFFER_TAG, entryTags, pathKeysForTag, SCAN_CONCURRENCY };
 module.exports.invalidateKeys = invalidateKeys;
 // Test-only: reset singleton state between cases (simulates a process restart).
 module.exports._clearStores = () => STORES.clear();
