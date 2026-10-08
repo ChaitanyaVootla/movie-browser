@@ -15,7 +15,9 @@ import {
   QuickInfoProvider,
 } from "@/components/features/hover-card";
 import { AssistantFloaty } from "@/components/features/ai";
-import { SearchProvider, useSearch } from "@/components/features/search";
+// search-context directly: the barrel also exports SearchCommand, which would
+// defeat the dynamic() import below and put cmdk + the palette in every page.
+import { SearchProvider, useSearch } from "@/components/features/search/search-context";
 import { AnalyticsProvider } from "@/components/analytics";
 import {
   ServiceWorkerRegister,

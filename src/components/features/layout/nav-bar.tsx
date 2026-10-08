@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { CountrySelector } from "./country-selector";
 import { UserMenu, LoginDialog, useLoginDialog, SettingsMenu } from "@/components/features/auth";
 import { NotificationBell } from "@/components/features/notifications/notification-bell";
-import { useSearch } from "@/components/features/search";
+import { useSearch } from "@/components/features/search/search-context";
 import { useUsername } from "@/hooks/use-username";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
