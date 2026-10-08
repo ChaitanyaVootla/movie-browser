@@ -9,7 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAnalytics } from "@/hooks/use-analytics";
-import { getAutocompleteSuggestions, type AutocompleteSuggestion } from "@/server/actions/autocomplete";
+import {
+  getAutocompleteSuggestions,
+  type AutocompleteSuggestion,
+} from "@/server/actions/autocomplete";
 import { setFourFavoritesAction } from "@/server/actions/profile";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import type { FavoriteItemDTO } from "@/types/social";
@@ -76,7 +79,13 @@ function SlotSearch({ onPick }: { onPick: (item: FavoriteItemDTO) => void }) {
             >
               <span className="relative h-12 w-8 flex-shrink-0 overflow-hidden rounded bg-muted">
                 {s.posterPath && (
-                  <Image src={`${TMDB_IMAGE_BASE}/w92${s.posterPath}`} alt="" fill className="object-cover" sizes="32px" />
+                  <Image
+                    src={`${TMDB_IMAGE_BASE}/w92${s.posterPath}`}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="32px"
+                  />
                 )}
               </span>
               <span className="min-w-0">
@@ -128,51 +137,47 @@ export function FourFavoritesEditor({ initial }: FourFavoritesEditorProps) {
       <div className="grid grid-cols-4 gap-2 sm:gap-3 max-w-md">
         {slots.map((slot, i) => (
           <Popover key={i} open={openSlot === i} onOpenChange={(o) => setOpenSlot(o ? i : null)}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="group relative aspect-[2/3] overflow-hidden rounded-lg border bg-card transition-colors hover:border-brand/50"
-                aria-label={slot ? `Replace ${slot.title}` : "Add favorite"}
-              >
-                {slot ? (
-                  <>
-                    {slot.posterPath && (
-                      <Image
-                        src={`${TMDB_IMAGE_BASE}/w342${slot.posterPath}`}
-                        alt={slot.title}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 25vw, 112px"
-                      />
-                    )}
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Remove ${slot.title}`}
-                      className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setSlots((prev) => prev.map((p, j) => (j === i ? null : p)));
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setSlots((prev) => prev.map((p, j) => (j === i ? null : p)));
-                        }
-                      }}
-                    >
-                      <X className="h-3.5 w-3.5" />
+            {/* The remove control is a SIBLING of the slot button, not nested in
+                it (a span[role=button] inside a <button> = nested interactive). */}
+            <div className="group relative">
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="relative block w-full aspect-[2/3] overflow-hidden rounded-lg border bg-card transition-colors hover:border-brand/50"
+                  aria-label={slot ? `Replace ${slot.title}` : "Add favorite"}
+                >
+                  {slot ? (
+                    <>
+                      {slot.posterPath && (
+                        <Image
+                          src={`${TMDB_IMAGE_BASE}/w342${slot.posterPath}`}
+                          alt={slot.title}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 25vw, 112px"
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <span className="flex h-full items-center justify-center">
+                      <Plus className="h-5 w-5 text-muted-foreground" />
                     </span>
-                  </>
-                ) : (
-                  <span className="flex h-full items-center justify-center">
-                    <Plus className="h-5 w-5 text-muted-foreground" />
-                  </span>
-                )}
-              </button>
-            </PopoverTrigger>
+                  )}
+                </button>
+              </PopoverTrigger>
+              {slot && (
+                <button
+                  type="button"
+                  aria-label={`Remove ${slot.title}`}
+                  // Visible on hover/focus, ALWAYS on touch (no hover there). The
+                  // ::after extends the hit area to ~40px without growing the glyph.
+                  className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 after:absolute after:-inset-2 after:content-['']"
+                  onClick={() => setSlots((prev) => prev.map((p, j) => (j === i ? null : p)))}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
             <PopoverContent align="start" className="p-3">
               <SlotSearch
                 onPick={(item) => {

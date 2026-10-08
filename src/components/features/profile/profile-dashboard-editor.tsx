@@ -12,12 +12,7 @@ import {
 import { GripVertical, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { updateProfileLayoutAction } from "@/server/actions/profile";
 import { cn } from "@/lib/utils";
 import { useProfileViewer } from "./profile-viewer-context";
@@ -100,12 +95,25 @@ export function ProfileDashboardEditor({ profile }: { profile: PublicProfileDTO 
       {/* Edit toolbar */}
       <div className="mb-2 flex items-center gap-2 px-1">
         <span className="text-sm font-semibold">Customizing your profile</span>
-        <span className="hidden text-xs text-muted-foreground sm:inline">drag the handle · resize from the corner</span>
+        <span className="hidden text-xs text-muted-foreground sm:inline">
+          drag the handle · resize from the corner
+        </span>
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setPaletteOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-1.5"
+            onClick={() => setPaletteOpen(true)}
+          >
             <Plus className="h-4 w-4" /> Add widget
           </Button>
-          <Button variant="ghost" size="sm" className="h-9" onClick={() => setEditMode(false)} disabled={saving}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9"
+            onClick={() => setEditMode(false)}
+            disabled={saving}
+          >
             Cancel
           </Button>
           <Button size="sm" className="h-9 min-w-20" onClick={() => void save()} disabled={saving}>
@@ -133,10 +141,13 @@ export function ProfileDashboardEditor({ profile }: { profile: PublicProfileDTO 
               const node = WIDGET_RENDER[w.type]?.({ data: profile, config: w.config });
               return (
                 <div key={w.id} className="group relative">
-                  {/* drag handle + remove (pointer-events-auto over the inert content) */}
+                  {/* drag handle + remove (pointer-events-auto over the inert content).
+                      Hover-revealed on desktop only: on touch there is no hover, so they
+                      stay visible at a 40px target (pointer-coarse); keyboard focus
+                      reveals them too. */}
                   <button
                     type="button"
-                    className="widget-drag-handle absolute left-1.5 top-1.5 z-20 flex size-7 cursor-grab items-center justify-center rounded-md bg-background/80 text-muted-foreground opacity-0 backdrop-blur transition-opacity group-hover:opacity-100"
+                    className="widget-drag-handle absolute left-1.5 top-1.5 z-20 flex size-7 cursor-grab items-center justify-center rounded-md bg-background/80 text-muted-foreground opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:size-10 pointer-coarse:opacity-100"
                     aria-label="Drag widget"
                   >
                     <GripVertical className="h-4 w-4" />
@@ -144,7 +155,7 @@ export function ProfileDashboardEditor({ profile }: { profile: PublicProfileDTO 
                   <button
                     type="button"
                     onClick={() => removeWidget(w.id)}
-                    className="absolute right-1.5 top-1.5 z-20 flex size-7 items-center justify-center rounded-md bg-background/80 text-muted-foreground opacity-0 backdrop-blur transition-opacity hover:text-destructive group-hover:opacity-100"
+                    className="absolute right-1.5 top-1.5 z-20 flex size-7 items-center justify-center rounded-md bg-background/80 text-muted-foreground opacity-0 backdrop-blur transition-opacity hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:size-10 pointer-coarse:opacity-100"
                     aria-label="Remove widget"
                   >
                     <X className="h-4 w-4" />

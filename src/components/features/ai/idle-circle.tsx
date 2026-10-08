@@ -51,14 +51,10 @@ export function IdleCircle({
         onExpand(isAwake ? (prompt as PromptConfig) : undefined);
       }}
       data-testid="ai-assistant-trigger"
-      role="button"
+      // No onKeyDown: it's a native <button>, so Enter/Space already fire
+      // onClick. The old Enter/Space handler ran IN ADDITION to that click —
+      // the chat opened twice and ai_chat_open was tracked twice per keypress.
       aria-label="Open Cue AI assistant"
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          trackAIChatOpen();
-          onExpand(isAwake ? (prompt as PromptConfig) : undefined);
-        }
-      }}
       layout
       initial={false}
       animate={{
@@ -224,13 +220,13 @@ function PostWatchBubble({ postWatch, onQuestionClick, onDismiss }: PostWatchBub
           >
             <AISparkIcon size={16} className="text-brand shrink-0" />
           </motion.div>
-          <span className="text-xs font-medium text-brand">
-            Just watched {postWatch.title}?
-          </span>
+          <span className="text-xs font-medium text-brand">Just watched {postWatch.title}?</span>
         </div>
+        {/* 40px hit area (DESIGN.md touch target); the negative margin keeps the
+            glyph where the old 22px button put it. */}
         <button
           onClick={onDismiss}
-          className="p-1 rounded-full text-muted-foreground/40 hover:text-muted-foreground hover:bg-white/5 transition-colors"
+          className="-m-2.5 flex size-10 items-center justify-center rounded-full text-muted-foreground/40 hover:text-muted-foreground hover:bg-white/5 transition-colors"
           aria-label="Dismiss"
         >
           <X className="w-3.5 h-3.5" />
