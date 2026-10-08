@@ -237,6 +237,43 @@ overlay stayed = the "back went back a page but the modal remained" bug). Fixed 
   unwind `history.back()` does make Next re-traverse the page ~600ms after a
   non-Back drawer close — harmless client restore in prod, RSC churn in dev.)
 
+## Scroll restoration + view state in the URL (Oct 2026)
+
+"I scroll a long list, open a title, press Back, and I'm at the top" had two
+stacked causes: the old global `ScrollToTop` did `scrollTo(0,0)` on EVERY
+pathname change (Back included), and client lists remounted short (browse grid
+back to page 1, library tabs/`/search` empty until refetch), so even the
+browser's own restore was clamped.
+
+- **`ScrollRestoration`** (`components/features/layout/scroll-restoration.tsx`,
+  root layout; pure core `lib/scroll-restoration.ts`) owns it:
+  `history.scrollRestoration = "manual"`, positions saved per URL
+  (pathname+search) in sessionStorage, restored on popstate AFTER the route
+  commits (waits for `usePathname` to change, so it never scrolls the outgoing
+  page under the view-transition snapshot) and only once the document is tall
+  enough, re-pinned for a ~350ms settle, cancelled by wheel/touch/key. Push
+  navigations still scroll to top. **Same-URL popstates are ignored** — that is
+  what keeps `useHistoryDismiss` overlay Back-dismisses from moving the page.
+  It deliberately avoids `useSearchParams` (would force a Suspense bailout on
+  every ISR page under the root layout).
+- **Lists that load client-side must make Back cheap:** keep data in the
+  TanStack cache (DiscoverGrid = `useDiscoverPages` infinite query, so ALL
+  loaded pages come back; library tabs + `/search` use `useQuery`), and call
+  `useScrollRestorationGate(ready)` so a restore waits for rows instead of
+  timing out (3s, 8s if gated) against a skeleton.
+- **View state goes in the URL with `replaceState`, not `router.push`:**
+  `useUrlState` (`hooks/use-url-state.ts`) for tabs/sort/filter; browse filters
+  use native `pushState` (Next integrates native history calls: useSearchParams
+  updates, no RSC round-trip). Never pass Next's own `history.state` back into
+  these calls (an object with `__NA` bypasses Next's URL sync) — pass `null`, or
+  `{ __overlay }` to preserve a `useHistoryDismiss` marker. When the current
+  entry IS an overlay entry, REPLACE it (browse filters do) instead of pushing
+  on top of it.
+- Don't `router.push` the current URL from an effect (old `/search` did it
+  after every results load: an entry per keystroke, and a duplicate push on
+  Back that wiped forward history).
+- Tests: `lib/scroll-restoration.test.ts`, `layout/scroll-restoration.test.tsx`.
+
 ## AI chat window controls (consolidated June 2026)
 
 X always dismisses to the idle bubble and NEVER clears the conversation;

@@ -75,13 +75,13 @@ export function Footer({ className }: FooterProps) {
                 </Link>
               </li>
               <li>
-                <Link href="/watched" className="hover:text-foreground transition-colors">
-                  Watched
+                <Link href="/diary" className="hover:text-foreground transition-colors">
+                  Diary
                 </Link>
               </li>
               <li>
-                <Link href="/ratings" className="hover:text-foreground transition-colors">
-                  Ratings
+                <Link href="/stats" className="hover:text-foreground transition-colors">
+                  Stats
                 </Link>
               </li>
             </ul>

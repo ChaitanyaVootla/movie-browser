@@ -10,8 +10,6 @@ import {
   User,
   Library,
   ListChecks,
-  Eye,
-  Star,
   LogOut,
   Settings,
   Moon,
@@ -90,8 +88,6 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
         { href: "/lists", label: "Lists", icon: ListChecks },
         { href: "/diary", label: "Diary", icon: NotebookPen },
         { href: "/stats", label: "Stats", icon: BarChart3 },
-        { href: "/watched", label: "Watched", icon: Eye },
-        { href: "/ratings", label: "My Ratings", icon: Star },
         { href: "/settings", label: "Settings", icon: Settings },
       ]
     : [];

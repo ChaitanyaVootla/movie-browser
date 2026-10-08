@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
+import { getMediaPath } from "@/lib/utils";
 import type { PersonSliceDTO } from "@/types/social";
 
 function initials(name: string): string {
@@ -54,7 +55,7 @@ export function TopPeopleRow({ people }: { people: PersonSliceDTO[] }) {
         return person.personId !== null ? (
           <Link
             key={key}
-            href={`/person/${person.personId}`}
+            href={getMediaPath("person", person.personId, person.name)}
             prefetch={false}
             className="group w-16 flex-shrink-0 text-center"
           >

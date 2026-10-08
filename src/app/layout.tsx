@@ -5,7 +5,7 @@ import { Providers } from "@/components/providers";
 import { NavBar } from "@/components/features/layout/nav-bar";
 import { MobileBottomNav } from "@/components/features/layout/mobile-bottom-nav";
 import { Footer } from "@/components/features/layout/footer";
-import { ScrollToTop } from "@/components/features/layout/scroll-to-top";
+import { ScrollRestoration } from "@/components/features/layout/scroll-restoration";
 import { ThemeColorSync } from "@/components/features/layout/theme-color-sync";
 import { UsernameClaimPrompt } from "@/components/features/settings/username-claim-prompt";
 import { ViewTransitions } from "@/lib/view-transitions";
@@ -137,7 +137,7 @@ export default function RootLayout({
       >
         <Providers>
           <ThemeColorSync />
-          <ScrollToTop />
+          <ScrollRestoration />
           <NavBar />
           <main className="flex-1 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0">{children}</main>
           <Footer className="hidden md:block" />

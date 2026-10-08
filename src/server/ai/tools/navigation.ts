@@ -14,13 +14,14 @@ const ID_REQUIRED = new Set(["movie", "series", "person", "movie_discussions", "
 
 // User-specific pages (only meaningful when logged in)
 const USER_PAGES: Record<string, string> = {
-  watchlist: "/watchlist",
+  // Watchlist / Watched / Ratings are tabs of /library (old routes redirect).
+  watchlist: "/library?tab=watchlist",
   diary: "/diary",
   stats: "/stats",
   library: "/library",
   lists: "/lists",
-  ratings: "/ratings",
-  watched: "/watched",
+  ratings: "/library?tab=ratings",
+  watched: "/library?tab=watched",
   notifications: "/notifications",
   settings: "/settings",
 };

@@ -481,6 +481,23 @@ export function parseDiscoverParams(searchParams: URLSearchParams): Partial<Disc
 }
 
 /**
+ * The /browse page's params for a URL: parsed filters with the page defaults
+ * applied (movie, popularity) and `page` dropped (paging is client-side).
+ * Shared by the server page (initial render) and the client (URL → state), so
+ * both agree on exactly which request the server-rendered results belong to.
+ */
+export function browseParamsFromSearch(
+  searchParams: URLSearchParams,
+): Partial<DiscoverParams> & { media_type: "movie" | "tv" } {
+  const { page: _page, ...parsed } = parseDiscoverParams(searchParams);
+  return {
+    ...parsed,
+    media_type: parsed.media_type || "movie",
+    sort_by: parsed.sort_by || "popularity.desc",
+  };
+}
+
+/**
  * Build a browse page URL with the given discover params
  */
 export function buildBrowseUrl(params: Partial<DiscoverParams>): string {

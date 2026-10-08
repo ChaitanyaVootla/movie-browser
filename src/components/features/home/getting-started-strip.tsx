@@ -83,7 +83,7 @@ export function GettingStartedStrip() {
           label="Browse TV shows"
         />
         <StartLink
-          href="/watchlist"
+          href="/library?tab=watchlist"
           icon={<Bookmark className="size-4" />}
           label="Your watchlist"
         />

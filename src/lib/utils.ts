@@ -55,8 +55,17 @@ export function getMediaPath(
  * @param item - Any object that may have title/name properties
  * @returns true if the item is a movie, false if it's a series
  */
-export function isMovieItem(item: { title?: string; name?: string }): boolean {
-  return Boolean(item.title);
+export function isMovieItem(item: {
+  title?: string | null;
+  name?: string | null;
+  isMovie?: boolean;
+}): boolean {
+  if (item.title) return true;
+  if (item.name) return false;
+  // Neither name field (e.g. a library row whose catalog title is missing):
+  // fall back to the stored flag instead of silently treating a movie as a
+  // series — that produced /series/{movieId} links (wrong media type).
+  return item.isMovie ?? false;
 }
 
 /**
@@ -66,7 +75,7 @@ export function isMovieItem(item: { title?: string; name?: string }): boolean {
  * @param item - Any object that may have title/name properties
  * @returns The display title or "Untitled" as fallback
  */
-export function getDisplayTitle(item: { title?: string; name?: string }): string {
+export function getDisplayTitle(item: { title?: string | null; name?: string | null }): string {
   return item.title || item.name || "Untitled";
 }
 
@@ -92,6 +101,11 @@ export function getMediaHref(id: number, isMovie: boolean, title: string): strin
  * @param item - Any object that may have title/name properties
  * @returns The formatted URL path e.g. /movie/123/fight-club or /series/456/breaking-bad
  */
-export function getMediaHrefFromItem(id: number, item: { title?: string; name?: string }): string {
-  return getMediaHref(id, isMovieItem(item), getDisplayTitle(item));
+export function getMediaHrefFromItem(
+  id: number,
+  item: { title?: string | null; name?: string | null; isMovie?: boolean },
+): string {
+  // No real title → slugless canonical form (the proxy 308s it to the right
+  // slug), never the "untitled" placeholder slug.
+  return getMediaPath(isMovieItem(item) ? "movie" : "series", id, item.title || item.name);
 }

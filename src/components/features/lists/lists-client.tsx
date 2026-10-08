@@ -8,6 +8,7 @@ import { ListChecks, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/features/layout/section-heading";
+import { useScrollRestorationGate } from "@/components/features/layout/scroll-restoration";
 import { getMyLists } from "@/server/actions/lists";
 import { useUsername } from "@/hooks/use-username";
 import { ListCard, type ListCardData } from "./list-card";
@@ -22,6 +23,8 @@ export function ListsClient() {
   const [lists, setLists] = useState<ListCardData[]>([]);
   const [state, setState] = useState<LoadState>("loading");
   const [createOpen, setCreateOpen] = useState(false);
+  // Back from a list holds the scroll restore until the lists have loaded.
+  useScrollRestorationGate(state !== "loading");
 
   // Fetch lists. `cancelled` is read via the passed ref so a unmount mid-flight
   // skips the setState. Returns nothing — all setState happens inside.
