@@ -135,6 +135,40 @@ function VideoThumbnail({ video, isActive, onClick, metadata }: VideoThumbnailPr
   );
 }
 
+/**
+ * Click-to-play facade for the main player. The YouTube embed (player_embed
+ * base.js + ytembeds, ~2.5MB of decoded JS) is NOT loaded until the viewer
+ * asks for it — the section sits far below the fold and most visitors never
+ * press play. A thumbnail + play button stands in until then (perf audit Oct
+ * 2026: every detail view eagerly loaded the player, TWICE on mobile, because
+ * `useMobile()` is false on the server/first render so the desktop iframe was
+ * SSR'd and started loading before the effect swapped in the mobile one).
+ */
+function PlayerFacade({ video, onPlay }: { video: Video; onPlay: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onPlay}
+      className="group absolute inset-0 w-full h-full"
+      aria-label={`Play ${video.name}`}
+    >
+      <Image
+        src={`https://i.ytimg.com/vi/${video.key}/hqdefault.jpg`}
+        alt=""
+        fill
+        className="object-cover"
+        sizes="(max-width: 768px) 100vw, 60vw"
+        unoptimized
+      />
+      <span className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
+        <span className="rounded-full bg-white/90 p-4 shadow-lg group-hover:scale-110 transition-transform">
+          <Play className="h-6 w-6 text-black fill-black" />
+        </span>
+      </span>
+    </button>
+  );
+}
+
 export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGalleryProps) {
   const { trackTrailerPlay } = useAnalytics();
   const wakeLock = useWakeLock();
@@ -272,6 +306,9 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
     setActiveVideoData(null);
   };
 
+  // Facade click: play the video already shown in the main slot.
+  const handlePlayActive = () => handleVideoSelect(activeVideo);
+
   // Get stats for active video
   const activeStats = activeVideoData?.stats;
   const activeComments = activeVideoData?.comments?.comments || [];
@@ -319,16 +356,21 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
             ref={mainPlayerRef}
             className="relative aspect-video rounded-xl overflow-hidden bg-black"
           >
-            {/* Non-autoplay shows YouTube's rich UI with channel, title, link.
-                Rendered ONLY on desktop — see the isMobile note above. */}
-            {!isMobile && (
+            {/* The iframe mounts only once the viewer presses play (facade
+                until then) and ONLY on desktop — see the isMobile note above.
+                isPlaying can only flip after hydration, so useMobile() has
+                settled by then and exactly one layout ever mounts a player. */}
+            {isPlaying && !isMobile ? (
               <iframe
-                src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?rel=0${isPlaying ? "&autoplay=1" : ""}`}
+                src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?rel=0&autoplay=1`}
+                loading="lazy"
                 title={activeVideo.name}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 className="absolute inset-0 w-full h-full"
               />
+            ) : (
+              <PlayerFacade video={activeVideo} onPlay={handlePlayActive} />
             )}
           </div>
 
@@ -381,16 +423,18 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
         {/* Current video player */}
         <div className="px-4 mb-4">
           <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
-            {/* YouTube's native UI shows title, channel, link.
-                Rendered ONLY on mobile — see the isMobile note above. */}
-            {isMobile && (
+            {/* Facade until play; iframe ONLY on mobile — see the notes above. */}
+            {isPlaying && isMobile ? (
               <iframe
-                src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?rel=0${isPlaying ? "&autoplay=1" : ""}`}
+                src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?rel=0&autoplay=1`}
+                loading="lazy"
                 title={activeVideo.name}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 className="absolute inset-0 w-full h-full"
               />
+            ) : (
+              <PlayerFacade video={activeVideo} onPlay={handlePlayActive} />
             )}
           </div>
 
