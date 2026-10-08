@@ -67,13 +67,11 @@ resource "aws_lambda_function" "movie_ratings_scraper" {
   role          = aws_iam_role.lambda_execution_role.arn
   handler       = "dist/index.handler"
   runtime       = "nodejs22.x"
-  timeout       = 300  # 5 minutes (increased for scraping operations)
-  memory_size   = 1024 # 1GB
-
-  # Use the specified Chromium layer
-  layers = [
-    "arn:aws:lambda:${var.aws_region}:620733889764:layer:chromium133:1"
-  ]
+  architectures = ["arm64"]
+  # v2 (Oct 2026) is browserless plain-HTTP enrichment — no Chromium layer,
+  # zero runtime deps, ~10KB package. p90 ~4s; each source has a 7s budget.
+  timeout     = 30
+  memory_size = 256
 
   environment {
     variables = {

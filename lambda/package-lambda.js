@@ -50,38 +50,12 @@ async function packageLambda() {
   console.log("  📁 Adding compiled JavaScript files...");
   archive.directory("dist/", "dist/");
 
-  // Add production node_modules (exclude large devDependencies like aws-sdk)
-  if (fs.existsSync("node_modules")) {
-    console.log("  📚 Adding node_modules (excluding devDependencies)...");
-
-    // Get list of devDependencies to exclude
-    const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
-    const devDeps = Object.keys(packageJson.devDependencies || {});
-
-    console.log(`  📦 Excluding ${devDeps.length} devDependencies: ${devDeps.join(", ")}`);
-
-    // Add all node_modules except the large devDependencies
-    const items = fs.readdirSync("node_modules");
-    items.forEach((item) => {
-      const itemPath = `node_modules/${item}`;
-      if (fs.statSync(itemPath).isDirectory() && !devDeps.includes(item)) {
-        archive.directory(itemPath, `node_modules/${item}`);
-      }
-    });
-  } else {
-    console.warn('⚠️  node_modules not found. Run "npm install" first.');
-  }
+  // v2 has ZERO runtime dependencies (global fetch, no Chromium) — ship dist/ only.
 
   // Add package.json (needed for Lambda runtime)
   if (fs.existsSync("package.json")) {
     console.log("  📄 Adding package.json...");
     archive.file("package.json", { name: "package.json" });
-  }
-
-  // Add package-lock.json if it exists (helps with consistent installs)
-  if (fs.existsSync("package-lock.json")) {
-    console.log("  🔒 Adding package-lock.json...");
-    archive.file("package-lock.json", { name: "package-lock.json" });
   }
 
   // Finalize the archive
