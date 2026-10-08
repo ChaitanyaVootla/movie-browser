@@ -82,10 +82,7 @@ export const ScrollContainer = forwardRef<HTMLDivElement, ScrollContainerProps>(
     const {
       setScrollRef,
       isDragging,
-      handlePointerDown,
-      handlePointerMove,
-      handlePointerUp,
-      handleDragStart,
+      dragHandlers,
       scroll,
     } = useScrollDrag({ externalRef: forwardedRef });
 
@@ -132,11 +129,7 @@ export const ScrollContainer = forwardRef<HTMLDivElement, ScrollContainerProps>(
             bottomPadding,
             isDragging && "cursor-grabbing select-none"
           )}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onDragStart={handleDragStart}
+          {...dragHandlers}
         >
           {children}
         </div>

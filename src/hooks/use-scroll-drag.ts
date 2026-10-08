@@ -2,13 +2,24 @@
 
 import { useRef, useState, useCallback, type RefObject, type ForwardedRef } from "react";
 
-const DRAG_THRESHOLD = 5; // pixels - movement below this is considered a click
+/** Horizontal movement (px) below which a press is a click, not a drag. */
+export const DRAG_THRESHOLD = 5;
+
+/**
+ * Fallback window (ms) after a drag's pointerup during which the follow-up
+ * click is swallowed. Browsers dispatch that click in the same task as
+ * mouseup, so this only matters when NO click follows (released over the gap
+ * between cards / outside the scroller) — it stops a stale flag lingering.
+ */
+const SUPPRESS_CLICK_WINDOW_MS = 300;
 
 interface DragState {
   isDown: boolean;
+  pointerId: number;
   startX: number;
   scrollLeft: number;
-  hasMoved: boolean; // Track if we've exceeded the drag threshold
+  /** Exceeded DRAG_THRESHOLD — this press is a drag, not a click. */
+  hasMoved: boolean;
 }
 
 interface UseScrollDragOptions {
@@ -18,46 +29,57 @@ interface UseScrollDragOptions {
   externalRef?: ForwardedRef<HTMLDivElement>;
 }
 
+/** Spread onto the scroll element: `<div ref={setScrollRef} {...dragHandlers}>`. */
+export interface ScrollDragHandlers {
+  onPointerDown: (e: React.PointerEvent) => void;
+  onPointerMove: (e: React.PointerEvent) => void;
+  onPointerUp: (e: React.PointerEvent) => void;
+  onPointerCancel: (e: React.PointerEvent) => void;
+  onLostPointerCapture: (e: React.PointerEvent) => void;
+  onClickCapture: (e: React.MouseEvent) => void;
+  onDragStart: (e: React.DragEvent) => void;
+}
+
 interface UseScrollDragReturn {
   scrollRef: RefObject<HTMLDivElement | null>;
   setScrollRef: (el: HTMLDivElement | null) => void;
   isDragging: boolean;
-  handlePointerDown: (e: React.PointerEvent) => void;
-  handlePointerMove: (e: React.PointerEvent) => void;
-  handlePointerUp: (e: React.PointerEvent) => void;
-  handleDragStart: (e: React.DragEvent) => void;
+  dragHandlers: ScrollDragHandlers;
   scroll: (direction: "left" | "right") => void;
 }
 
+/** Smooth-scroll `el` by a fraction of its visible width. */
+export function scrollByPage(
+  el: HTMLElement | null,
+  direction: "left" | "right",
+  scrollAmount = 0.8
+): void {
+  if (!el) return;
+  const amount = el.clientWidth * scrollAmount;
+  el.scrollBy({ left: direction === "left" ? -amount : amount, behavior: "smooth" });
+}
+
 /**
- * Hook for horizontal scroll containers with drag-to-scroll and arrow controls.
+ * Hook for horizontal scroll containers with mouse drag-to-scroll.
  *
- * Features:
- * - Drag threshold to distinguish clicks from drags (fixes click blocking)
- * - Pointer capture only activates AFTER threshold is exceeded
- * - Arrow key scroll with configurable amount
- * - Supports external refs (for forwardRef components)
- * - **Touch devices use native scroll** - drag-to-scroll only for mouse
+ * - **Mouse only.** Touch (and its click) is untouched — native scrolling
+ *   owns touch, so vertical page scroll starting on a row still works.
+ * - **Left button only.** Middle/right presses never start a drag, so
+ *   middle-click / ctrl-click open-in-new-tab and context menus keep working.
+ * - **Click vs drag**: below DRAG_THRESHOLD px the press stays a click. Past
+ *   it, the pointer is captured, the row scrolls, and the click the browser
+ *   synthesises on release is swallowed in the CAPTURE phase on the scroller
+ *   (`onClickCapture`) — so no descendant (`<Link>`, gallery button,
+ *   hover-card wrapper) activates. Without this the card under the cursor
+ *   opened on every short drag (Oct 2026 user report).
+ * - Keyboard activation (`click` with `detail === 0`) is never swallowed.
+ * - Native link/image drag (ghost image) is blocked, and any text selection
+ *   started before the threshold is cleared once the drag begins.
  *
- * Usage:
  * ```tsx
- * const { scrollRef, setScrollRef, isDragging, handlePointerDown, ... } = useScrollDrag();
- *
- * // Use setScrollRef for callback ref pattern (preferred for forwardRef)
- * <div
- *   ref={setScrollRef}
- *   className={cn("overflow-x-auto", isDragging && "cursor-grabbing select-none")}
- *   onPointerDown={handlePointerDown}
- *   onPointerMove={handlePointerMove}
- *   onPointerUp={handlePointerUp}
- *   onPointerCancel={handlePointerUp}
- *   onDragStart={handleDragStart}
- * >
- *   {children}
- * </div>
- *
- * // Or use scrollRef directly
- * <div ref={scrollRef} ... />
+ * const { setScrollRef, isDragging, dragHandlers, scroll } = useScrollDrag();
+ * <div ref={setScrollRef} {...dragHandlers}
+ *      className={cn("overflow-x-auto", isDragging && "cursor-grabbing select-none")}>
  * ```
  */
 export function useScrollDrag(options: UseScrollDragOptions = {}): UseScrollDragReturn {
@@ -67,18 +89,19 @@ export function useScrollDrag(options: UseScrollDragOptions = {}): UseScrollDrag
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<DragState>({
     isDown: false,
+    pointerId: -1,
     startX: 0,
     scrollLeft: 0,
     hasMoved: false,
   });
+  const suppressClickRef = useRef(false);
+  const suppressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Callback ref setter that updates both internal and external refs
   const setScrollRef = useCallback(
     (el: HTMLDivElement | null) => {
-      // Update internal ref
       (internalRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
 
-      // Update external ref if provided (standard React forwardRef pattern)
       if (externalRef) {
         if (typeof externalRef === "function") {
           externalRef(el);
@@ -92,88 +115,129 @@ export function useScrollDrag(options: UseScrollDragOptions = {}): UseScrollDrag
   );
 
   const scroll = useCallback(
-    (direction: "left" | "right") => {
-      if (internalRef.current) {
-        const visibleWidth = internalRef.current.clientWidth;
-        const amount =
-          direction === "left" ? -visibleWidth * scrollAmount : visibleWidth * scrollAmount;
-        internalRef.current.scrollBy({ left: amount, behavior: "smooth" });
-      }
-    },
+    (direction: "left" | "right") => scrollByPage(internalRef.current, direction, scrollAmount),
     [scrollAmount]
   );
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (!internalRef.current) return;
-
-    // Skip drag-to-scroll for touch - let native scroll handle it
-    // This allows vertical scrolling when starting on a horizontal scroller
-    if (e.pointerType === "touch") return;
-
-    // Only track left mouse button
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-
-    dragRef.current = {
-      isDown: true,
-      startX: e.clientX,
-      scrollLeft: internalRef.current.scrollLeft,
-      hasMoved: false,
-    };
-
-    // DON'T capture pointer yet - wait until we know it's a drag
-    // This allows clicks to propagate to child elements normally
+  const clearSuppress = useCallback(() => {
+    suppressClickRef.current = false;
+    if (suppressTimerRef.current) {
+      clearTimeout(suppressTimerRef.current);
+      suppressTimerRef.current = null;
+    }
   }, []);
 
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    // Skip for touch devices - native scroll handles it
-    if (e.pointerType === "touch") return;
+  /** End the current press. `wasRelease` = a real pointerup (a click may follow). */
+  const endDrag = useCallback(
+    (pointerId: number, wasRelease: boolean) => {
+      const drag = dragRef.current;
+      if (!drag.isDown || pointerId !== drag.pointerId) return;
 
-    if (!dragRef.current.isDown || !internalRef.current) return;
-
-    const dx = e.clientX - dragRef.current.startX;
-
-    // Check if we've exceeded the drag threshold
-    if (!dragRef.current.hasMoved && Math.abs(dx) > DRAG_THRESHOLD) {
-      dragRef.current.hasMoved = true;
-      setIsDragging(true);
-
-      // NOW capture the pointer since we know it's a drag
-      try {
-        internalRef.current.setPointerCapture(e.pointerId);
-      } catch {
-        // Pointer may have been released
+      if (drag.hasMoved) {
+        if (wasRelease) {
+          clearSuppress();
+          suppressClickRef.current = true;
+          suppressTimerRef.current = setTimeout(clearSuppress, SUPPRESS_CLICK_WINDOW_MS);
+        }
+        const el = internalRef.current;
+        try {
+          if (el?.hasPointerCapture?.(pointerId)) el.releasePointerCapture(pointerId);
+        } catch {
+          // Pointer may have already been released
+        }
       }
-    }
 
-    // Only scroll if we're actually dragging (past threshold)
-    if (dragRef.current.hasMoved) {
-      e.preventDefault();
-      internalRef.current.scrollLeft = dragRef.current.scrollLeft - dx;
-    }
-  }, []);
+      drag.isDown = false;
+      drag.hasMoved = false;
+      setIsDragging(false);
+    },
+    [clearSuppress]
+  );
 
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    // Skip for touch devices
-    if (e.pointerType === "touch") return;
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      // A fresh press always starts clean — never let a stale flag eat it.
+      clearSuppress();
 
-    if (!internalRef.current || !dragRef.current.isDown) return;
+      if (!internalRef.current) return;
+      // Touch/pen: native scroll handles it (keeps vertical page scroll working).
+      if (e.pointerType !== "mouse") return;
+      // Left button only — middle/right keep open-in-new-tab / context menu.
+      if (e.button !== 0) return;
 
-    // Release pointer capture if we were dragging
-    if (dragRef.current.hasMoved) {
-      try {
-        internalRef.current.releasePointerCapture(e.pointerId);
-      } catch {
-        // Pointer may have already been released
+      dragRef.current = {
+        isDown: true,
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        scrollLeft: internalRef.current.scrollLeft,
+        hasMoved: false,
+      };
+      // DON'T capture yet — a press that never passes the threshold must
+      // remain an ordinary click on the element under the cursor.
+    },
+    [clearSuppress]
+  );
+
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const drag = dragRef.current;
+      const el = internalRef.current;
+      if (!drag.isDown || !el || e.pointerId !== drag.pointerId) return;
+
+      // Button released somewhere we never heard about (e.g. outside the
+      // window before capture began) — end the press instead of "sticking".
+      if ((e.buttons & 1) === 0) {
+        endDrag(e.pointerId, false);
+        return;
       }
-    }
 
-    dragRef.current.isDown = false;
-    dragRef.current.hasMoved = false;
-    setIsDragging(false);
-  }, []);
+      const dx = e.clientX - drag.startX;
 
-  const handleDragStart = useCallback((e: React.DragEvent) => {
-    // Prevent native drag behavior on images, links, etc.
+      if (!drag.hasMoved && Math.abs(dx) > DRAG_THRESHOLD) {
+        drag.hasMoved = true;
+        setIsDragging(true);
+        // Drop any text selection the press started before it became a drag.
+        window.getSelection?.()?.removeAllRanges();
+        try {
+          el.setPointerCapture(e.pointerId);
+        } catch {
+          // Pointer may have been released
+        }
+      }
+
+      if (drag.hasMoved) {
+        e.preventDefault();
+        el.scrollLeft = drag.scrollLeft - dx;
+      }
+    },
+    [endDrag]
+  );
+
+  const onPointerUp = useCallback(
+    (e: React.PointerEvent) => endDrag(e.pointerId, true),
+    [endDrag]
+  );
+
+  // A cancel (or losing capture before pointerup) produces no click.
+  const onPointerCancel = useCallback(
+    (e: React.PointerEvent) => endDrag(e.pointerId, false),
+    [endDrag]
+  );
+
+  const onClickCapture = useCallback(
+    (e: React.MouseEvent) => {
+      if (!suppressClickRef.current) return;
+      // detail === 0 → keyboard / programmatic activation, never a drag release.
+      if (e.detail === 0) return;
+      clearSuppress();
+      e.preventDefault(); // stops native <a href> navigation
+      e.stopPropagation(); // stops <Link>/button onClick on descendants
+    },
+    [clearSuppress]
+  );
+
+  const onDragStart = useCallback((e: React.DragEvent) => {
+    // Prevent native drag (ghost image) of links/images inside the scroller.
     e.preventDefault();
   }, []);
 
@@ -181,10 +245,15 @@ export function useScrollDrag(options: UseScrollDragOptions = {}): UseScrollDrag
     scrollRef: internalRef,
     setScrollRef,
     isDragging,
-    handlePointerDown,
-    handlePointerMove,
-    handlePointerUp,
-    handleDragStart,
+    dragHandlers: {
+      onPointerDown,
+      onPointerMove,
+      onPointerUp,
+      onPointerCancel,
+      onLostPointerCapture: onPointerCancel,
+      onClickCapture,
+      onDragStart,
+    },
     scroll,
   };
 }
