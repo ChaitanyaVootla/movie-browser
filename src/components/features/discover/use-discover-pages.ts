@@ -3,7 +3,12 @@
 import { keepPreviousData, useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
 import type { DiscoverParams } from "@/lib/discover";
 import type { MediaItem } from "@/types";
-import { discover, type DiscoverResult } from "@/server/actions/discover";
+import type { DiscoverResult } from "@/server/actions/discover";
+import {
+  DISCOVER_RESULTS_PATH,
+  MAX_DISCOVER_PAGE,
+  discoverResultsQuery,
+} from "@/lib/discover-results";
 
 export type DiscoverQueryParams = Partial<DiscoverParams> & { media_type: "movie" | "tv" };
 
@@ -35,6 +40,22 @@ export interface DiscoverInitial {
 }
 
 /**
+ * One page via the edge-cacheable GET endpoint (NOT the `discover` server
+ * action: actions are POSTs, which no CDN caches — every filter change and
+ * every infinite-scroll page used to be an origin TMDB round-trip).
+ */
+export async function fetchDiscoverPage(
+  params: DiscoverQueryParams,
+  page: number
+): Promise<DiscoverResult> {
+  const res = await fetch(`${DISCOVER_RESULTS_PATH}?${discoverResultsQuery(params, page)}`, {
+    headers: { accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`discover results ${res.status}`);
+  return (await res.json()) as DiscoverResult;
+}
+
+/**
  * Paged discover results held in the TanStack Query cache instead of
  * component state. Remounting (Back from a detail page) restores ALL pages the
  * user had loaded — the precondition for restoring their scroll position.
@@ -49,9 +70,10 @@ export function useDiscoverPages(params: DiscoverQueryParams, initial?: Discover
     number
   >({
     queryKey: ["discover-pages", key],
-    queryFn: ({ pageParam }) => discover({ ...params, page: pageParam }),
+    queryFn: ({ pageParam }) => fetchDiscoverPage(params, pageParam),
     initialPageParam: 1,
-    getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
+    getNextPageParam: (last) =>
+      last.page < Math.min(last.totalPages, MAX_DISCOVER_PAGE) ? last.page + 1 : undefined,
     initialData: initial
       ? {
           pages: [
