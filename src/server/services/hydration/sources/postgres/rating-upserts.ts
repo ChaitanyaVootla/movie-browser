@@ -49,7 +49,13 @@ export async function upsertRatings(
   mediaType: MediaType,
   tmdb: { vote_average: number; vote_count: number },
   enrichedRatings: EnrichedRatings | null
-): Promise<void> {
+): Promise<number> {
+  // Count of DISPLAYED enriched sources (IMDb, RT critic/audience, Google)
+  // actually written — the "meaningful change" signal for CDN/ISR purges.
+  // TMDB is excluded on purpose: its vote_average/vote_count jitter on nearly
+  // every refresh. Metacritic/Letterboxd are stored but not rendered.
+  let displayedChanged = 0;
+
   // DO NOT delete existing ratings - we want to preserve them if Lambda doesn't return new ones
   // Instead, upsert each rating individually
 
@@ -126,6 +132,7 @@ export async function upsertRatings(
   if (enrichedRatings) {
     // IMDb
     if (enrichedRatings.imdb?.score && !ratingUnchanged("imdb", enrichedRatings.imdb)) {
+      displayedChanged++;
       const sourceId = await getOrCreateSource(tx, "imdb");
       console.log(
         `  → IMDb: ${enrichedRatings.imdb.score} (${enrichedRatings.imdb.voteCount ?? "N/A"} votes)`
@@ -153,6 +160,7 @@ export async function upsertRatings(
 
     // RT Critic
     if (enrichedRatings.rtCritic?.score && !ratingUnchanged("rt_critic", enrichedRatings.rtCritic)) {
+      displayedChanged++;
       const sourceId = await getOrCreateSource(tx, "rt_critic");
       console.log(
         `  → RT Critic: ${enrichedRatings.rtCritic.score}% (certified: ${enrichedRatings.rtCritic.certified ?? "N/A"})`
@@ -189,6 +197,7 @@ export async function upsertRatings(
       enrichedRatings.rtAudience?.score &&
       !ratingUnchanged("rt_audience", enrichedRatings.rtAudience)
     ) {
+      displayedChanged++;
       const sourceId = await getOrCreateSource(tx, "rt_audience");
       console.log(`  → RT Audience: ${enrichedRatings.rtAudience.score}%`);
       await tx.rating.upsert({
@@ -272,6 +281,7 @@ export async function upsertRatings(
 
     // Google
     if (enrichedRatings.google?.score && !ratingUnchanged("google", enrichedRatings.google)) {
+      displayedChanged++;
       const sourceId = await getOrCreateSource(tx, "google");
       console.log(`  → Google: ${enrichedRatings.google.score}%`);
       await tx.rating.upsert({
@@ -293,6 +303,7 @@ export async function upsertRatings(
   }
 
   console.log(`[Hydration/Postgres] Ratings upsert complete for ${mediaType} ${mediaId}`);
+  return displayedChanged;
 }
 
 // =============================================================================
@@ -316,7 +327,7 @@ export async function upsertScrapedWatchLinks(
   mediaType: MediaType,
   links: ScrapedWatchLink[],
   replaceCountries: string[] = []
-): Promise<void> {
+): Promise<number> {
   const mediaWhereClause = mediaType === "movie" ? { movieId: mediaId } : { seriesId: mediaId };
   const baseData = {
     movieId: mediaType === "movie" ? mediaId : null,
@@ -324,7 +335,7 @@ export async function upsertScrapedWatchLinks(
   };
   const withCountry = links.map((l) => ({ ...l, country: l.country ?? "IN" }));
   const countries = [...new Set([...withCountry.map((l) => l.country), ...replaceCountries])];
-  if (countries.length === 0) return;
+  if (countries.length === 0) return 0;
 
   // Change-detection: skip per-link upserts whose stored values already match
   // (the upsert's `updatedAt` write otherwise churns a dead row per link).
@@ -381,4 +392,6 @@ export async function upsertScrapedWatchLinks(
       `[Hydration/Postgres] Watch links ${mediaType} ${mediaId}: ${written} written, ${stale.length} stale removed (${countries.join(",")})`
     );
   }
+  /** Rows written + removed — 0 means the stored deep links are unchanged. */
+  return written + stale.length;
 }

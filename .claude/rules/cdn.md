@@ -5,6 +5,9 @@ paths:
   - "Caddyfile"
   - "public/robots.txt"
   - "next.config.mjs"
+  - "cache-handler.cjs"
+  - "src/server/services/cdn/**"
+  - "src/app/api/revalidate/**"
 ---
 
 # CDN — **Cloudflare** fronts the apex (since Aug 14 2026); CloudFront is the fallback
@@ -678,6 +681,8 @@ anonymous detail page before declaring the cutover done.**
   got `{"code":10000,"message":"Authentication error"}`. The token carries the
   migration scopes (Zone Analytics Read / DNS / Rules) but not **Zone → Cache Purge →
   Purge**. So every "just purge it" plan above is blocked until that scope is added.
+  (Re-verified Oct 8 2026 with a purge of a never-cached probe URL: still code 10000.
+  The title-purge pipeline below reads a dedicated `CLOUDFLARE_PURGE_TOKEN` first.)
   **Workaround that needs no token:** Cloudflare keys on the FULL query string, so
   appending a cache-buster (`?_cb=<ts>`) forces a MISS and fetches fresh origin HTML —
   invaluable for verifying a deploy without waiting out `s-maxage`, since through the
@@ -912,6 +917,115 @@ Verified separately that no real secret path is reachable: `/gcp_service.json`,
   which only ever sees CDN cache MISSES, so a 24h edge TTL would hide nearly
   every fetch of the one agent-facing surface we added to measure it. See
   `.claude/rules/llm-friendly.md`.
+
+## Title purge: fresh ratings/deep links/AI on the next reload (Oct 2026)
+
+**The bug it fixes (user repro):** a visitor lands on a title with no IMDb/RT. The
+render returns PG data and kicks the background refresh; the SSE enrich stream then
+shows the new ratings LIVE. A plain reload served the cached HTML again and the
+ratings vanished — for up to ~2h (origin ISR `revalidate=3600`, edge `s-maxage=3600,
+stale-while-revalidate=3600`). Three independent layers now cover it:
+
+| Layer | Mechanism | Where |
+|---|---|---|
+| 1. Origin ISR | entry for the canonical path DELETED in-process right after the committed upsert, and again ~3s later (a render that was mid-flight when the upsert committed can re-cache old data) | `cdn/origin-isr.ts` → `cache-handler.cjs` `invalidateKeys` via `globalThis[Symbol.for("movie-browser.bounded-isr")]` |
+| 2. Cloudflare | debounced (3s), token-bucket (3 calls/min), batched (≤50 titles) purge: files = page + `.md` twin, prefix = canonical path (covers `?_rsc=` flight variants) | `cdn/purge-queue.ts`, `cdn/cloudflare.ts` |
+| 3. Client self-heal | every SSE stream opens with a `ratings` snapshot of PG; `LiveRatings` swaps it in when it differs from the HTML (`pickRatings`, identity-preserving when equal). Live AI components mount only when the HTML had no AI and request a one-shot `?once=1&ai=1` snapshot | `api/[mediaType]/[id]/enrich/route.ts`, `use-enrichment-stream.ts`, `enrichment-provider.tsx`, `enrichment-ratings.ts` |
+
+Layer 3 is the one that works even if 1/2 lose a race or the token is missing — it
+makes it impossible for a page to show OLDER ratings than PG holds. It costs nothing
+new: the stream already opened on every page view and already read the ratings row;
+it just stopped throwing the snapshot away on the "already settled" fast path (which
+is exactly the repro's reload).
+
+**Change signal (only purge on meaningful change):** `upsertRatings` returns the
+number of DISPLAYED enriched sources written (IMDb, RT critic/audience, Google —
+NOT TMDB, whose vote jitter changes every refresh, NOT Metacritic/Letterboxd, which
+are not rendered); `upsertScrapedWatchLinks` returns rows written+removed;
+`upsertMovie/SeriesToPostgres` return `UpsertOutcome { written, contentChanged }`
+read only after the transaction COMMITS. Hydration calls `notifyIfContentChanged`
+(background refresh + the sync force-refresh path); progressive enrichment calls
+`notifyTitleContentChanged` after storing AI. Not covered (deliberately): TMDB
+watch-provider list changes (`upsertWatchProviders`) — rare, and ISR catches them.
+
+**Why in-process and not a PG "dirty" table + PM2 cron:** the signal is born in the
+`next` process (PM2 fork, ONE instance — the cache-handler stores are in its memory,
+so only this process can drop the hot copy), the latency target is seconds, and the
+work is a lossy freshness hint (a restart/deploy resets the ISR namespace anyway,
+and the edge copy expires on its own within ~2h).
+
+**Rate-limit math (Cloudflare Free, researched Oct 2026):** single-file purge
+800 URLs/s/account; prefix/tag/host/everything **5 req/min/account, bucket 25**;
+≤100 items per call; one kind per call. The queue spends ≤3 prefix calls/min (+3
+file calls), leaving headroom on the shared account bucket for humans. Demand is
+bounded upstream: `MAX_BACKGROUND_REFRESH=3` concurrent refreshes, each seconds
+long, and only changed titles enqueue — tens/min worst case vs a 150 titles/min
+queue ceiling. Pending set capped at 2,000 (newest dropped + counted).
+
+**`IMDb nightly sync` does NOT purge** (`scripts/sync-imdb-ratings.ts`, a separate
+process that cannot reach the ISR store anyway). Its nightly diffs are ~0.1-point
+moves across many rows; per-row purging would be pointless edge churn. ISR picks it
+up within the hour, and layer 3 shows the PG value on every page load meanwhile.
+
+**Config / ops:**
+- Edge purge is a silent no-op unless `CLOUDFLARE_ZONE_ID` + a token with
+  `Zone → Cache Purge → Purge` exist. Preferred: a dedicated least-privilege
+  `CLOUDFLARE_PURGE_TOKEN` (falls back to `CLOUDFLARE_API_TOKEN`, which lacks the
+  scope as of Oct 8 2026). Kill switches: `CDN_EDGE_PURGE=off`,
+  `ORIGIN_ISR_INVALIDATE=off`.
+- Manual: `POST /api/revalidate` (header `x-revalidate-secret: $AUTH_SECRET`) body
+  `{"titles":[{"mediaType":"movie","id":157336,"title":"Interstellar"}]}`.
+- Observe: ClickHouse `api_calls WHERE service='cdn_purge'` — endpoints
+  `origin:isr` (`quota_cost`=paths, `response_size`=entries removed),
+  `cloudflare:files` / `cloudflare:prefixes` (`quota_cost`=items, `error_type`
+  `cf_<code>` / `network`). `cf_10000` = token lacks the purge scope;
+  `cf_971`/`cf_1134`-class = rate limited.
+- Verify a purge on prod: `curl -sI` the page with a real-Chrome header set →
+  `cf-cache-status: MISS` on the first request after a change, then `HIT`.
+
+**Gotchas found building it:**
+- **`revalidatePath()` was a silent no-op for every cached PAGE under
+  `cache-handler.cjs` until Oct 2026.** Next 16 calls `set()` for APP_PAGE with NO
+  `ctx.tags` — a page's tags (incl. the implicit `_N_T_/<path>` that revalidatePath
+  targets) live only in `value.headers["x-next-cache-tags"]`. Verified on prod: every
+  stored entry had `tags: []` while its header held `_N_T_/movie/382544/loha`. The
+  handler now unions both (`entryTags`). The deploy's `/api/revalidate` of `/` was
+  therefore never doing anything (harmless: BUILD_ID namespacing already cold-starts).
+- **Making tags work made the old tag loader DANGEROUS — never scan the ISR index
+  unbounded.** `revalidateTag` used to `Promise.all(readFile+gunzip+parse)` over
+  EVERY index entry on its first call after boot; harmless while no tag ever
+  matched, but prod holds ~300k entries / ~24GB, so the first profile save
+  (`revalidatePath('/u/<name>')`, 4 call sites in `profile.ts`) would have put
+  hundreds of thousands of buffers in flight (the Aug 18 / Sep heap-OOM classes,
+  `performance.md` 1b + 14). Now `revalidateTag` does three things: (1) marks the
+  tags in Next's own `tags-manifest.external` (what the default FileSystemCache
+  does — `IncrementalCache.get()` then treats matching page/fetch entries as
+  expired immediately, zero I/O, any tag shape; in-memory, lost on restart);
+  (2) exact-path implicit tags `_N_T_<pathname>` (what `revalidatePath(p)` emits
+  — NOT the derived `…/layout`, `…/[...params]/page`, `…/route` tags) map straight
+  to cache keys and are deleted durably with NO scan; (3) anything else runs a
+  single-flight BACKGROUND scan with 32 reads in flight, a yield between batches
+  and a 20k-read / 15s budget per call. With a cache-life profile (`durations`)
+  only (1) runs. Pinned by `cache-handler.test.ts` on a 5k-entry index (0 reads on
+  the fast path; ≤32 in flight on the scan — verified to FAIL, 5000 in flight,
+  against the old code).
+- `/api/admin/enrich`'s `revalidatePath('/movie/<id>')` (slugless) never matched a
+  cached page — they live under the canonical slug key. It now also calls
+  `notifyTitleContentChanged` with the PG title.
+- `revalidatePath` also cannot be called from the background refresh at all — it
+  needs a request work-store ("static generation store missing") and throws during
+  render. Hence the registry.
+- The ISR cache key IS the request pathname (`sha1("/movie/382544/loha")` = the file
+  name on disk — verified). The canonical slug must come from `getMediaPath`, the same
+  function the proxy canonicalizes with.
+- Prefix purge matches "regardless of query string", which is the ONLY way to reach
+  `?_rsc=` variants (Cloudflare keys on the full query string). Never send a prefix
+  shallower than `/movie|series/{id}/{slug}` — `isSafePrefix` enforces it, and
+  slugless titles get files only (`/movie/12` would string-match `/movie/123…`).
+- `/api/watch-providers` is `cf-cache-status: DYNAMIC` (the cache rule does not cover
+  `/api`), so its `s-maxage=3600` never applied at the edge — nothing to purge, and
+  non-SSR-country deep links already read PG per page load. The SSR-country (`IN`)
+  deep links in the HTML rely on layers 1+2 (no client self-heal for them yet).
 
 ## Framing / clickjacking headers (changed Jul 30 2026)
 

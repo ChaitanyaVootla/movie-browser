@@ -90,3 +90,14 @@ export interface SeasonWithEpisodes {
     production_code?: string;
   }>;
 }
+
+/**
+ * Result of a movie/series upsert. `contentChanged` = a DISPLAYED enriched
+ * rating (IMDb / RT / Google) or a scraped deep link was written or removed —
+ * the signal that cached HTML for the title is now stale (see
+ * src/server/services/cdn). TMDB vote jitter alone never sets it.
+ */
+export interface UpsertOutcome {
+  written: boolean;
+  contentChanged: boolean;
+}

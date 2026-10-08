@@ -11,7 +11,13 @@
 // Types
 // =============================================================================
 
-export type { PrismaTx, PostgresMovieData, PostgresSeriesData, SeasonWithEpisodes } from "./types";
+export type {
+  PrismaTx,
+  PostgresMovieData,
+  PostgresSeriesData,
+  SeasonWithEpisodes,
+  UpsertOutcome,
+} from "./types";
 
 // =============================================================================
 // Queries (Read Operations)

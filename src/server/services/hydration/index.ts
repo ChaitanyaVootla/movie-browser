@@ -48,6 +48,8 @@ import {
   type PostgresMovieData,
   type PostgresSeriesData,
 } from "./sources/postgres";
+// Stale-HTML fix: purge origin ISR + edge when a refresh changed displayed content.
+import { notifyIfContentChanged } from "@/server/services/cdn";
 import { getMovieFromPostgres } from "@/server/db/postgres/movies";
 import { getSeriesFromPostgres } from "@/server/db/postgres/series";
 import type { EnrichedData, HydrationResult, MediaType } from "./types";
@@ -149,7 +151,8 @@ function backgroundRefreshMovie(movieId: number, tmdbData: TmdbMovieData | null)
         freshTmdb,
         {}
       );
-      await upsertMovieToPostgres(freshTmdb, enriched);
+      const outcome = await upsertMovieToPostgres(freshTmdb, enriched);
+      notifyIfContentChanged(outcome, "movie", movieId, freshTmdb.title);
       if (enrichedSource === "lambda" || enrichedSource === "mongodb") {
         triggerProgressiveEnrichment("movie", movieId, freshTmdb).catch(() => {});
       }
@@ -191,7 +194,8 @@ function backgroundRefreshSeries(
             : Promise.resolve(freshTmdb.seasons)),
         getEnrichedData("series", seriesId, freshTmdb.first_air_date, freshTmdb, {}),
       ]);
-      await upsertSeriesToPostgres({ ...freshTmdb, seasons }, enriched);
+      const outcome = await upsertSeriesToPostgres({ ...freshTmdb, seasons }, enriched);
+      notifyIfContentChanged(outcome, "series", seriesId, freshTmdb.name);
       triggerUserEpisodeReconcile(seriesId);
       if (enrichedSource === "lambda" || enrichedSource === "mongodb") {
         triggerProgressiveEnrichment("series", seriesId, freshTmdb).catch(() => {});
@@ -337,7 +341,8 @@ async function hydrateMovieImpl(
   // 5. Upsert to PostgreSQL with enriched data, then return FROM PostgreSQL
   // This ensures we test the full round-trip: MongoDB → PostgreSQL → Response
   try {
-    await upsertMovieToPostgres(tmdbData, enriched);
+    const outcome = await upsertMovieToPostgres(tmdbData, enriched);
+    notifyIfContentChanged(outcome, "movie", movieId, tmdbData.title);
     console.log(`[Hydration] Movie ${movieId}: PostgreSQL upsert complete`);
 
     // Trigger progressive AI enrichment in background (fire-and-forget)
@@ -538,7 +543,8 @@ async function hydrateSeriesImpl(
   try {
     // Merge seasons with episodes into tmdbData for upsert
     const tmdbDataWithEpisodes = { ...tmdbData, seasons: seasonsWithEpisodes };
-    await upsertSeriesToPostgres(tmdbDataWithEpisodes, enriched);
+    const outcome = await upsertSeriesToPostgres(tmdbDataWithEpisodes, enriched);
+    notifyIfContentChanged(outcome, "series", seriesId, tmdbData.name);
     console.log(`[Hydration] Series ${seriesId}: PostgreSQL upsert complete`);
     triggerUserEpisodeReconcile(seriesId);
 

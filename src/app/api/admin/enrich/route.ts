@@ -6,6 +6,8 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { adminApiLogger } from "@/lib/logger";
 import { cacheDel } from "@/lib/cache-service";
+import { prisma } from "@/server/db/postgres";
+import { notifyTitleContentChanged } from "@/server/services/cdn";
 
 const execAsync = promisify(exec);
 
@@ -121,6 +123,19 @@ export async function POST(request: NextRequest) {
     // Revalidate Next.js page cache
     const pagePath = mediaType === "movie" ? `/movie/${safeTmdbId}` : `/series/${safeTmdbId}`;
     revalidatePath(pagePath);
+    // revalidatePath on the SLUGLESS path never matched anything: pages are
+    // cached under the canonical /{type}/{id}/{slug} key. Drop that key (and
+    // queue the edge purge) through the title pipeline instead.
+    try {
+      const idNum = Number(safeTmdbId);
+      const title =
+        mediaType === "movie"
+          ? (await prisma.movie.findUnique({ where: { id: idNum }, select: { title: true } }))?.title
+          : (await prisma.series.findUnique({ where: { id: idNum }, select: { name: true } }))?.name;
+      notifyTitleContentChanged({ mediaType, id: idNum, title: title ?? null });
+    } catch {
+      /* cache hint only */
+    }
 
     // Invalidate L1/L2 cache for TMDB data (in case it was fetched during this session)
     // The cache key format matches buildCacheKey in tmdb.ts

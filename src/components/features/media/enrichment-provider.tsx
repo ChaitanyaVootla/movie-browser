@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HERO_TAGLINE } from "@/lib/design";
 import {
@@ -11,6 +11,7 @@ import { RatingsBar } from "./ratings-bar";
 import { AIQuestionsSection } from "./ai-questions-section";
 import { DeepDiveSection } from "./deep-dive-section";
 import type { ExternalRating } from "@/types";
+import { pickRatings } from "./enrichment-ratings";
 
 // =============================================================================
 // Context
@@ -99,81 +100,9 @@ interface LiveRatingsProps {
 }
 
 /**
- * Normalize sentiment from SSE data to the POSITIVE/NEGATIVE format
- * used by the ExternalRating type. Follows integration.ts normalizeSentiment.
- */
-function normalizeSentiment(
-  sentiment: string | null
-): "POSITIVE" | "NEGATIVE" | undefined {
-  if (!sentiment) return undefined;
-  const s = sentiment.toLowerCase();
-  if (s.includes("fresh") || s.includes("upright") || s.includes("positive"))
-    return "POSITIVE";
-  if (s.includes("rotten") || s.includes("spilled") || s.includes("negative"))
-    return "NEGATIVE";
-  return undefined;
-}
-
-/**
- * Convert SSE ratings data to ExternalRating[] format.
- * Follows the same whitelist/normalization as buildRatingsArray in integration.ts.
- */
-function convertSSERatingsToExternalRatings(
-  sseRatings: NonNullable<EnrichmentStreamState["latestRatings"]>["ratings"],
-  tmdbId: number,
-  mediaType: "movie" | "series"
-): ExternalRating[] {
-  const ratings: ExternalRating[] = [];
-  const tmdbPath = mediaType === "movie" ? "movie" : "tv";
-
-  for (const r of sseRatings) {
-    const slug = r.source.slug.toLowerCase();
-
-    if (slug === "tmdb") {
-      // Normalize 0-10 to 0-100
-      ratings.push({
-        name: "TMDB",
-        rating: Math.round(r.score * 10).toString(),
-        link: `https://www.themoviedb.org/${tmdbPath}/${tmdbId}`,
-      });
-    } else if (slug === "imdb") {
-      ratings.push({
-        name: "IMDb",
-        rating: Math.round(r.score * 10).toString(),
-        link: r.sourceUrl || "https://www.imdb.com",
-      });
-    } else if (slug === "rt_critic" || slug === "rottentomatoes_critic") {
-      ratings.push({
-        name: "Rotten Tomatoes",
-        rating: Math.round(r.score).toString(),
-        link: r.sourceUrl || "https://www.rottentomatoes.com",
-        certified: r.certified ?? undefined,
-        sentiment: normalizeSentiment(r.sentiment),
-      });
-    } else if (slug === "rt_audience" || slug === "rottentomatoes_audience") {
-      ratings.push({
-        name: "Audience Score",
-        rating: Math.round(r.score).toString(),
-        link: r.sourceUrl || "https://www.rottentomatoes.com",
-        certified: r.certified ?? undefined,
-        sentiment: normalizeSentiment(r.sentiment),
-      });
-    } else if (slug === "google") {
-      ratings.push({
-        name: "Google",
-        rating: Math.round(r.score).toString(),
-        link: "https://www.google.com",
-      });
-    }
-    // Skip metacritic and letterboxd — same as integration.ts
-  }
-
-  return ratings;
-}
-
-/**
  * Renders ratings with live SSE updates.
- * Uses server-rendered ratings initially, swaps to SSE data when it arrives.
+ * Uses server-rendered ratings initially, swaps to PG data from the stream
+ * when it differs (new scrape mid-visit, or the HTML was a stale cached copy).
  */
 export function LiveRatings({
   initialRatings,
@@ -184,13 +113,14 @@ export function LiveRatings({
 }: LiveRatingsProps) {
   const enrichment = useEnrichment();
 
-  const ratings = enrichment?.latestRatings?.ratings?.length
-    ? convertSSERatingsToExternalRatings(
-        enrichment.latestRatings.ratings,
-        tmdbId,
-        mediaType
-      )
-    : initialRatings;
+  // The stream always opens with PG's current ratings, so a stale cached HTML
+  // copy self-heals here; equal data keeps the server array (no swap).
+  const ratings = pickRatings(
+    initialRatings,
+    enrichment?.latestRatings?.ratings,
+    tmdbId,
+    mediaType
+  );
 
   if (ratings.length === 0) return null;
 
@@ -212,6 +142,13 @@ interface LiveAIHookProps {
  */
 export function LiveAIHook({ initialHook }: LiveAIHookProps) {
   const enrichment = useEnrichment();
+  const requestAI = enrichment?.requestAI;
+
+  // No hook in the HTML: it may be a stale cached copy from before AI
+  // enrichment landed. Ask PG once (cheap snapshot, no polling).
+  useEffect(() => {
+    if (!initialHook) requestAI?.();
+  }, [initialHook, requestAI]);
 
   const hook = enrichment?.latestAI?.hook ?? initialHook;
 
@@ -257,6 +194,12 @@ export function LiveAISections({
 }: LiveAISectionsProps) {
   const enrichment = useEnrichment();
   const latestAI = enrichment?.latestAI;
+  const requestAI = enrichment?.requestAI;
+
+  // Mounted only when the HTML had no AI data, possibly a stale cached copy.
+  useEffect(() => {
+    requestAI?.();
+  }, [requestAI]);
 
   if (!latestAI) return null;
 
