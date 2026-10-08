@@ -194,6 +194,21 @@ export interface SmartDiscoverResponse {
  *   limit: 10,
  * });
  */
+/**
+ * The TMDB row of `data_sources`, resolved by slug inside the query (an
+ * InitPlan — evaluated once per statement, not per row).
+ *
+ * This used to be a hardcoded `source_id = 1`, but data_sources ids are
+ * autoincrement and TMDB is id 6 in prod (Oct 2026: zero ratings rows have
+ * source_id 1). With `minVotes` defaulting to 50, EVERY smartDiscover call
+ * therefore carried an `EXISTS (... source_id = 1 ...)` that matched nothing:
+ * the AI agent's smart_discover tool and the detail-page embedding "Similar"
+ * row returned 0 results on every call, and rating/vote_count were always
+ * NULL. Every other ratings query in the codebase joins by slug — keep it that
+ * way.
+ */
+export const TMDB_SOURCE_ID_SQL = "(SELECT id FROM data_sources WHERE slug = 'tmdb')";
+
 export async function smartDiscover(filters: SmartDiscoverFilters): Promise<SmartDiscoverResponse> {
   const startTime = Date.now();
 
@@ -303,7 +318,7 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
   }
 
   // ===== Rating Filters =====
-  // Note: Ratings are in a separate table. We join with TMDB ratings (source_id = 1)
+  // Note: Ratings are in a separate table. We join with TMDB ratings (see TMDB_SOURCE_ID_SQL)
   if (minRating !== undefined || maxRating !== undefined || minVotes) {
     const ratingConditions: string[] = [];
     const fkCol = mediaType === "movie" ? "movie_id" : "series_id";
@@ -324,12 +339,12 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
       paramIndex++;
     }
 
-    // Join with ratings table (TMDB source_id = 1)
+    // Join with ratings table (TMDB source)
     conditions.push(`
       EXISTS (
         SELECT 1 FROM ratings r
         WHERE r.${fkCol} = m.id 
-          AND r.source_id = 1
+          AND r.source_id = ${TMDB_SOURCE_ID_SQL}
           ${ratingConditions.length ? `AND ${ratingConditions.join(" AND ")}` : ""}
       )
     `);
@@ -533,8 +548,8 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
 
   // Build ORDER BY clause
   let orderBy: string;
-  const ratingSubquery = `(SELECT score FROM ratings WHERE ${ratingFK} = m.id AND source_id = 1 LIMIT 1)`;
-  const voteCountSubquery = `(SELECT vote_count FROM ratings WHERE ${ratingFK} = m.id AND source_id = 1 LIMIT 1)`;
+  const ratingSubquery = `(SELECT score FROM ratings WHERE ${ratingFK} = m.id AND source_id = ${TMDB_SOURCE_ID_SQL} LIMIT 1)`;
+  const voteCountSubquery = `(SELECT vote_count FROM ratings WHERE ${ratingFK} = m.id AND source_id = ${TMDB_SOURCE_ID_SQL} LIMIT 1)`;
 
   if (embeddingStr && sortBy === "relevance") {
     if (popularityWeight > 0) {
@@ -566,15 +581,15 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
   }
 
   // Build SELECT clause with optional semantic score
-  // Note: ratings are in a separate table, we fetch TMDB rating (source_id = 1)
+  // Note: ratings are in a separate table, we fetch the TMDB rating
   const selectClause = embeddingStr
     ? `
       m.id,
       m.${titleCol} as title,
       m.poster_path,
       EXTRACT(YEAR FROM m.${dateCol})::text as year,
-      (SELECT score FROM ratings WHERE ${ratingFK} = m.id AND source_id = 1 LIMIT 1) as rating,
-      (SELECT vote_count FROM ratings WHERE ${ratingFK} = m.id AND source_id = 1 LIMIT 1) as vote_count,
+      (SELECT score FROM ratings WHERE ${ratingFK} = m.id AND source_id = ${TMDB_SOURCE_ID_SQL} LIMIT 1) as rating,
+      (SELECT vote_count FROM ratings WHERE ${ratingFK} = m.id AND source_id = ${TMDB_SOURCE_ID_SQL} LIMIT 1) as vote_count,
       m.popularity,
       LEFT(m.overview, 300) as overview,
       1 - (m.embedding <=> '${embeddingStr}'::vector) as semantic_score,
@@ -592,8 +607,8 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
       m.${titleCol} as title,
       m.poster_path,
       EXTRACT(YEAR FROM m.${dateCol})::text as year,
-      (SELECT score FROM ratings WHERE ${ratingFK} = m.id AND source_id = 1 LIMIT 1) as rating,
-      (SELECT vote_count FROM ratings WHERE ${ratingFK} = m.id AND source_id = 1 LIMIT 1) as vote_count,
+      (SELECT score FROM ratings WHERE ${ratingFK} = m.id AND source_id = ${TMDB_SOURCE_ID_SQL} LIMIT 1) as rating,
+      (SELECT vote_count FROM ratings WHERE ${ratingFK} = m.id AND source_id = ${TMDB_SOURCE_ID_SQL} LIMIT 1) as vote_count,
       m.popularity,
       LEFT(m.overview, 300) as overview,
       NULL::float as semantic_score,
