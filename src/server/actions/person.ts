@@ -8,6 +8,7 @@ import {
   type PersonSearchResult,
 } from "@/server/services/tmdb";
 import type { Person } from "@/types";
+import { persistPersonDetails } from "@/server/services/person-persist";
 
 const GetPersonSchema = z.object({
   id: z.number().positive(),
@@ -16,61 +17,6 @@ const GetPersonSchema = z.object({
 const SearchPersonSchema = z.object({
   query: z.string().min(1).max(100),
 });
-
-/**
- * Best-effort write-back of TMDB person detail fields into the `persons` table.
- *
- * WHY: person pages read live from TMDB and never persisted these fields, so
- * `persons.biography/birthday/deathday/place_of_birth/gender` were 100% NULL —
- * which left the PG-only person `.md` twin (and any future PG person read)
- * sparse. This mirrors the movie/series hydration write-back: the TMDB call
- * already happened for the HTML render, so we opportunistically persist it.
- * Fire-and-forget (never awaited) → does NOT block the render or break ISR;
- * a single indexed-row upsert, bounded by the person page's ISR revalidation.
- * Popularity is create-only (credit upserts own it with max-value logic).
- */
-async function persistPersonDetails(data: Record<string, unknown>): Promise<void> {
-  try {
-    const tmdbId = data.id;
-    if (typeof tmdbId !== "number" || tmdbId <= 0) return;
-    const name = data.name;
-    if (typeof name !== "string" || !name) return;
-
-    const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
-    const toDate = (v: unknown): Date | null => {
-      if (typeof v !== "string" || !v) return null;
-      const d = new Date(v);
-      return Number.isNaN(d.getTime()) ? null : d;
-    };
-    const detail = {
-      name,
-      biography: str(data.biography),
-      birthday: toDate(data.birthday),
-      deathday: toDate(data.deathday),
-      placeOfBirth: str(data.place_of_birth),
-      gender: typeof data.gender === "number" ? data.gender : null,
-      homepage: str(data.homepage),
-      knownFor: str(data.known_for_department),
-      profilePath: str(data.profile_path),
-      // Only write `adult` when TMDB actually sent it — never clobber a
-      // backfilled true with an absent field.
-      ...(typeof data.adult === "boolean" ? { adult: data.adult } : {}),
-    };
-
-    const { prisma } = await import("@/server/db/postgres");
-    await prisma.person.upsert({
-      where: { tmdbId },
-      create: {
-        tmdbId,
-        ...detail,
-        popularity: typeof data.popularity === "number" ? data.popularity : null,
-      },
-      update: detail,
-    });
-  } catch {
-    // best-effort; a persistence failure must never affect the person page
-  }
-}
 
 /**
  * Get full person details including credits, images, and external IDs
