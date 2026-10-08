@@ -15,6 +15,7 @@ import type { EnrichedData } from "../../types";
 import type { TmdbSeriesData } from "../tmdb";
 import type { PrismaTx, SeasonWithEpisodes, UpsertOutcome } from "./types";
 import { isPrismaError, getErrorMessage } from "./error-utils";
+import { ensurePersons } from "./lookup-upserts";
 import { upsertRatings, upsertScrapedWatchLinks } from "./rating-upserts";
 import {
   upsertSeriesGenres,
@@ -478,94 +479,30 @@ async function upsertSeriesAggregateCredits(
   // Delete existing AGGREGATE credits only (preserve non-aggregate regular credits)
   await tx.credit.deleteMany({ where: { seriesId, isAggregate: true } });
 
-  // Process ALL cast (flatten roles into individual credits)
-  for (const cast of aggregateCredits.cast || []) {
-    // Upsert person first
-    let dbPerson = await tx.person.findUnique({
-      where: { tmdbId: cast.id },
+  // Persons in one race-safe pass, then every credit in one ON CONFLICT DO
+  // NOTHING insert (the old per-row `.create().catch()` aborted the whole
+  // series transaction on a duplicate — see lookup-upserts.ts).
+  const personIds = await ensurePersons(tx, [
+    ...(aggregateCredits.cast || []),
+    ...(aggregateCredits.crew || []),
+  ]);
+  const rows: Prisma.CreditCreateManyInput[] = [];
+  for (const row of incoming) {
+    const personId = personIds.get(row.personTmdbId);
+    if (personId === undefined) continue;
+    rows.push({
+      seriesId,
+      personId,
+      creditType: row.creditType === "CAST" ? "CAST" : "CREW",
+      character: row.character,
+      job: row.job,
+      department: row.department,
+      creditOrder: row.creditOrder,
+      isAggregate: true,
+      totalEpisodeCount: row.totalEpisodeCount,
     });
-
-    if (!dbPerson) {
-      dbPerson = await tx.person.upsert({
-        where: { tmdbId: cast.id },
-        create: {
-          tmdbId: cast.id,
-          name: cast.name,
-          profilePath: cast.profile_path,
-          knownFor: cast.known_for_department,
-        },
-        update: {
-          name: cast.name,
-          profilePath: cast.profile_path,
-          knownFor: cast.known_for_department,
-        },
-      });
-    }
-
-    // Create credit with combined characters from all roles
-    // Using combined characters to avoid duplicate person per series
-    const combinedCharacter = cast.roles
-      .map((r) => r.character)
-      .filter(Boolean)
-      .join(" / ");
-
-    await tx.credit
-      .create({
-        data: {
-          seriesId,
-          personId: dbPerson.id,
-          creditType: "CAST",
-          character: combinedCharacter || null,
-          creditOrder: cast.order,
-          isAggregate: true,
-          totalEpisodeCount: cast.total_episode_count,
-        },
-      })
-      .catch(() => {});
   }
-
-  // Process ALL crew (flatten jobs into individual credits)
-  for (const crew of aggregateCredits.crew || []) {
-    // Upsert person first
-    let dbPerson = await tx.person.findUnique({
-      where: { tmdbId: crew.id },
-    });
-
-    if (!dbPerson) {
-      dbPerson = await tx.person.upsert({
-        where: { tmdbId: crew.id },
-        create: {
-          tmdbId: crew.id,
-          name: crew.name,
-          profilePath: crew.profile_path,
-          knownFor: crew.known_for_department,
-        },
-        update: {
-          name: crew.name,
-          profilePath: crew.profile_path,
-          knownFor: crew.known_for_department,
-        },
-      });
-    }
-
-    // Create credit for each job (a person can be both Director and Writer)
-    for (const jobInfo of crew.jobs || []) {
-      await tx.credit
-        .create({
-          data: {
-            seriesId,
-            personId: dbPerson.id,
-            creditType: "CREW",
-            job: jobInfo.job,
-            department: crew.department,
-            isAggregate: true,
-            totalEpisodeCount: crew.total_episode_count,
-          },
-        })
-        .catch(() => {});
-    }
+  if (rows.length > 0) {
+    await tx.credit.createMany({ data: rows, skipDuplicates: true });
   }
 }
-
-
-
