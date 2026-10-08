@@ -72,7 +72,9 @@ export async function upsertExternalIds(
   mediaId: number,
   mediaType: MediaType,
   tmdb: { external_ids?: Record<string, string | number | null>; imdb_id?: string | null },
-  enrichedIds: EnrichedExternalIds
+  enrichedIds: EnrichedExternalIds,
+  /** No deletes at all — the `tmdb` ids are a PG round-trip (enrichment-only refresh). */
+  opts: { mergeOnly?: boolean } = {}
 ): Promise<void> {
   const idsToCreate: Array<{
     movieId: number | null;
@@ -170,7 +172,9 @@ export async function upsertExternalIds(
   const tmdbOwned = new Set(Object.values(tmdbIdMapping));
   const diff = {
     ...rawDiff,
-    toDelete: rawDiff.toDelete.filter((r) => tmdbOwned.has(r.source) && !enrichedSourceNames.has(r.source)),
+    toDelete: opts.mergeOnly
+      ? []
+      : rawDiff.toDelete.filter((r) => tmdbOwned.has(r.source) && !enrichedSourceNames.has(r.source)),
   };
   if (!hasChanges(diff)) return;
   logChildReconcile("external_ids", mediaType, mediaId, diff);

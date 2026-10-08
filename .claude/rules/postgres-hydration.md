@@ -56,7 +56,7 @@ junction upserts only). Helper files split out for the 800-line limit:
 `rating-upserts.ts`, `credit-upserts.ts`, `series-junction-upserts.ts`,
 `diff-reconcile.ts`.
 
-## Write hygiene: four traps fixed Oct 2026 (measure with pg_stat_user_tables)
+## Write hygiene: traps fixed Oct 2026 (measure with pg_stat_user_tables)
 
 Measure first: snapshot `pg_stat_user_tables` (`n_tup_ins/upd/del/hot_upd`)
 twice ~10 min apart in a `BEGIN READ ONLY` session and diff per minute. Note
@@ -86,8 +86,30 @@ episodes 1,619 del/min vs 52 ins/min, persons 122 upd/min, movie_countries
    no seasons). Measured before the fix: 15,641 of 19,667 episode-bearing
    seasons on series refreshed in the last day had no episode rows.
 3. **Comparators must ignore TMDB drift that nothing displays.** Image votes
-   (`imageVotesEquivalent`: <0.1 average, ≤max(2,10%) count) used to rewrite
-   ~712 image rows/min. Same family as `floatEq3` for popularity/aspect ratio.
+   (`imageVotesEquivalent`: <0.1 average, ≤max(2,10%) count). CORRECTION after
+   measuring the deploy: this only took images 712 → 570 UPDATEs/min — vote
+   drift was NOT the main driver; trap 5 was.
+5. **NEVER upsert PG's own read transform back as TMDB core data (the real
+   churn engine, fixed Oct 8 2026).** The core-fresh / enriched-stale refresh
+   used to hand `getMovieFromPostgres`/`getSeriesFromPostgres` output to the
+   full upsert. That transform is LOSSY by design (it builds a UI payload):
+   images have no `vote_count` and defaulted `vote_average`/width/height,
+   there are no `production_countries`, keywords are capped, etc. Each such
+   refresh "corrected" PG to the lossy copy and the next real TMDB refresh
+   reverted it: 94,911 of 157,394 images on freshly refreshed movies had
+   `vote_count` NULLed (0 of 1.4M elsewhere), movie_countries PRODUCTION rows
+   were deleted/re-added (26 del vs 17 ins/min), external ids churned, and
+   `tmdbUpdatedAt` was stamped without a TMDB fetch. Now
+   `upsert{Movie,Series}ToPostgres(tmdb, enriched, { enrichmentOnly: true })`
+   writes only ratings, scraper ids (merge-only, no deletes), deep links and
+   scrape stamps; `backgroundRefresh*` sets it whenever its TMDB payload came
+   from PG. Rule of thumb: **only a real TMDB response may feed the TMDB child
+   tables.** Pinned by `enrichment-only.test.ts` (recording tx). Diagnosis
+   recipe that found it: compare a column's NULL/default rate between rows
+   refreshed in the last day and older rows — a write path that destroys data
+   shows up as a cliff, not a drift.
+6. Title rows are written ONCE per refresh: the enrichment/freshness stamps
+   (`RowStamps`) ride on the core upsert instead of a second UPDATE.
 4. **A TMDB 404 is permanent for a refresh.** `hydration/tmdb-gone.ts` caches
    404'd ids (24h TTL, 10k cap) and the background refresh skips them; before,
    10,622 refresh failures in `next-error.log` were 404s (series 324537: 877),

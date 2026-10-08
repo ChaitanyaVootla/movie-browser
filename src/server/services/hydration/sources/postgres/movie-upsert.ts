@@ -11,7 +11,7 @@
 import { prisma } from "@/server/db/postgres";
 import type { EnrichedData } from "../../types";
 import type { TmdbMovieData } from "../tmdb";
-import type { PrismaTx, UpsertOutcome } from "./types";
+import type { PrismaTx, UpsertOutcome, RowStamps } from "./types";
 import { isPrismaError, getErrorMessage } from "./error-utils";
 import {
   ensureCompanies,
@@ -46,12 +46,27 @@ import {
 // =============================================================================
 
 /**
- * Upsert movie with all related data to PostgreSQL
+ * Upsert movie with all related data to PostgreSQL.
+ *
+ * `enrichmentOnly` (Oct 2026): the core-fresh, enriched-stale background
+ * refresh has NO new TMDB data — its `tmdb` argument is PG's own row passed
+ * through the read transform (getMovieFromPostgres), which is LOSSY: images
+ * lose vote_count and get defaulted vote_average/width/height, there are no
+ * production_countries, keywords/credits are subsets, etc. Re-upserting it
+ * "corrected" PG to the lossy copy and the next real TMDB refresh changed it
+ * back, every cycle: ~570 images UPDATEs/min (94,911 of 157,394 images on
+ * freshly refreshed movies had their vote_count NULLed), movie_countries
+ * PRODUCTION rows deleted and re-added, external ids churned, and the movie
+ * row itself rewritten. With `enrichmentOnly` only the enrichment it actually
+ * fetched is written (ratings, scraper ids merge-only, deep links, scrape
+ * timestamps) and tmdbUpdatedAt is NOT bumped (no TMDB fetch happened).
  */
 export async function upsertMovieToPostgres(
   tmdb: TmdbMovieData,
-  enriched: EnrichedData
+  enriched: EnrichedData,
+  opts: { enrichmentOnly?: boolean } = {}
 ): Promise<UpsertOutcome> {
+  const enrichmentOnly = opts.enrichmentOnly === true;
   // Set inside the transaction, read only after it COMMITS (a rolled-back
   // write must never trigger a purge).
   let displayedChanged = 0;
@@ -59,141 +74,7 @@ export async function upsertMovieToPostgres(
     // Increase timeout for large movies with lots of credits/images
     await prisma.$transaction(
       async (tx) => {
-        // 0. Upsert collection if exists (must be done before movie due to FK constraint)
-        if (tmdb.belongs_to_collection) {
-          await tx.collection.upsert({
-            where: { id: tmdb.belongs_to_collection.id },
-            create: {
-              id: tmdb.belongs_to_collection.id,
-              name: tmdb.belongs_to_collection.name,
-              posterPath: tmdb.belongs_to_collection.poster_path,
-              backdropPath: tmdb.belongs_to_collection.backdrop_path,
-            },
-            update: {
-              name: tmdb.belongs_to_collection.name,
-              posterPath: tmdb.belongs_to_collection.poster_path,
-              backdropPath: tmdb.belongs_to_collection.backdrop_path,
-            },
-          });
-        }
-
-        // 1. Upsert core movie
-        await tx.movie.upsert({
-          where: { id: tmdb.id },
-          create: {
-            id: tmdb.id,
-            title: tmdb.title,
-            originalTitle: tmdb.original_title,
-            overview: tmdb.overview,
-            adult: tmdb.adult,
-            posterPath: tmdb.poster_path,
-            backdropPath: tmdb.backdrop_path,
-            releaseDate: tmdb.release_date ? new Date(tmdb.release_date) : null,
-            runtime: tmdb.runtime,
-            popularity: tmdb.popularity,
-            status: tmdb.status,
-            tagline: tmdb.tagline,
-            budget: BigInt(tmdb.budget || 0),
-            revenue: BigInt(tmdb.revenue || 0),
-            homepage: tmdb.homepage,
-            originalLanguage: tmdb.original_language,
-            originCountry: tmdb.origin_country || [],
-            collectionId: tmdb.belongs_to_collection?.id ?? null,
-          },
-          update: {
-            title: tmdb.title,
-            originalTitle: tmdb.original_title,
-            overview: tmdb.overview,
-            adult: tmdb.adult,
-            posterPath: tmdb.poster_path,
-            backdropPath: tmdb.backdrop_path,
-            releaseDate: tmdb.release_date ? new Date(tmdb.release_date) : null,
-            runtime: tmdb.runtime,
-            popularity: tmdb.popularity,
-            status: tmdb.status,
-            tagline: tmdb.tagline,
-            budget: BigInt(tmdb.budget || 0),
-            revenue: BigInt(tmdb.revenue || 0),
-            homepage: tmdb.homepage,
-            originalLanguage: tmdb.original_language,
-            originCountry: tmdb.origin_country || [],
-            collectionId: tmdb.belongs_to_collection?.id ?? null,
-            updatedAt: new Date(),
-          },
-        });
-
-        // 2. Upsert ratings
-        displayedChanged += await upsertRatings(tx, tmdb.id, "movie", tmdb, enriched.ratings);
-
-        // 3. Upsert external IDs
-        await upsertExternalIds(tx, tmdb.id, "movie", tmdb, enriched.externalIds);
-
-        // 4. Upsert videos
-        await upsertVideos(tx, tmdb.id, "movie", tmdb.videos?.results || []);
-
-        // 5. Upsert images
-        await upsertImages(tx, tmdb.id, "movie", tmdb.images);
-
-        // 6. Upsert scraped watch links
-        displayedChanged += await upsertScrapedWatchLinks(
-          tx,
-          tmdb.id,
-          "movie",
-          enriched.scrapedWatchLinks,
-          enriched.watchLinkCountries
-        );
-
-        // 7. Upsert certifications (from release_dates)
-        if (tmdb.release_dates?.results) {
-          await upsertMovieCertifications(tx, tmdb.id, tmdb.release_dates.results);
-        }
-
-        // 8. Upsert genres
-        if (tmdb.genres?.length) {
-          await upsertMovieGenres(tx, tmdb.id, tmdb.genres);
-        }
-
-        // 9. Upsert keywords
-        if (tmdb.keywords?.keywords?.length) {
-          await upsertMovieKeywords(tx, tmdb.id, tmdb.keywords.keywords);
-        }
-
-        // 10. Upsert credits (cast & crew)
-        if (tmdb.credits) {
-          await upsertCredits(tx, tmdb.id, "movie", tmdb.credits);
-        }
-
-        // 11. Upsert production companies
-        if (tmdb.production_companies?.length) {
-          await upsertMovieCompanies(tx, tmdb.id, tmdb.production_companies);
-        }
-
-        // 12. Upsert countries (both origin and production)
-        if (tmdb.origin_country?.length || tmdb.production_countries?.length) {
-          await upsertMovieCountries(
-            tx,
-            tmdb.id,
-            tmdb.origin_country || [],
-            tmdb.production_countries || []
-          );
-        }
-
-        // 13. Upsert spoken languages
-        if (tmdb.spoken_languages?.length) {
-          await upsertMovieLanguages(tx, tmdb.id, tmdb.spoken_languages);
-        }
-
-        // 14. Upsert watch providers (TMDB)
-        if (tmdb["watch/providers"]?.results) {
-          await upsertWatchProviders(tx, tmdb.id, "movie", tmdb["watch/providers"].results);
-        }
-
-        // 15. Upsert reviews
-        if (tmdb.reviews?.results?.length) {
-          await upsertReviews(tx, tmdb.id, "movie", tmdb.reviews.results);
-        }
-
-        // 16. Update enrichment timestamps and tmdbUpdatedAt
+        // Enrichment timestamps
         const hasEnrichedRatings = enriched.ratings && Object.keys(enriched.ratings).length > 0;
         const hasScrapedWatchLinks =
           enriched.scrapedWatchLinks && enriched.scrapedWatchLinks.length > 0;
@@ -205,15 +86,39 @@ export async function upsertMovieToPostgres(
         // of re-invoking Lambda (which blocks render) on every page load.
         const scrapeAttempted = !!enriched.scrapedAt || hasEnrichedRatings;
 
-        await tx.movie.update({
-          where: { id: tmdb.id },
-          data: {
-            tmdbUpdatedAt: new Date(), // Track when TMDB data was last fetched
-            enrichmentSource: enriched.source || null,
-            ...(scrapeAttempted && { ratingsScrapedAt: enriched.scrapedAt ?? new Date() }),
-            ...(hasScrapedWatchLinks && { watchLinksScrapedAt: new Date() }),
-          },
+        const stamps: RowStamps = {
+          enrichmentSource: enriched.source || null,
+          ...(scrapeAttempted && { ratingsScrapedAt: enriched.scrapedAt ?? new Date() }),
+          ...(hasScrapedWatchLinks && { watchLinksScrapedAt: new Date() }),
+        };
+
+        // ONE row write per refresh: with real TMDB data the stamps ride on the
+        // core upsert (it rewrites the row anyway); enrichment-only writes just
+        // the stamps, never tmdbUpdatedAt (no TMDB fetch happened).
+        if (enrichmentOnly) {
+          await tx.movie.update({ where: { id: tmdb.id }, data: stamps });
+        } else {
+          await upsertMovieCore(tx, tmdb, { ...stamps, tmdbUpdatedAt: new Date() });
+        }
+
+        // Ratings (TMDB rating from the payload is change-detected, so a PG
+        // round-trip value is a no-op)
+        displayedChanged += await upsertRatings(tx, tmdb.id, "movie", tmdb, enriched.ratings);
+
+        // External IDs — merge-only on an enrichment-only refresh
+        await upsertExternalIds(tx, tmdb.id, "movie", tmdb, enriched.externalIds, {
+          mergeOnly: enrichmentOnly,
         });
+
+        // Scraped watch links
+        displayedChanged += await upsertScrapedWatchLinks(
+          tx,
+          tmdb.id,
+          "movie",
+          enriched.scrapedWatchLinks,
+          enriched.watchLinkCountries
+        );
+
       },
       { timeout: 30000 }
     ); // 30s timeout for large movies
@@ -239,6 +144,133 @@ export async function upsertMovieToPostgres(
 // =============================================================================
 // Movie-Specific Upsert Helpers
 // =============================================================================
+
+/**
+ * TMDB-sourced part of the movie upsert: collection, the movie row and every
+ * child table that only TMDB feeds. Requires a REAL TMDB payload.
+ */
+async function upsertMovieCore(tx: PrismaTx, tmdb: TmdbMovieData, stamps: RowStamps): Promise<void> {
+  // 0. Upsert collection if exists (must be done before movie due to FK constraint)
+  if (tmdb.belongs_to_collection) {
+    await tx.collection.upsert({
+      where: { id: tmdb.belongs_to_collection.id },
+      create: {
+        id: tmdb.belongs_to_collection.id,
+        name: tmdb.belongs_to_collection.name,
+        posterPath: tmdb.belongs_to_collection.poster_path,
+        backdropPath: tmdb.belongs_to_collection.backdrop_path,
+      },
+      update: {
+        name: tmdb.belongs_to_collection.name,
+        posterPath: tmdb.belongs_to_collection.poster_path,
+        backdropPath: tmdb.belongs_to_collection.backdrop_path,
+      },
+    });
+  }
+
+  // 1. Upsert core movie
+  await tx.movie.upsert({
+    where: { id: tmdb.id },
+    create: {
+      ...stamps,
+      id: tmdb.id,
+      title: tmdb.title,
+      originalTitle: tmdb.original_title,
+      overview: tmdb.overview,
+      adult: tmdb.adult,
+      posterPath: tmdb.poster_path,
+      backdropPath: tmdb.backdrop_path,
+      releaseDate: tmdb.release_date ? new Date(tmdb.release_date) : null,
+      runtime: tmdb.runtime,
+      popularity: tmdb.popularity,
+      status: tmdb.status,
+      tagline: tmdb.tagline,
+      budget: BigInt(tmdb.budget || 0),
+      revenue: BigInt(tmdb.revenue || 0),
+      homepage: tmdb.homepage,
+      originalLanguage: tmdb.original_language,
+      originCountry: tmdb.origin_country || [],
+      collectionId: tmdb.belongs_to_collection?.id ?? null,
+    },
+    update: {
+      ...stamps,
+      title: tmdb.title,
+      originalTitle: tmdb.original_title,
+      overview: tmdb.overview,
+      adult: tmdb.adult,
+      posterPath: tmdb.poster_path,
+      backdropPath: tmdb.backdrop_path,
+      releaseDate: tmdb.release_date ? new Date(tmdb.release_date) : null,
+      runtime: tmdb.runtime,
+      popularity: tmdb.popularity,
+      status: tmdb.status,
+      tagline: tmdb.tagline,
+      budget: BigInt(tmdb.budget || 0),
+      revenue: BigInt(tmdb.revenue || 0),
+      homepage: tmdb.homepage,
+      originalLanguage: tmdb.original_language,
+      originCountry: tmdb.origin_country || [],
+      collectionId: tmdb.belongs_to_collection?.id ?? null,
+      updatedAt: new Date(),
+    },
+  });
+
+  // 4. Upsert videos
+  await upsertVideos(tx, tmdb.id, "movie", tmdb.videos?.results || []);
+
+  // 5. Upsert images
+  await upsertImages(tx, tmdb.id, "movie", tmdb.images);
+
+  // 7. Upsert certifications (from release_dates)
+  if (tmdb.release_dates?.results) {
+    await upsertMovieCertifications(tx, tmdb.id, tmdb.release_dates.results);
+  }
+
+  // 8. Upsert genres
+  if (tmdb.genres?.length) {
+    await upsertMovieGenres(tx, tmdb.id, tmdb.genres);
+  }
+
+  // 9. Upsert keywords
+  if (tmdb.keywords?.keywords?.length) {
+    await upsertMovieKeywords(tx, tmdb.id, tmdb.keywords.keywords);
+  }
+
+  // 10. Upsert credits (cast & crew)
+  if (tmdb.credits) {
+    await upsertCredits(tx, tmdb.id, "movie", tmdb.credits);
+  }
+
+  // 11. Upsert production companies
+  if (tmdb.production_companies?.length) {
+    await upsertMovieCompanies(tx, tmdb.id, tmdb.production_companies);
+  }
+
+  // 12. Upsert countries (both origin and production)
+  if (tmdb.origin_country?.length || tmdb.production_countries?.length) {
+    await upsertMovieCountries(
+      tx,
+      tmdb.id,
+      tmdb.origin_country || [],
+      tmdb.production_countries || []
+    );
+  }
+
+  // 13. Upsert spoken languages
+  if (tmdb.spoken_languages?.length) {
+    await upsertMovieLanguages(tx, tmdb.id, tmdb.spoken_languages);
+  }
+
+  // 14. Upsert watch providers (TMDB)
+  if (tmdb["watch/providers"]?.results) {
+    await upsertWatchProviders(tx, tmdb.id, "movie", tmdb["watch/providers"].results);
+  }
+
+  // 15. Upsert reviews
+  if (tmdb.reviews?.results?.length) {
+    await upsertReviews(tx, tmdb.id, "movie", tmdb.reviews.results);
+  }
+}
 
 /**
  * Upsert movie certifications (from release_dates)

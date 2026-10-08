@@ -13,7 +13,7 @@
 import { prisma, Prisma } from "@/server/db/postgres";
 import type { EnrichedData } from "../../types";
 import type { TmdbSeriesData } from "../tmdb";
-import type { PrismaTx, SeasonWithEpisodes, UpsertOutcome } from "./types";
+import type { PrismaTx, SeasonWithEpisodes, UpsertOutcome, RowStamps } from "./types";
 import { isPrismaError, getErrorMessage } from "./error-utils";
 import { ensurePersons } from "./lookup-upserts";
 import { upsertRatings, upsertScrapedWatchLinks } from "./rating-upserts";
@@ -52,181 +52,21 @@ import {
  */
 export async function upsertSeriesToPostgres(
   tmdb: TmdbSeriesData,
-  enriched: EnrichedData
+  enriched: EnrichedData,
+  /**
+   * The `tmdb` payload is PG's own (lossy) read transform, not a TMDB fetch:
+   * write only the enrichment. Same rationale as upsertMovieToPostgres.
+   */
+  opts: { enrichmentOnly?: boolean } = {}
 ): Promise<UpsertOutcome> {
+  const enrichmentOnly = opts.enrichmentOnly === true;
   // Set inside the transaction, read only after it COMMITS (a rolled-back
   // write must never trigger a purge).
   let displayedChanged = 0;
   try {
     await prisma.$transaction(
       async (tx) => {
-        // 1. Upsert core series
-        await tx.series.upsert({
-          where: { id: tmdb.id },
-          create: {
-            id: tmdb.id,
-            name: tmdb.name,
-            originalName: tmdb.original_name,
-            overview: tmdb.overview,
-            adult: tmdb.adult,
-            posterPath: tmdb.poster_path,
-            backdropPath: tmdb.backdrop_path,
-            firstAirDate: tmdb.first_air_date ? new Date(tmdb.first_air_date) : null,
-            lastAirDate: tmdb.last_air_date ? new Date(tmdb.last_air_date) : null,
-            popularity: tmdb.popularity,
-            status: tmdb.status,
-            tagline: tmdb.tagline,
-            type: tmdb.type,
-            inProduction: tmdb.in_production,
-            numberOfSeasons: tmdb.number_of_seasons,
-            numberOfEpisodes: tmdb.number_of_episodes,
-            episodeRunTime: tmdb.episode_run_time || [],
-            homepage: tmdb.homepage,
-            originalLanguage: tmdb.original_language,
-            originCountry: tmdb.origin_country || [],
-            // Denormalized episode info
-            lastEpisodeSeasonNum: tmdb.last_episode_to_air?.season_number ?? null,
-            lastEpisodeNum: tmdb.last_episode_to_air?.episode_number ?? null,
-            lastEpisodeAirDate: tmdb.last_episode_to_air?.air_date
-              ? new Date(tmdb.last_episode_to_air.air_date)
-              : null,
-            lastEpisodeData: tmdb.last_episode_to_air
-              ? (tmdb.last_episode_to_air as unknown as Prisma.InputJsonValue)
-              : Prisma.JsonNull,
-            nextEpisodeSeasonNum: tmdb.next_episode_to_air?.season_number ?? null,
-            nextEpisodeNum: tmdb.next_episode_to_air?.episode_number ?? null,
-            nextEpisodeAirDate: tmdb.next_episode_to_air?.air_date
-              ? new Date(tmdb.next_episode_to_air.air_date)
-              : null,
-            nextEpisodeData: tmdb.next_episode_to_air
-              ? (tmdb.next_episode_to_air as unknown as Prisma.InputJsonValue)
-              : Prisma.JsonNull,
-          },
-          update: {
-            name: tmdb.name,
-            originalName: tmdb.original_name,
-            overview: tmdb.overview,
-            adult: tmdb.adult,
-            posterPath: tmdb.poster_path,
-            backdropPath: tmdb.backdrop_path,
-            firstAirDate: tmdb.first_air_date ? new Date(tmdb.first_air_date) : null,
-            lastAirDate: tmdb.last_air_date ? new Date(tmdb.last_air_date) : null,
-            popularity: tmdb.popularity,
-            status: tmdb.status,
-            tagline: tmdb.tagline,
-            type: tmdb.type,
-            inProduction: tmdb.in_production,
-            numberOfSeasons: tmdb.number_of_seasons,
-            numberOfEpisodes: tmdb.number_of_episodes,
-            episodeRunTime: tmdb.episode_run_time || [],
-            homepage: tmdb.homepage,
-            originalLanguage: tmdb.original_language,
-            originCountry: tmdb.origin_country || [],
-            lastEpisodeSeasonNum: tmdb.last_episode_to_air?.season_number ?? null,
-            lastEpisodeNum: tmdb.last_episode_to_air?.episode_number ?? null,
-            lastEpisodeAirDate: tmdb.last_episode_to_air?.air_date
-              ? new Date(tmdb.last_episode_to_air.air_date)
-              : null,
-            lastEpisodeData: tmdb.last_episode_to_air
-              ? (tmdb.last_episode_to_air as unknown as Prisma.InputJsonValue)
-              : Prisma.JsonNull,
-            nextEpisodeSeasonNum: tmdb.next_episode_to_air?.season_number ?? null,
-            nextEpisodeNum: tmdb.next_episode_to_air?.episode_number ?? null,
-            nextEpisodeAirDate: tmdb.next_episode_to_air?.air_date
-              ? new Date(tmdb.next_episode_to_air.air_date)
-              : null,
-            nextEpisodeData: tmdb.next_episode_to_air
-              ? (tmdb.next_episode_to_air as unknown as Prisma.InputJsonValue)
-              : Prisma.JsonNull,
-            updatedAt: new Date(),
-          },
-        });
-
-        // 2. Upsert ratings (same pattern as movies)
-        displayedChanged += await upsertRatings(tx, tmdb.id, "series", tmdb, enriched.ratings);
-
-        // 3. Upsert external IDs
-        await upsertExternalIds(tx, tmdb.id, "series", tmdb, enriched.externalIds);
-
-        // 4. Upsert videos
-        await upsertVideos(tx, tmdb.id, "series", tmdb.videos?.results || []);
-
-        // 5. Upsert images
-        await upsertImages(tx, tmdb.id, "series", tmdb.images);
-
-        // 6. Upsert scraped watch links
-        displayedChanged += await upsertScrapedWatchLinks(
-          tx,
-          tmdb.id,
-          "series",
-          enriched.scrapedWatchLinks,
-          enriched.watchLinkCountries
-        );
-
-        // 7. Upsert seasons
-        await upsertSeasons(tx, tmdb.id, tmdb.seasons || []);
-
-        // 8. Upsert certifications (from content_ratings)
-        if (tmdb.content_ratings?.results) {
-          await upsertSeriesCertifications(tx, tmdb.id, tmdb.content_ratings.results);
-        }
-
-        // 9. Upsert genres
-        if (tmdb.genres?.length) {
-          await upsertSeriesGenres(tx, tmdb.id, tmdb.genres);
-        }
-
-        // 10. Upsert keywords
-        if (tmdb.keywords?.results?.length) {
-          await upsertSeriesKeywords(tx, tmdb.id, tmdb.keywords.results);
-        }
-
-        // 11. Upsert credits (cast & crew)
-        // Store BOTH regular credits (top-billed main cast) and aggregate credits (all-time)
-        // UI can choose which to display via isAggregate flag
-        if (tmdb.credits) {
-          await upsertCredits(tx, tmdb.id, "series", tmdb.credits);
-        }
-        if (tmdb.aggregate_credits) {
-          await upsertSeriesAggregateCredits(tx, tmdb.id, tmdb.aggregate_credits);
-        }
-
-        // 12. Upsert creators (created_by)
-        if (tmdb.created_by?.length) {
-          await upsertSeriesCreators(tx, tmdb.id, tmdb.created_by);
-        }
-
-        // 14. Upsert networks
-        if (tmdb.networks?.length) {
-          await upsertSeriesNetworks(tx, tmdb.id, tmdb.networks);
-        }
-
-        // 15. Upsert watch providers (TMDB)
-        if (tmdb["watch/providers"]?.results) {
-          await upsertWatchProviders(tx, tmdb.id, "series", tmdb["watch/providers"].results);
-        }
-
-        // 16. Upsert reviews
-        if (tmdb.reviews?.results?.length) {
-          await upsertReviews(tx, tmdb.id, "series", tmdb.reviews.results);
-        }
-
-        // 17. Upsert countries (origin countries)
-        if (tmdb.origin_country?.length) {
-          await upsertSeriesCountries(tx, tmdb.id, tmdb.origin_country);
-        }
-
-        // 18. Upsert production companies
-        if (tmdb.production_companies?.length) {
-          await upsertSeriesCompanies(tx, tmdb.id, tmdb.production_companies);
-        }
-
-        // 19. Upsert spoken languages
-        if (tmdb.spoken_languages?.length) {
-          await upsertSeriesLanguages(tx, tmdb.id, tmdb.spoken_languages);
-        }
-
-        // 20. Update enrichment timestamps and tmdbUpdatedAt
+        // Enrichment timestamps
         const hasEnrichedRatings = enriched.ratings && Object.keys(enriched.ratings).length > 0;
         const hasScrapedWatchLinks =
           enriched.scrapedWatchLinks && enriched.scrapedWatchLinks.length > 0;
@@ -236,15 +76,38 @@ export async function upsertSeriesToPostgres(
         // synchronous Lambda re-scrape on every series detail-page revisit.
         const scrapeAttempted = !!enriched.scrapedAt || hasEnrichedRatings;
 
-        await tx.series.update({
-          where: { id: tmdb.id },
-          data: {
-            tmdbUpdatedAt: new Date(), // Track when TMDB data was last fetched
-            enrichmentSource: enriched.source || null,
-            ...(scrapeAttempted && { ratingsScrapedAt: enriched.scrapedAt ?? new Date() }),
-            ...(hasScrapedWatchLinks && { watchLinksScrapedAt: new Date() }),
-          },
+        const stamps: RowStamps = {
+          enrichmentSource: enriched.source || null,
+          ...(scrapeAttempted && { ratingsScrapedAt: enriched.scrapedAt ?? new Date() }),
+          ...(hasScrapedWatchLinks && { watchLinksScrapedAt: new Date() }),
+        };
+
+        // ONE row write per refresh: with real TMDB data the stamps ride on the
+        // core upsert (it rewrites the row anyway); enrichment-only writes just
+        // the stamps, never tmdbUpdatedAt (no TMDB fetch happened).
+        if (enrichmentOnly) {
+          await tx.series.update({ where: { id: tmdb.id }, data: stamps });
+        } else {
+          await upsertSeriesCore(tx, tmdb, { ...stamps, tmdbUpdatedAt: new Date() });
+        }
+
+        // Ratings (same pattern as movies)
+        displayedChanged += await upsertRatings(tx, tmdb.id, "series", tmdb, enriched.ratings);
+
+        // External IDs — merge-only on an enrichment-only refresh
+        await upsertExternalIds(tx, tmdb.id, "series", tmdb, enriched.externalIds, {
+          mergeOnly: enrichmentOnly,
         });
+
+        // Scraped watch links
+        displayedChanged += await upsertScrapedWatchLinks(
+          tx,
+          tmdb.id,
+          "series",
+          enriched.scrapedWatchLinks,
+          enriched.watchLinkCountries
+        );
+
       },
       { timeout: 60000 }
     ); // 60s timeout for large series with many seasons/episodes
@@ -274,6 +137,165 @@ export async function upsertSeriesToPostgres(
 /**
  * Upsert seasons and episodes
  */
+/**
+ * TMDB-sourced part of the series upsert: the series row, seasons/episodes and
+ * every child table only TMDB feeds. Requires a REAL TMDB payload.
+ */
+async function upsertSeriesCore(tx: PrismaTx, tmdb: TmdbSeriesData, stamps: RowStamps): Promise<void> {
+  // 1. Upsert core series
+  await tx.series.upsert({
+    where: { id: tmdb.id },
+    create: {
+      ...stamps,
+      id: tmdb.id,
+      name: tmdb.name,
+      originalName: tmdb.original_name,
+      overview: tmdb.overview,
+      adult: tmdb.adult,
+      posterPath: tmdb.poster_path,
+      backdropPath: tmdb.backdrop_path,
+      firstAirDate: tmdb.first_air_date ? new Date(tmdb.first_air_date) : null,
+      lastAirDate: tmdb.last_air_date ? new Date(tmdb.last_air_date) : null,
+      popularity: tmdb.popularity,
+      status: tmdb.status,
+      tagline: tmdb.tagline,
+      type: tmdb.type,
+      inProduction: tmdb.in_production,
+      numberOfSeasons: tmdb.number_of_seasons,
+      numberOfEpisodes: tmdb.number_of_episodes,
+      episodeRunTime: tmdb.episode_run_time || [],
+      homepage: tmdb.homepage,
+      originalLanguage: tmdb.original_language,
+      originCountry: tmdb.origin_country || [],
+      // Denormalized episode info
+      lastEpisodeSeasonNum: tmdb.last_episode_to_air?.season_number ?? null,
+      lastEpisodeNum: tmdb.last_episode_to_air?.episode_number ?? null,
+      lastEpisodeAirDate: tmdb.last_episode_to_air?.air_date
+        ? new Date(tmdb.last_episode_to_air.air_date)
+        : null,
+      lastEpisodeData: tmdb.last_episode_to_air
+        ? (tmdb.last_episode_to_air as unknown as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
+      nextEpisodeSeasonNum: tmdb.next_episode_to_air?.season_number ?? null,
+      nextEpisodeNum: tmdb.next_episode_to_air?.episode_number ?? null,
+      nextEpisodeAirDate: tmdb.next_episode_to_air?.air_date
+        ? new Date(tmdb.next_episode_to_air.air_date)
+        : null,
+      nextEpisodeData: tmdb.next_episode_to_air
+        ? (tmdb.next_episode_to_air as unknown as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
+    },
+    update: {
+      ...stamps,
+      name: tmdb.name,
+      originalName: tmdb.original_name,
+      overview: tmdb.overview,
+      adult: tmdb.adult,
+      posterPath: tmdb.poster_path,
+      backdropPath: tmdb.backdrop_path,
+      firstAirDate: tmdb.first_air_date ? new Date(tmdb.first_air_date) : null,
+      lastAirDate: tmdb.last_air_date ? new Date(tmdb.last_air_date) : null,
+      popularity: tmdb.popularity,
+      status: tmdb.status,
+      tagline: tmdb.tagline,
+      type: tmdb.type,
+      inProduction: tmdb.in_production,
+      numberOfSeasons: tmdb.number_of_seasons,
+      numberOfEpisodes: tmdb.number_of_episodes,
+      episodeRunTime: tmdb.episode_run_time || [],
+      homepage: tmdb.homepage,
+      originalLanguage: tmdb.original_language,
+      originCountry: tmdb.origin_country || [],
+      lastEpisodeSeasonNum: tmdb.last_episode_to_air?.season_number ?? null,
+      lastEpisodeNum: tmdb.last_episode_to_air?.episode_number ?? null,
+      lastEpisodeAirDate: tmdb.last_episode_to_air?.air_date
+        ? new Date(tmdb.last_episode_to_air.air_date)
+        : null,
+      lastEpisodeData: tmdb.last_episode_to_air
+        ? (tmdb.last_episode_to_air as unknown as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
+      nextEpisodeSeasonNum: tmdb.next_episode_to_air?.season_number ?? null,
+      nextEpisodeNum: tmdb.next_episode_to_air?.episode_number ?? null,
+      nextEpisodeAirDate: tmdb.next_episode_to_air?.air_date
+        ? new Date(tmdb.next_episode_to_air.air_date)
+        : null,
+      nextEpisodeData: tmdb.next_episode_to_air
+        ? (tmdb.next_episode_to_air as unknown as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
+      updatedAt: new Date(),
+    },
+  });
+
+  // 4. Upsert videos
+  await upsertVideos(tx, tmdb.id, "series", tmdb.videos?.results || []);
+
+  // 5. Upsert images
+  await upsertImages(tx, tmdb.id, "series", tmdb.images);
+
+  // 7. Upsert seasons
+  await upsertSeasons(tx, tmdb.id, tmdb.seasons || []);
+
+  // 8. Upsert certifications (from content_ratings)
+  if (tmdb.content_ratings?.results) {
+    await upsertSeriesCertifications(tx, tmdb.id, tmdb.content_ratings.results);
+  }
+
+  // 9. Upsert genres
+  if (tmdb.genres?.length) {
+    await upsertSeriesGenres(tx, tmdb.id, tmdb.genres);
+  }
+
+  // 10. Upsert keywords
+  if (tmdb.keywords?.results?.length) {
+    await upsertSeriesKeywords(tx, tmdb.id, tmdb.keywords.results);
+  }
+
+  // 11. Upsert credits (cast & crew)
+  // Store BOTH regular credits (top-billed main cast) and aggregate credits (all-time)
+  // UI can choose which to display via isAggregate flag
+  if (tmdb.credits) {
+    await upsertCredits(tx, tmdb.id, "series", tmdb.credits);
+  }
+  if (tmdb.aggregate_credits) {
+    await upsertSeriesAggregateCredits(tx, tmdb.id, tmdb.aggregate_credits);
+  }
+
+  // 12. Upsert creators (created_by)
+  if (tmdb.created_by?.length) {
+    await upsertSeriesCreators(tx, tmdb.id, tmdb.created_by);
+  }
+
+  // 14. Upsert networks
+  if (tmdb.networks?.length) {
+    await upsertSeriesNetworks(tx, tmdb.id, tmdb.networks);
+  }
+
+  // 15. Upsert watch providers (TMDB)
+  if (tmdb["watch/providers"]?.results) {
+    await upsertWatchProviders(tx, tmdb.id, "series", tmdb["watch/providers"].results);
+  }
+
+  // 16. Upsert reviews
+  if (tmdb.reviews?.results?.length) {
+    await upsertReviews(tx, tmdb.id, "series", tmdb.reviews.results);
+  }
+
+  // 17. Upsert countries (origin countries)
+  if (tmdb.origin_country?.length) {
+    await upsertSeriesCountries(tx, tmdb.id, tmdb.origin_country);
+  }
+
+  // 18. Upsert production companies
+  if (tmdb.production_companies?.length) {
+    await upsertSeriesCompanies(tx, tmdb.id, tmdb.production_companies);
+  }
+
+  // 19. Upsert spoken languages
+  if (tmdb.spoken_languages?.length) {
+    await upsertSeriesLanguages(tx, tmdb.id, tmdb.spoken_languages);
+  }
+}
+
 /**
  * True when any season lacks an `episodes` array — the payload is a season
  * summary (or a partly failed fetch), not authoritative episode data. A

@@ -139,7 +139,12 @@ function persistOnMissInDev(upsert: () => Promise<unknown>, label: string): void
  *   stale: the background task then fetches fresh TMDB data itself, keeping the
  *   TMDB round-trip OFF the render path.
  */
-function backgroundRefreshMovie(movieId: number, tmdbData: TmdbMovieData | null): void {
+function backgroundRefreshMovie(
+  movieId: number,
+  tmdbData: TmdbMovieData | null,
+  /** `tmdbData` is PG's own read transform (core-fresh, enriched-stale refresh). */
+  fromPostgres = false
+): void {
   if (inFlightMovieRefresh.has(movieId)) return;
   if (tmdbGone.has("movie", movieId)) return; // TMDB deleted it: a refresh cannot succeed
   if (backgroundRefreshSlotsFull()) return;
@@ -154,7 +159,10 @@ function backgroundRefreshMovie(movieId: number, tmdbData: TmdbMovieData | null)
         freshTmdb,
         {}
       );
-      const outcome = await upsertMovieToPostgres(freshTmdb, enriched);
+      // A PG round-trip is lossy — never write it back as TMDB core data.
+      const outcome = await upsertMovieToPostgres(freshTmdb, enriched, {
+        enrichmentOnly: fromPostgres && tmdbData !== null,
+      });
       notifyIfContentChanged(outcome, "movie", movieId, freshTmdb.title);
       if (enrichedSource === "lambda" || enrichedSource === "mongodb") {
         triggerProgressiveEnrichment("movie", movieId, freshTmdb).catch(() => {});
@@ -186,7 +194,9 @@ function backgroundRefreshMovie(movieId: number, tmdbData: TmdbMovieData | null)
 function backgroundRefreshSeries(
   seriesId: number,
   tmdbData: TmdbSeriesData | null,
-  seasonsWithEpisodes: TmdbSeriesData["seasons"] | null
+  seasonsWithEpisodes: TmdbSeriesData["seasons"] | null,
+  /** `tmdbData` is PG's own read transform (core-fresh, enriched-stale refresh). */
+  fromPostgres = false
 ): void {
   if (inFlightSeriesRefresh.has(seriesId)) return;
   if (tmdbGone.has("series", seriesId)) return; // TMDB deleted it: a refresh cannot succeed
@@ -203,7 +213,9 @@ function backgroundRefreshSeries(
             : Promise.resolve(freshTmdb.seasons)),
         getEnrichedData("series", seriesId, freshTmdb.first_air_date, freshTmdb, {}),
       ]);
-      const outcome = await upsertSeriesToPostgres({ ...freshTmdb, seasons }, enriched);
+      const outcome = await upsertSeriesToPostgres({ ...freshTmdb, seasons }, enriched, {
+        enrichmentOnly: fromPostgres && tmdbData !== null,
+      });
       notifyIfContentChanged(outcome, "series", seriesId, freshTmdb.name);
       triggerUserEpisodeReconcile(seriesId);
       if (enrichedSource === "lambda" || enrichedSource === "mongodb") {
@@ -277,7 +289,7 @@ async function hydrateMovieImpl(
       );
       // Core stale → pass null so the background task refetches TMDB itself.
       // Core fresh (enriched-only refresh) → reuse the data we already have.
-      backgroundRefreshMovie(movieId, pgFresh ? tmdbData : null);
+      backgroundRefreshMovie(movieId, pgFresh ? tmdbData : null, true);
       return {
         data: tmdbData,
         enriched,
@@ -457,7 +469,8 @@ async function hydrateSeriesImpl(
       backgroundRefreshSeries(
         seriesId,
         pgFresh ? tmdbData : null,
-        pgFresh ? tmdbData.seasons : null
+        pgFresh ? tmdbData.seasons : null,
+        true
       );
       return {
         data: tmdbData,

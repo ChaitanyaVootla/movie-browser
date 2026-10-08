@@ -262,7 +262,7 @@ describe("hydrateMovie — serve-stale-then-refresh", () => {
     tmdb.resolve(freshTmdb);
     await waitForBackground(mockUpsertMovie);
 
-    expect(mockUpsertMovie).toHaveBeenCalledWith(freshTmdb, lambdaEnriched);
+    expect(mockUpsertMovie).toHaveBeenCalledWith(freshTmdb, lambdaEnriched, { enrichmentOnly: false });
     expect(mockTriggerEnrichment).toHaveBeenCalledWith("movie", id, freshTmdb);
   });
 
@@ -283,7 +283,8 @@ describe("hydrateMovie — serve-stale-then-refresh", () => {
     expect(mockFetchFromLambda).toHaveBeenCalled();
     expect(mockUpsertMovie).toHaveBeenCalledWith(
       expect.objectContaining({ title: `PG Movie ${id}` }),
-      lambdaEnriched
+      lambdaEnriched,
+      { enrichmentOnly: true } // PG round-trip: never re-written as TMDB core
     );
   });
 
@@ -308,7 +309,7 @@ describe("hydrateMovie — serve-stale-then-refresh", () => {
 
     lambda.resolve(lambdaEnriched);
     await waitForBackground(mockUpsertMovie);
-    expect(mockUpsertMovie).toHaveBeenCalledWith(freshTmdb, lambdaEnriched);
+    expect(mockUpsertMovie).toHaveBeenCalledWith(freshTmdb, lambdaEnriched, { enrichmentOnly: false });
   });
 
   it("TRUE PG MISS with TMDB 404: rejects so the page can notFound()", async () => {
@@ -373,7 +374,8 @@ describe("hydrateSeries — serve-stale-then-refresh", () => {
     expect(mockFetchAllSeasonEpisodes).toHaveBeenCalledWith(id, freshTmdb.seasons);
     expect(mockUpsertSeries).toHaveBeenCalledWith(
       expect.objectContaining({ name: `TMDB Series ${id}`, seasons: seasonsWithEpisodes }),
-      lambdaEnriched
+      lambdaEnriched,
+      { enrichmentOnly: false }
     );
     expect(mockTriggerEnrichment).toHaveBeenCalledWith("series", id, freshTmdb);
   });
@@ -393,7 +395,8 @@ describe("hydrateSeries — serve-stale-then-refresh", () => {
     expect(mockFetchAllSeasonEpisodes).not.toHaveBeenCalled();
     expect(mockUpsertSeries).toHaveBeenCalledWith(
       expect.objectContaining({ name: `PG Series ${id}` }),
-      lambdaEnriched
+      lambdaEnriched,
+      { enrichmentOnly: true } // PG round-trip: never re-written as TMDB core
     );
   });
 
@@ -426,7 +429,8 @@ describe("hydrateSeries — serve-stale-then-refresh", () => {
 
     expect(mockUpsertSeries).toHaveBeenCalledWith(
       expect.objectContaining({ seasons: seasonsWithEpisodes }),
-      lambdaEnriched
+      lambdaEnriched,
+      { enrichmentOnly: false }
     );
   });
 
