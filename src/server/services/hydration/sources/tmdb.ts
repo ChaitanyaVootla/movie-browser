@@ -373,7 +373,12 @@ export interface TmdbSeasonWithEpisodes {
   poster_path: string | null;
   air_date: string | null;
   episode_count: number;
-  episodes: TmdbEpisode[];
+  /**
+   * Absent when this season's episode fetch FAILED. upsertSeasons treats a
+   * season without an `episodes` array as "unknown", never as "zero episodes"
+   * (an empty array used to make the rewrite DELETE that season's episodes).
+   */
+  episodes?: TmdbEpisode[];
 }
 
 /**
@@ -409,16 +414,16 @@ export async function fetchAllSeasonEpisodes(
       } as TmdbSeasonWithEpisodes;
     } catch (error) {
       console.warn(`[Hydration/TMDB] Failed to fetch season ${season.season_number}:`, error);
+      // No `episodes` key: "unknown", so the upsert keeps the stored episodes.
       return {
         ...season,
         overview: season.overview || null,
-        episodes: [],
       } as TmdbSeasonWithEpisodes;
     }
   });
 
   const results = await Promise.all(seasonPromises);
-  const totalEpisodes = results.reduce((sum, s) => sum + s.episodes.length, 0);
+  const totalEpisodes = results.reduce((sum, s) => sum + (s.episodes?.length ?? 0), 0);
   console.log(`[Hydration/TMDB] Total: ${totalEpisodes} episodes across ${results.length} seasons`);
 
   return results;

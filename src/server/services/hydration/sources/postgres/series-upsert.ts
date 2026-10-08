@@ -274,11 +274,36 @@ export async function upsertSeriesToPostgres(
 /**
  * Upsert seasons and episodes
  */
+/**
+ * True when any season lacks an `episodes` array — the payload is a season
+ * summary (or a partly failed fetch), not authoritative episode data. A
+ * season that genuinely has zero episodes after a successful fetch carries
+ * `episodes: []`, which is authoritative.
+ */
+export function isSummaryOnly(seasons: ReadonlyArray<SeasonWithEpisodes>): boolean {
+  return seasons.some((s) => s.episode_count > 0 && !Array.isArray(s.episodes));
+}
+
 async function upsertSeasons(
   tx: PrismaTx,
   seriesId: number,
   seasons: SeasonWithEpisodes[]
 ): Promise<void> {
+  // SUMMARY-ONLY GUARD (Oct 2026). The rewrite below is delete-all-seasons
+  // (cascading to episodes) + reinsert, so it must only run with COMPLETE
+  // episode data. Callers routinely pass seasons WITHOUT episodes: the
+  // core-fresh enriched-only refresh hands back PG's own season summary
+  // (getSeriesFromPostgres selects no episodes), hover-card partial hydration
+  // passes TMDB's details-level seasons, and a failed per-season fetch omits
+  // them. Each of those used to look "changed" (stored episodes vs none) and
+  // WIPED the series' episodes — prod measured ~1,619 episode deletes/min vs
+  // ~52 inserts/min. Summary-only input may only seed seasons for a series
+  // that has none yet; it never rewrites existing ones.
+  if (isSummaryOnly(seasons)) {
+    const existingCount = await tx.season.count({ where: { seriesId } });
+    if (existingCount > 0) return;
+  }
+
   // Change-detection: seasons+episodes compared as one canonical unit. When
   // unchanged (the common case), the whole delete cascade (seasons → episodes
   // → images) and reinsert is skipped.
