@@ -10,6 +10,7 @@ import { getFollowCounts } from "./follows";
 import { getUserReviews } from "./reviews";
 import { getUserComments } from "../comments";
 import { getProgressShelf } from "./progress";
+import { getProfileTaste } from "@/server/services/taste";
 import { resolveAvatarUrl, resolveAvatarCrop, resolveAccent } from "@/lib/resolve-avatar";
 import type {
   BreakdownSliceDTO,
@@ -55,6 +56,8 @@ interface ProfileEnvelope {
     avatarCrop?: { zoom: number; nx: number; ny: number; r: number };
     accent?: string;
     links?: string[];
+    /** Show the taste-profile widgets on the PUBLIC profile (default true). */
+    showTaste?: boolean;
     /** User-entered free-text display location for the PUBLIC profile (string). */
     displayLocation?: string;
     /**
@@ -132,7 +135,7 @@ export async function getPublicProfileByUsername(
   if (!user || !user.isPublic || !user.username) return null;
   const env = parseEnvelope(user.metadata);
 
-  const [snapshot, favorites, follows, reviewsPage, discussions, watching, pinnedRows, histogramRows, dailyRows, recentRows] =
+  const [snapshot, favorites, follows, reviewsPage, discussions, watching, pinnedRows, histogramRows, dailyRows, recentRows, taste] =
     await Promise.all([
       // PUBLIC projection: private watch events never reach a profile visitor.
       getUserStatsSnapshot(user.id, { scope: "public" }),
@@ -185,6 +188,9 @@ export async function getPublicProfileByUsername(
         ORDER BY we.watched_at DESC
         LIMIT 8
       `,
+      // PUBLIC taste projection; never throws (→ null). Hidden by the owner's
+      // metadata.profile.showTaste=false toggle.
+      getProfileTaste(user.id, env.profile?.showTaste !== false),
     ]);
 
   const reviewUser = {
@@ -303,5 +309,6 @@ export async function getPublicProfileByUsername(
     // Read-only access to the saved widget layout; typed loosely here (the
     // shared envelope stays JSON-write-safe — see updateProfileAction).
     layout: (env.profile as { layout?: unknown } | undefined)?.layout ?? null,
+    taste,
   };
 }

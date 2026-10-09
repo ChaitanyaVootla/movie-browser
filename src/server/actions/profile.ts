@@ -391,6 +391,40 @@ export async function setPrivacyDefaultsAction(input: {
   }
 }
 
+/**
+ * Show/hide the taste-profile widgets on the PUBLIC profile
+ * (users.metadata.profile.showTaste). Revalidates /u/<username> so the next
+ * visitor render reflects it; the CDN copy can lag by its ~5 min TTL (same as
+ * every other profile edit — see social-features.md pre-deploy item 4).
+ */
+export async function setTasteVisibilityAction(input: { show: boolean }): Promise<ActionResult> {
+  try {
+    const show = z.boolean().parse(input.show);
+    const userId = await requirePgUserId();
+    const username = await auditedTransaction(userId, async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { username: true, metadata: true },
+      });
+      const env = parseEnvelope(user?.metadata);
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          metadata: {
+            ...env,
+            profile: { ...(env.profile ?? {}), showTaste: show },
+          } as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return user?.username ?? null;
+    });
+    if (username) revalidatePath(`/u/${username}`);
+    return { ok: true };
+  } catch (error: unknown) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 export async function getOwnProfileSettings(): Promise<OwnProfileSettingsDTO> {
   const userId = await requirePgUserId();
   const [user, favorites, previousUsernames] = await Promise.all([
@@ -427,7 +461,11 @@ export async function getOwnProfileSettings(): Promise<OwnProfileSettingsDTO> {
       links: env.profile?.links ?? [],
       location: typeof env.profile?.displayLocation === "string" ? env.profile.displayLocation : "",
     },
-    privacy: { logPrivatelyByDefault: env.preferences?.logPrivatelyByDefault ?? false },
+    privacy: {
+      logPrivatelyByDefault: env.preferences?.logPrivatelyByDefault ?? false,
+      // Default ON while the profile is public (taste widgets use public signals only).
+      showTasteProfile: env.profile?.showTaste !== false,
+    },
     fourFavorites,
     previousUsernames,
   };

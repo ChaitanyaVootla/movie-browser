@@ -6,6 +6,7 @@
  */
 
 import type { AvatarCrop } from "@/lib/avatar-crop";
+import type { TasteSnapshot } from "@/lib/taste/profile";
 
 export type WatchStatus =
   | "WATCHING"
@@ -353,7 +354,18 @@ export interface PublicProfileDTO {
   rewatchChampions: RewatchChampionDTO[];
   /** Saved widget-dashboard layout (metadata.profile.layout) or null → default. Validated by resolveLayout. */
   layout: unknown;
+  /**
+   * PUBLIC taste projection (never private watches / watchlist). null = the
+   * read failed (widgets just don't render). Viewer-agnostic → ISR-safe.
+   */
+  taste: ProfileTasteDTO | null;
 }
+
+/** Taste widgets' data on the profile (spec 2026-10-09-taste-profile-design §11). */
+export type ProfileTasteDTO =
+  | { status: "ready"; snapshot: TasteSnapshot }
+  | { status: "insufficient"; positiveCount: number; needed: number }
+  | { status: "hidden" };
 
 export interface ProfileViewerStateDTO {
   isOwner: boolean;
@@ -377,7 +389,7 @@ export interface OwnProfileSettingsDTO {
   displayName: string;
   googleImageUrl: string | null;
   customization: ProfileCustomizationInput;
-  privacy: { logPrivatelyByDefault: boolean };
+  privacy: { logPrivatelyByDefault: boolean; showTasteProfile: boolean };
   fourFavorites: FavoriteItemDTO[];
   /** Prior usernames this account has left behind, newest-first (Twitter-style trail). */
   previousUsernames: string[];

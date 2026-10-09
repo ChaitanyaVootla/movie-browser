@@ -11,6 +11,7 @@
 import { prisma } from "./index";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
 import { markStatsDirty } from "./social/stats-dirty";
+import { markTasteDirty } from "./social/taste-dirty";
 import { logWatchEvent } from "./social/watch-events";
 import { setUserRating } from "./social/ratings";
 
@@ -327,6 +328,7 @@ export async function addMovieToWatchlist(userId: number, movieId: number): Prom
       create: { userId, movieId, addedAt: new Date() },
       update: {},
     });
+    markTasteDirty(userId); // watchlist feeds the FULL (private) taste profile
   } catch (error: unknown) {
     if (isPrismaError(error) && error.code === "P2002") return; // Already exists
     throw error;
@@ -337,6 +339,7 @@ export async function removeMovieFromWatchlist(userId: number, movieId: number):
   await prisma.watchlistItem.deleteMany({
     where: { userId, movieId },
   });
+  markTasteDirty(userId);
 }
 
 export async function addSeriesToWatchlist(userId: number, seriesId: number): Promise<void> {
@@ -346,6 +349,7 @@ export async function addSeriesToWatchlist(userId: number, seriesId: number): Pr
       create: { userId, seriesId, addedAt: new Date() },
       update: {},
     });
+    markTasteDirty(userId);
   } catch (error: unknown) {
     if (isPrismaError(error) && error.code === "P2002") return;
     throw error;
@@ -356,6 +360,7 @@ export async function removeSeriesFromWatchlist(userId: number, seriesId: number
   await prisma.watchlistItem.deleteMany({
     where: { userId, seriesId },
   });
+  markTasteDirty(userId);
 }
 
 // =============================================================================

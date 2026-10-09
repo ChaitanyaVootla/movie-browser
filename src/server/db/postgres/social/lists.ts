@@ -7,6 +7,7 @@
 import { Prisma, type ListKind } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
 import { auditedTransaction } from "@/server/db/audit";
+import { markTasteDirtyTx } from "./taste-dirty";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
 
 /** Global client or an interactive-tx client (the latter carries audit actor). */
@@ -386,6 +387,8 @@ export async function setFourFavorites(
       });
     }
     await tx.list.update({ where: { id: list.id }, data: { itemCount: refs.length } });
+    // Four Favorites are the strongest taste signal (+3) — flag the profile.
+    await markTasteDirtyTx(tx as Prisma.TransactionClient, ownerId);
   };
   // Run on a passed-in tx directly (Prisma forbids nesting $transaction);
   // otherwise open our own audited tx so the replace-all stays atomic AND the
