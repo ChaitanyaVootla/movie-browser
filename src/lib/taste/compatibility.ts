@@ -13,7 +13,7 @@
  *   tasteSim (w .2)  clamp01((cos(publicCentroidA, publicCentroidB) − .3)/.6).
  *   score = round(100 · Σ wᵢsᵢ / Σ wᵢ) over non-null components.
  */
-import { isPrivateOnly } from "./weights";
+import { isRatingPrivate } from "./weights";
 import type { TasteMediaType, TitleKey, TitleSignals } from "./types";
 
 export const MATCH_W_SCORE = 0.5;
@@ -37,13 +37,12 @@ export interface PublicRating {
 }
 
 /**
- * Title-level ratings visible in the PUBLIC scope (same rule as the taste
- * projection: a rating on a title whose only watches are private is private).
+ XX * projection: a rating on a title whose only watches are private is private).
  */
 export function publicRatingsFromSignals(signals: readonly TitleSignals[]): PublicRating[] {
   const out: PublicRating[] = [];
   for (const s of signals) {
-    if (!s.rating || isPrivateOnly(s)) continue;
+    if (!s.rating || isRatingPrivate(s)) continue;
     const liked = s.rating.liked || (s.rating.score ?? 0) >= MATCH_LIKED_SCORE;
     if (s.rating.score == null && !liked) continue;
     out.push({ key: s.key, mediaType: s.mediaType, id: s.id, score: s.rating.score, liked });

@@ -5,6 +5,7 @@
  */
 import type { TasteCluster, TasteSnapshot } from "@/lib/taste/profile";
 import type { RecItemDTO } from "@/lib/taste/recommend-types";
+import { isAdultKeyword } from "@/server/db/postgres/social/taste";
 
 export interface CueTasteSummary {
   moods: string[];
@@ -17,8 +18,9 @@ export interface CueTasteSummary {
   basedOnTitles: number;
 }
 
+// Defensive: adult-adjacent tags never reach the model (seo-search-console.md).
 const labels = (xs: ReadonlyArray<{ label: string }> | undefined, n: number) =>
-  (xs ?? []).slice(0, n).map((x) => x.label);
+  (xs ?? []).map((x) => x.label).filter((l) => !isAdultKeyword(l)).slice(0, n);
 
 export function buildCueTasteSummary(
   snapshot: TasteSnapshot | null,
@@ -41,7 +43,7 @@ export function buildCueTasteSummary(
       .sort((a, b) => b.importance - a.importance)
       .slice(0, 4)
       .map((c) => ({
-        label: c.label,
+        label: isAdultKeyword(c.label) ? c.medoid.title : c.label,
         share: Math.round(c.importance * 100) / 100,
         medoid: { id: c.medoid.tmdbId, mediaType: c.medoid.mediaType, title: c.medoid.title },
       })),

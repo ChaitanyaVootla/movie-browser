@@ -36,7 +36,7 @@ import { MIN_POSITIVES_FOR_CENTROID } from "@/lib/taste/constants";
 import { l2Normalize, weightedMean } from "@/lib/taste/vector";
 import { foldSignals } from "@/lib/taste/weights";
 import type { TasteMediaType, TitleKey } from "@/lib/taste/types";
-import { fetchTasteSignals, fetchTitleEmbeddings } from "@/server/db/postgres/social/taste";
+import { fetchTasteSignals, fetchTitleEmbeddings, isAdultKeyword } from "@/server/db/postgres/social/taste";
 import {
   annCandidates,
   fetchAnchorInfo,
@@ -370,7 +370,7 @@ async function computeRecs(userId: number, snapshot: TasteSnapshot | null): Prom
       id: `cluster-${r.cluster.index}`,
       kind: "because",
       anchor: r.cluster.medoid,
-      label: r.cluster.label,
+      label: isAdultKeyword(r.cluster.label) ? null : r.cluster.label,
       items: explainAll(r.items),
     });
   }
