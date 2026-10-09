@@ -21,6 +21,8 @@ export interface StatsEventRow {
   precision: WatchedAtPrecision;
   isRewatch: boolean;
   source: WatchEventSource;
+  /** watch_events.is_private — the PUBLIC snapshot drops these rows. Absent = public. */
+  isPrivate?: boolean;
 }
 
 export interface StatsPersonRow {
@@ -215,5 +217,27 @@ export function computeStats(
     currentStreakDays: currentStreak(datedDays, opts.now ?? new Date()),
     rewatches: { count: rewatchCount, champions },
     computedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Both projections from ONE fetch: `full` (owner's /stats, includes private
+ * watches) and `public` (profile surfaces — private watch rows dropped BEFORE
+ * aggregation, so private titles never reach genres/countries/people/hours).
+ * People rows need no extra filtering: computeStats keeps only people whose
+ * title appears in the rows it was given.
+ */
+export function computeStatsPair(
+  allRows: StatsEventRow[],
+  people: StatsPersonRow[],
+  opts: ComputeStatsOptions = {}
+): { full: StatsSnapshot; public: StatsSnapshot } {
+  return {
+    full: computeStats(allRows, people, opts),
+    public: computeStats(
+      allRows.filter((r) => r.isPrivate !== true),
+      people,
+      opts
+    ),
   };
 }

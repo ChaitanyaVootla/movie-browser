@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   computeStats,
+  computeStatsPair,
   effectiveRuntime,
   type StatsEventRow,
   type StatsPersonRow,
@@ -175,5 +176,44 @@ describe("computeStats", () => {
     const honest = computeStats(rows, [], { excludeImported: true });
     expect(all.totalWatches).toBe(2);
     expect(honest.totalWatches).toBe(1);
+  });
+});
+
+describe("computeStatsPair (public vs full privacy split)", () => {
+  const privateMovie = movieRow({
+    titleId: 999,
+    title: "Secret Film",
+    genres: ["Romance"],
+    countries: ["FR"],
+    year: 1971,
+    isPrivate: true,
+  });
+  const rows = [movieRow(), episodeRow(), privateMovie];
+  const people: StatsPersonRow[] = [
+    { name: "Lana Wachowski", role: "director", titleId: 603 },
+    { name: "Secret Director", role: "director", titleId: 999 },
+  ];
+
+  it("FULL includes private watches", () => {
+    const { full } = computeStatsPair(rows, people);
+    expect(full.moviesWatched).toBe(2);
+    expect(full.topGenres.map((g) => g.name)).toContain("Romance");
+    expect(full.topDirectors.map((d) => d.name)).toContain("Secret Director");
+  });
+
+  it("PUBLIC never contains anything from a private watch", () => {
+    const pub = computeStatsPair(rows, people).public;
+    expect(pub.moviesWatched).toBe(1);
+    expect(pub.totalWatches).toBe(2);
+    const json = JSON.stringify(pub);
+    for (const leak of ["Romance", "FR", "1970s", "Secret Director", "Secret Film"]) {
+      expect(json).not.toContain(leak);
+    }
+    expect(pub.hoursWatched).toBeCloseTo((136 + 47) / 60, 1);
+  });
+
+  it("rows without the flag count as public (backward compatible)", () => {
+    const { public: pub } = computeStatsPair([movieRow()], []);
+    expect(pub.moviesWatched).toBe(1);
   });
 });

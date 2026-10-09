@@ -87,6 +87,38 @@ function toSlices(items: { name?: string; decade?: string; count: number }[]): B
   return items.map((i) => ({ label: i.name ?? i.decade ?? "", count: i.count }));
 }
 
+/**
+ * Score histogram for the PUBLIC profile. Same privacy rule as the taste
+ * profile's public projection: a score on a title whose ONLY watch events are
+ * private is excluded (logging a private watch with a score also upserts the
+ * canonical rating — counting it would reveal the private watch).
+ */
+async function getPublicScoreHistogramRows(
+  userId: number
+): Promise<Array<{ score: number; count: number }>> {
+  const rows = await prisma.$queryRaw<Array<{ score: number; count: number }>>`
+    SELECT ur.score, count(*)::int AS count
+    FROM user_ratings ur
+    WHERE ur.user_id = ${userId} AND ur.score IS NOT NULL
+      AND NOT (
+        EXISTS (
+          SELECT 1 FROM watch_events we
+          WHERE we.user_id = ur.user_id AND we.kind = 'WATCH' AND we.is_private = true
+            AND ((ur.movie_id IS NOT NULL AND we.movie_id = ur.movie_id)
+              OR (ur.series_id IS NOT NULL AND we.series_id = ur.series_id))
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM watch_events we
+          WHERE we.user_id = ur.user_id AND we.kind = 'WATCH' AND we.is_private = false
+            AND ((ur.movie_id IS NOT NULL AND we.movie_id = ur.movie_id)
+              OR (ur.series_id IS NOT NULL AND we.series_id = ur.series_id))
+        )
+      )
+    GROUP BY ur.score
+  `;
+  return rows.map((r) => ({ score: Number(r.score), count: Number(r.count) }));
+}
+
 export async function getPublicProfileByUsername(
   username: string
 ): Promise<PublicProfileDTO | null> {
@@ -102,7 +134,8 @@ export async function getPublicProfileByUsername(
 
   const [snapshot, favorites, follows, reviewsPage, discussions, watching, pinnedRows, histogramRows, dailyRows, recentRows] =
     await Promise.all([
-      getUserStatsSnapshot(user.id),
+      // PUBLIC projection: private watch events never reach a profile visitor.
+      getUserStatsSnapshot(user.id, { scope: "public" }),
       getFourFavorites(user.id),
       getFollowCounts(user.id),
       // ISR-cached surface: NONE-scope only — non-NONE bodies must not bake into
@@ -128,11 +161,7 @@ export async function getPublicProfileByUsername(
           },
         },
       }),
-      prisma.userRating.groupBy({
-        by: ["score"],
-        where: { userId: user.id, score: { not: null } },
-        _count: { _all: true },
-      }),
+      getPublicScoreHistogramRows(user.id),
       // Daily watch counts for the heatmap (public, dated, last ~26 weeks).
       prisma.$queryRaw<Array<{ day: string; count: number }>>`
         SELECT to_char(watched_at, 'YYYY-MM-DD') AS day, count(*)::int AS count
@@ -192,9 +221,7 @@ export async function getPublicProfileByUsername(
 
   const histogram = new Array<number>(10).fill(0);
   for (const row of histogramRows) {
-    if (row.score !== null && row.score >= 1 && row.score <= 10) {
-      histogram[row.score - 1] = row._count._all;
-    }
+    if (row.score >= 1 && row.score <= 10) histogram[row.score - 1] = row.count;
   }
 
   const favoriteItems: FavoriteItemDTO[] = favorites.map((f) => ({
