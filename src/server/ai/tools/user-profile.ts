@@ -13,6 +13,21 @@ import { prisma } from "@/server/db/postgres";
 import { getProgressShelf } from "@/server/db/postgres/social/progress";
 import { getUserIdFromConfig } from "../utils";
 import { aiToolLogger } from "@/lib/logger";
+import { getTasteClusters, getTasteProfile } from "@/server/services/taste";
+import { buildCueTasteSummary, type CueTasteSummary } from "./taste-summary";
+
+/** FULL-scope taste summary (the user's own chat); null on any failure. */
+async function loadTaste(userId: number): Promise<CueTasteSummary | null> {
+  try {
+    const [snapshot, clusters] = await Promise.all([
+      getTasteProfile(userId, { scope: "full" }),
+      getTasteClusters(userId),
+    ]);
+    return buildCueTasteSummary(snapshot, clusters);
+  } catch {
+    return null;
+  }
+}
 
 // =============================================================================
 // Helpers
@@ -44,7 +59,7 @@ export const getUserProfileTool = tool(
 
     try {
       // Single parallel batch: all user data in one round trip
-      const [watchedMovies, watchlistCount, ratings, recentItems, progressShelf] = await Promise.all([
+      const [watchedMovies, watchlistCount, ratings, recentItems, progressShelf, taste] = await Promise.all([
         // Recent watched with title + genres (last 8)
         prisma.watchEvent.findMany({
           where: { userId, movieId: { not: null }, kind: "WATCH" },
@@ -97,6 +112,8 @@ export const getUserProfileTool = tool(
         }),
         // Series they're mid-way through (Up Next shelf)
         getProgressShelf(userId, ["WATCHING", "CAUGHT_UP", "REWATCHING"], 5),
+        // Deterministic taste profile (lifted facets, axes, clusters) — no LLM
+        loadTaste(userId),
       ]);
 
       // --- Build genre frequency from liked items + watched ---
@@ -161,6 +178,7 @@ export const getUserProfileTool = tool(
           likes,
           dislikes,
         },
+        ...(taste ? { taste } : {}),
       });
     } catch (error: unknown) {
       aiToolLogger.error({
@@ -178,7 +196,7 @@ export const getUserProfileTool = tool(
 Use when: Starting a conversation to personalize recs, "what should I watch?", "recommend something for me", "what was I watching?", or when you want to understand their taste.
 Don't use when: User already told you what they want (specific genre, title, person), or the user is not logged in (returns an error — just help them without it).
 
-Returns: topGenres (ranked), recentWatched (title + when), currentlyWatching (series with id + S#E# position — great for "continue watching" nudges), recentlyBrowsed, counts (watched, watchlist, likes, dislikes).
+Returns: topGenres (ranked), recentWatched (title + when), currentlyWatching (series with id + S#E# position — great for "continue watching" nudges), recentlyBrowsed, counts (watched, watchlist, likes, dislikes), and (once they have enough history) taste: moods/genres/keywords/directors/languages that stand out vs the catalog, axes (0-1 between the low/high labels, e.g. Mainstream↔Niche) and clusters (distinct taste pockets, each with a representative title id). Talk about titles and tastes; never label the person.
 Use this to tailor tone and recommendations — "since you're into horror...", "you're mid-way through X, finish it or want something similar?".`,
     schema: z.object({}),
   }
