@@ -10,7 +10,6 @@ import { cn, getMediaHref } from "@/lib/utils";
 import { getPosterSources } from "@/lib/image";
 import { getMediaBadges, getBadgeScoopColor } from "@/lib/badges";
 import type { MovieListItem, SeriesListItem } from "@/types";
-import { MovieCardActions } from "./movie-card-actions";
 import { useIsWatched } from "@/components/features/media/user-status-badge";
 import {
   useUserStore,
@@ -168,19 +167,6 @@ export const MovieCard = memo(function MovieCard({
                   {item.vote_average.toFixed(1)}
                 </Badge>
               )}
-
-              {/* Actions (Client Component) - shown on hover */}
-              <MovieCardActions
-                itemId={item.id}
-                isMovie={itemIsMovie}
-                title={title}
-                posterPath={item.poster_path}
-                // Invisible ≠ inert: without pointer-events-none the hidden
-                // buttons still caught taps on touch (no hover there), so a tap
-                // on the poster's lower edge toggled watched / opened the log
-                // instead of opening the card. Keyboard focus reveals them too.
-                className="absolute bottom-2 left-2 right-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity duration-300"
-              />
 
               {/* Bottom-left scoop: the viewer's personal cluster (rating+heart /
                   watched / watchlist) SUPERSEDES the quality badge when present;
