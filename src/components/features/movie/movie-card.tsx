@@ -1,34 +1,23 @@
 "use client";
 
-import { useState, useMemo, memo } from "react";
+import { useState, memo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, getMediaHref } from "@/lib/utils";
 import { getPosterSources } from "@/lib/image";
-import { getMediaBadges, getBadgeScoopColor } from "@/lib/badges";
-import type { MovieListItem, SeriesListItem } from "@/types";
-import { useIsWatched } from "@/components/features/media/user-status-badge";
+import type { PersonalCardState } from "@/components/features/media/social-signals";
 import {
-  useUserStore,
-  selectIsInWatchlist,
-  selectScore,
-  selectLiked,
-  selectSeriesProgress,
-} from "@/stores/user";
-import {
-  PersonalCornerCluster,
-  CardProgressBar,
-  hasPersonalState,
-  type PersonalCardState,
-} from "@/components/features/media/social-signals";
-import { CardPendingOverlay } from "@/components/features/layout/nav-pending";
-import { useMounted } from "@/hooks/use-mounted";
+  CardArtOverlays,
+  cardImageClass,
+  isMovieCardItem,
+  useCardBadge,
+  useCardPersonalState,
+  type CardItem,
+} from "./card-core";
 
 interface MovieCardProps {
-  item: MovieListItem | SeriesListItem;
+  item: CardItem;
   className?: string;
   showRating?: boolean;
   /** Show media badges (new, trending, etc.) */
@@ -36,7 +25,7 @@ interface MovieCardProps {
   priority?: boolean;
   /** Optional subtitle (e.g., character name, job) */
   subtitle?: string;
-  /** Hide user status badge (watchlist/watched) - use in watchlist pages/scrollers */
+  /** Hide the viewer's cluster + watched grayscale (e.g. inside the watchlist page). */
   hideUserStatus?: boolean;
   /**
    * Explicit personal cluster (e.g. Library → Ratings renders the row's own
@@ -46,10 +35,7 @@ interface MovieCardProps {
   personalOverride?: PersonalCardState;
 }
 
-function isMovie(item: MovieListItem | SeriesListItem): item is MovieListItem {
-  return "title" in item;
-}
-
+/** Poster (2:3) card. Display-only. See card-core.tsx. */
 export const MovieCard = memo(function MovieCard({
   item,
   className,
@@ -62,163 +48,68 @@ export const MovieCard = memo(function MovieCard({
 }: MovieCardProps) {
   const [useFallback, setUseFallback] = useState(false);
 
-  const itemIsMovie = isMovie(item);
-  const title = itemIsMovie ? item.title : item.name;
-  const mediaType = itemIsMovie ? "movie" : "series";
-  const year = itemIsMovie ? item.release_date?.split("-")[0] : item.first_air_date?.split("-")[0];
-  const href = getMediaHref(item.id, itemIsMovie, title);
+  const isMovie = isMovieCardItem(item);
+  const title = isMovie ? item.title : item.name;
+  const mediaType = isMovie ? "movie" : "series";
+  const year = (isMovie ? item.release_date : item.first_air_date)?.split("-")[0];
+  const href = getMediaHref(item.id, isMovie, title);
 
-  // Check if user has watched this item (movies; for grayscale effect)
-  const isWatched = useIsWatched(item.id);
+  const { personal, showPersonal, grayscale, progressPct } = useCardPersonalState(item, {
+    hideUserStatus,
+    personalOverride,
+  });
+  const badge = useCardBadge(item, showBadges, 1);
 
-  // Social signals (Phase A) — read from the hydrated user store. Personal state
-  // supersedes the quality badge in the bottom-left scoop; series progress draws
-  // the bottom hairline bar. All client-hydrated (ISR-safe).
-  const isHydrated = useUserStore((s) => s.isHydrated);
-  const inWatchlist = useUserStore(selectIsInWatchlist(item.id, mediaType));
-  const score = useUserStore(selectScore(item.id, mediaType));
-  const loved = useUserStore(selectLiked(item.id, mediaType));
-  const seriesProg = useUserStore(selectSeriesProgress(item.id));
-  const completed =
-    !itemIsMovie && !!seriesProg && seriesProg.total != null && seriesProg.watched >= seriesProg.total;
-  const watchedState = itemIsMovie ? isWatched : completed;
-  const inProgress = !itemIsMovie && !!seriesProg && seriesProg.pct > 0 && !completed;
-  const storePersonal: PersonalCardState = {
-    // canonical score is 1–10; the card shows the half-star scale (0.5–5)
-    stars: score != null ? score / 2 : null,
-    loved,
-    watched: watchedState,
-    watchlisted: inWatchlist,
-  };
-  const personal = personalOverride ?? storePersonal;
-  const showPersonal = personalOverride
-    ? hasPersonalState(personalOverride)
-    : isHydrated && !hideUserStatus && hasPersonalState(personal);
-
-  // Badges are derived from the current date (e.g. "New", "Just Released") via
-  // getMediaBadges(). Under ISR the server HTML is cached for hours, so computing
-  // badges during SSR/first client render can produce a text mismatch (React #418)
-  // once a date threshold is crossed. Gate badge rendering on mount so the server
-  // and first client render agree (no badge), then reveal after hydration. The
-  // badge is an absolutely-positioned overlay, so this introduces no layout shift.
-  const mounted = useMounted();
-  const badges = useMemo(
-    () => (mounted && showBadges ? getMediaBadges(item, { maxBadges: 1 }) : []),
-    [mounted, item, showBadges]
-  );
-
-  // Get poster sources with CDN primary, TMDB fallback
   const posterSources = getPosterSources(
     { id: item.id, poster_path: item.poster_path, title, name: title },
     mediaType
   );
-
   const posterSrc = useFallback ? posterSources.fallback : posterSources.primary;
   const hasPoster = posterSrc && (item.poster_path || !useFallback);
-
-  const badge = badges[0]; // Only show first badge
 
   return (
     // prefetch={false}: a browse grid would otherwise fire dozens of RSC
     // prefetches as cards enter the viewport (see .claude/rules/performance.md).
-    // CardPendingOverlay below provides click feedback instead.
-    <Link href={href} prefetch={false} className={cn("group block", className)}>
-      <Card className="overflow-hidden border-0 bg-transparent transition-all duration-300 hover:scale-[1.02]">
-        <CardContent className="p-0">
-          {/* Poster container - relative for badge positioning */}
-          <div className="relative">
-            {/* Poster Image */}
-            <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-muted">
-              {hasPoster && posterSrc ? (
-                <Image
-                  src={posterSrc}
-                  alt={`${title} ${mediaType} poster${year ? ` (${year})` : ""}`}
-                  fill
-                  sizes="(max-width: 640px) 150px, (max-width: 1024px) 200px, 240px"
-                  className={cn(
-                    "object-cover transition-all duration-300 group-hover:scale-105",
-                    watchedState &&
-                      !hideUserStatus &&
-                      "grayscale brightness-75 group-hover:grayscale-0 group-hover:brightness-100"
-                  )}
-                  priority={priority}
-                  onError={() => {
-                    if (!useFallback && posterSources.fallback) {
-                      setUseFallback(true);
-                    }
-                  }}
-                  unoptimized // CDN + TMDB-fallback srcs are already optimized (next.config images.unoptimized)
-                />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                  <span className="text-muted-foreground text-sm">No poster</span>
-                </div>
-              )}
-
-              {/* Hover overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-              {/* Rating badge (top right) */}
-              {showRating && item.vote_average > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="absolute top-2 right-2 bg-black/70 text-white border-0 font-semibold"
-                >
-                  {item.vote_average.toFixed(1)}
-                </Badge>
-              )}
-
-              {/* Bottom-left scoop: the viewer's personal cluster (rating+heart /
-                  watched / watchlist) SUPERSEDES the quality badge when present;
-                  otherwise the quality badge (today's behaviour) shows. */}
-              {showPersonal ? (
-                <PersonalCornerCluster state={personal} raised={inProgress} />
-              ) : badge ? (
-                <div className="absolute bottom-0 left-0 z-10 flex items-end">
-                  {/* Badge - small and sleek */}
-                  <span
-                    className={cn(
-                      "inline-flex items-center px-1.5 py-0.5 text-[9px] font-semibold",
-                      "rounded-tr-md",
-                      badge.className
-                    )}
-                  >
-                    {badge.shortLabel || badge.label}
-                  </span>
-                  {/* Inverted corner - creates smooth curve to image */}
-                  <div
-                    className="w-[6px] h-[6px] -ml-px"
-                    style={{
-                      background: "transparent",
-                      borderBottomLeftRadius: "6px",
-                      boxShadow: `-6px 6px 0 0 ${getBadgeScoopColor(badge.className)}`,
-                    }}
-                    aria-hidden="true"
-                  />
-                </div>
-              ) : null}
-
-              {/* Series progress: bottom hairline bar (in-progress only) */}
-              {inProgress && seriesProg && <CardProgressBar percent={seriesProg.pct} />}
-
-              {/* Navigation pending feedback (dim + spinner on the clicked card) */}
-              <CardPendingOverlay />
-            </div>
+    // CardPendingOverlay provides click feedback instead.
+    <Link href={href} prefetch={false} className={cn("group block outline-none", className)}>
+      <div data-card-art="" className="relative aspect-[2/3] overflow-hidden rounded-lg bg-muted">
+        {hasPoster && posterSrc ? (
+          <Image
+            src={posterSrc}
+            alt={`${title} ${mediaType} poster${year ? ` (${year})` : ""}`}
+            fill
+            sizes="(max-width: 640px) 150px, (max-width: 1024px) 200px, 240px"
+            className={cardImageClass(grayscale)}
+            priority={priority}
+            onError={() => {
+              if (!useFallback && posterSources.fallback) setUseFallback(true);
+            }}
+            unoptimized // CDN + TMDB-fallback srcs are already optimized (next.config images.unoptimized)
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-muted">
+            <span className="text-sm text-muted-foreground">No poster</span>
           </div>
+        )}
+        <CardArtOverlays
+          item={item}
+          showRating={showRating}
+          badge={badge}
+          personal={personal}
+          showPersonal={showPersonal}
+          progressPct={progressPct}
+        />
+      </div>
 
-          {/* Title & Subtitle - consistent height regardless of badge */}
-          <div className="mt-5">
-            {/* line-clamp-2 with min-h-10 (2 lines x 1.25rem text-sm leading) so
-                grid/carousel rows stay aligned whether the title is 1 or 2 lines */}
-            <h3 className="text-sm font-medium leading-5 line-clamp-2 min-h-10 group-hover:text-brand transition-colors">
-              {title}
-            </h3>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{subtitle}</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* line-clamp-2 + min-h-10 (2 × 1.25rem) keeps rows aligned for 1- or 2-line titles */}
+      <div className="mt-5">
+        <h3 className="line-clamp-2 min-h-10 text-sm font-medium leading-5 transition-colors group-hover:text-brand">
+          {title}
+        </h3>
+        {subtitle && (
+          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{subtitle}</p>
+        )}
+      </div>
     </Link>
   );
 });
