@@ -351,6 +351,31 @@ const PERSONAS: Persona[] = [
     ],
     watchlist: [496243],
   },
+  {
+    // The local test-auth user (googleId test-local-user, /api/test-auth/login) so
+    // an E2E session can see its OWN profile. PRIVATE: three romcoms.
+    username: "local_tester",
+    favorites: [603, 680],
+    movies: [
+      { id: 603, score: 9, liked: true, daysAgo: 5 },
+      { id: 157336, score: 9, daysAgo: 20 },
+      { id: 78, score: 8, daysAgo: 40 },
+      { id: 335984, score: 8, daysAgo: 60 },
+      { id: 264660, score: 9, daysAgo: 80 },
+      { id: 1124, score: 8, daysAgo: 100 },
+      { id: 680, score: 10, liked: true, watches: 2, daysAgo: 120 },
+      { id: 807, score: 8, daysAgo: 140 },
+      { id: 769, score: 9, daysAgo: 160 },
+      { id: 1422, score: 8, daysAgo: 180 },
+      { id: 6977, score: 7, daysAgo: 200 },
+      { id: 155, score: 8, daysAgo: 220 },
+      { id: 4348, score: 10, liked: true, private: true, daysAgo: 3 },
+      { id: 19913, score: 9, private: true, daysAgo: 4 },
+      { id: 313369, score: 9, private: true, daysAgo: 6 },
+    ],
+    series: [{ id: 60059, score: 9, episodes: 12, status: "WATCHING", daysAgo: 10 }],
+    watchlist: [62],
+  },
 ];
 
 const DAY = 86_400_000;
@@ -471,6 +496,11 @@ async function main(): Promise<void> {
   console.log(`    embeddings set: ${synth.embeddings}, ai_data created: ${synth.ai}`);
 
   console.log("3/4 Persona histories...");
+  // Give the test-auth user a handle (only if it has none) so it owns a profile.
+  await prisma.user.updateMany({
+    where: { googleId: "test-local-user", username: null },
+    data: { username: "local_tester", name: "Local Tester" },
+  });
   const users = await prisma.user.findMany({
     where: { username: { in: PERSONAS.map((p) => p.username) } },
     select: { id: true, username: true },

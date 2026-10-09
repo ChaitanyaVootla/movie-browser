@@ -382,7 +382,9 @@ export async function fetchTitleMeta(
       });
     }
     for (const pr of data.pairs) {
-      meta.get(titleKey(mediaType, pr.id))?.facets.push({ type: pr.type, key: pr.key, label: pr.label });
+      // TMDB keywords are lower-case ("time travel") — sentence-case them for display.
+      const label = pr.type === "keyword" ? displayTag(pr.label) : pr.label;
+      meta.get(titleKey(mediaType, pr.id))?.facets.push({ type: pr.type, key: pr.key, label });
     }
     for (const p of data.persons) {
       const t = meta.get(titleKey(mediaType, p.id));

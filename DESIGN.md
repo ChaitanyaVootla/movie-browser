@@ -370,6 +370,37 @@ proof reads as negative. Mirrors the existing discussion-badge rule.
   `.claude/rules/social-features.md` § HARD INVARIANTS, edge-cache). Global counts are
   cacheable; personal signals are client islands.
 
+## Taste profile
+
+Four profile widgets (`src/components/features/profile/widgets/taste-*.tsx`) render
+the PUBLIC taste snapshot. They reuse existing tokens only — no new sizes, radii or
+colors.
+
+- **Copy is numbers + neutral templates (Fable rule).** Axis endpoints are dimension
+  labels ("Mainstream" / "Niche"), captions describe titles ("Favourites average the
+  top 26% by popularity"), never the person. No archetypes, no "you are a…".
+- **Taste DNA** — one bipolar track per axis: `h-1.5 rounded-full bg-muted` track, a
+  1px centre tick (`bg-border`), a `bg-brand/40` fill that grows FROM THE CENTRE to the
+  value, and a `size-3 bg-brand ring-2 ring-card` marker. The endpoint nearer the value
+  is `text-foreground`, the other `text-muted-foreground`; caption below in the
+  metadata recipe. Chosen over a radar: legible at 390px and every axis keeps its own
+  caption. Tracks are `role="meter"` with the caption as `aria-valuetext`.
+- **Moods & themes** — AI tags as chips (`rounded-full`, `text-xs font-medium`,
+  `min-h-10` mobile / `md:min-h-8`), label + tabular count. The three strongest lifts
+  use the AI-tag tint (`bg-brand/15 text-brand`), the rest `bg-muted
+  text-muted-foreground`. Tap = evidence: Popover (`w-80`) on desktop, Vaul Drawer +
+  `useHistoryDismiss` on mobile, a 3-column poster grid of the supporting titles.
+- **Your people** — segmented toggle (`rounded-full bg-muted p-1`, active segment
+  `bg-card`, depth by lightness step, no shadow), rows `min-h-12` with a `size-10`
+  round portrait (initials fallback), role line, metric right-aligned (titles count,
+  or a `text-brand` filled star + the shrunk mean on the 5-star scale + rated count).
+- **Taste clusters** — medoid posters (`aspect-[2/3] rounded-lg`), label
+  (`text-sm font-semibold line-clamp-1`) and "N titles like {medoid}". Mobile fills the
+  row (2 or 3 across); `sm:` and up keep the Favorites widget's 4-across poster size.
+- **Owner-only hint** below the grid (dashed `rounded-xl border` card) when the profile
+  is under the 10-title threshold (progress bar) or hidden by the privacy toggle.
+  Visitors see nothing.
+
 ## Components
 
 - **Buttons** — shadcn `Button` only. Primary actions use the default (inverted

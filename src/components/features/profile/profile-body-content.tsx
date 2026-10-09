@@ -4,6 +4,7 @@ import { ProfileDashboard } from "./profile-dashboard";
 import { ProfileDashboardSwitch } from "./profile-dashboard-switch";
 import { ProfileSetupCard } from "./profile-setup-card";
 import { ProfileVisitorEmpty } from "./profile-visitor-empty";
+import { TasteOwnerHint } from "./taste-owner-hint";
 import { PAGE_PADDING_X, OVERLINE } from "@/lib/design";
 import type { PublicProfileDTO } from "@/types/social";
 
@@ -47,6 +48,7 @@ export function ProfileBodyContent({ profile }: { profile: PublicProfileDTO }) {
           <ProfileDashboardSwitch profile={profile}>
             <ProfileDashboard profile={profile} />
           </ProfileDashboardSwitch>
+          <TasteOwnerHint taste={profile.taste} />
 
           {/* Reserved slot: phase-2 taste-compatibility module ("you're 87%
               compatible" + share card) renders here. Do not fill. */}

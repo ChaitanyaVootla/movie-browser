@@ -45,7 +45,7 @@ describe("computeAxes", () => {
     const xs = [1950, 1955, 1960, 1962, 1970].map((y) => pos({ year: y }));
     const a = byKey(computeAxes(xs, [], catalog), "era");
     expect(a?.value).toBeLessThan(0.4);
-    expect(a?.caption).toBe("Median release year 1960 · catalog 1973");
+    expect(a?.caption).toBe("Median release year 1960 (catalog median 1973)");
   });
 
   it("range: one genre is focused, many genres eclectic", () => {

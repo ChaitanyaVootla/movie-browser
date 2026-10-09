@@ -31,12 +31,15 @@ let originalBio: string | null = null;
 async function latestUsersRow(): Promise<AuditRow | undefined> {
   const rows = await prisma.$queryRaw<AuditRow[]>(Prisma.sql`
     SELECT operation, actor_id, changed_columns, new_data->>'bio' AS bio
-      FROM audit_log WHERE table_name = 'users' ORDER BY id DESC LIMIT 1`);
+      FROM audit_log WHERE table_name = 'users' AND row_id = ${String(uid)}
+      ORDER BY id DESC LIMIT 1`);
   return rows[0];
 }
 
+// Scoped to THIS test's user: other live-DB tests (and a running dev server)
+// write users audit rows concurrently, which made a global count flaky.
 async function usersAuditCount(): Promise<number> {
-  return prisma.auditLog.count({ where: { tableName: "users" } });
+  return prisma.auditLog.count({ where: { tableName: "users", rowId: String(uid) } });
 }
 
 beforeAll(async () => {

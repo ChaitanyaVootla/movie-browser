@@ -112,7 +112,7 @@ export function computeAxes(
           "era",
           percentileOf(med, catalog.year),
           years.length,
-          `Median release year ${Math.round(med)} · catalog ${catalogMedian}`
+          `Median release year ${Math.round(med)} (catalog median ${catalogMedian})`
         )
       );
     }

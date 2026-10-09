@@ -24,6 +24,9 @@ import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import { WidgetCard, StatTile } from "./widget-card";
 import { CountryMapWidget } from "./country-map";
 import { WatchActivityWidget } from "./watch-activity";
+import { TasteClustersWidget, TasteDnaWidget, readyTaste } from "./taste-widgets";
+import { TasteMoodsWidget } from "./taste-moods";
+import { TastePeopleWidget } from "./taste-people";
 import type { ProfileWidgetData, WidgetType } from "./types";
 
 type RenderFn = (props: { data: ProfileWidgetData; config?: Record<string, unknown> }) => ReactNode;
@@ -48,6 +51,7 @@ function PosterBoard({ data, config }: { data: ProfileWidgetData; config?: Recor
                   src={`${TMDB_IMAGE_BASE}/w342${item.posterPath}`}
                   alt={item.title}
                   fill
+                  unoptimized
                   className="object-cover"
                   sizes="(max-width:768px) 22vw, 120px"
                 />
@@ -231,6 +235,21 @@ export const WIDGET_RENDER: Record<WidgetType, RenderFn> = {
         </ul>
       </WidgetCard>
     ) : null,
+
+  "taste.dna": TasteDnaWidget,
+  "taste.moods": ({ data }) => {
+    const taste = readyTaste(data);
+    return taste && taste.moods.length > 0 ? <TasteMoodsWidget moods={taste.moods} /> : null;
+  },
+  "taste.people": ({ data }) => {
+    const taste = readyTaste(data);
+    if (!taste) return null;
+    const { mostWatched, highestRated } = taste.people;
+    return mostWatched.length > 0 || highestRated.length > 0 ? (
+      <TastePeopleWidget mostWatched={mostWatched} highestRated={highestRated} />
+    ) : null;
+  },
+  "taste.clusters": TasteClustersWidget,
 
   "text.note": ({ config }) => {
     const text = typeof config?.text === "string" ? config.text.trim() : "";
