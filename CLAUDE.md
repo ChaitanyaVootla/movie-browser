@@ -125,7 +125,7 @@ src/
 **Client-Side Tracking**: The `useAnalytics` hook (`src/hooks/use-analytics.ts`) provides 13 convenience methods for tracking user actions. Events are batched (10 events or 5s interval), flushed on unmount/visibility-change, sent to `/api/analytics/ingest`. Respects DNT (`navigator.doNotTrack === '1'`).
 
 **Instrumented Components** (15 total):
-- **Core actions**: `media-actions.tsx` (watchlist, rating, watched, share), `watch-options.tsx` (OTT clicks), `movie-card-actions.tsx` (quick watchlist/watched), `wide-card.tsx` (continue watching)
+- **Core actions**: `media-actions.tsx` (watchlist, rating, watched, share), `watch-options.tsx` (OTT clicks), `title-actions/*` via `TitleActions` (watched/watchlist/rate/log, shared by hover preview, quick-info drawer and detail bar), `hover-card/preview-parts.tsx` (preview OTT clicks), `wide-card.tsx` (continue watching)
 - **Search & filters**: `search-command.tsx` (search submit, result clicks, topic/mood select), `filter-sidebar.tsx` (filter apply with 1s debounce), `video-gallery.tsx` (trailer play)
 - **AI chat**: `idle-circle.tsx` (chat open), `expanded-chat.tsx` + `minimal-view.tsx` (chat submit), `trailer-carousel.tsx` (trailer play)
 - **Discovery & nav**: `topic-pills.tsx`, `mood-cards.tsx`, `media-scroller.tsx` (carousel nav), `image-gallery.tsx` (gallery open/nav), `settings-menu.tsx` (settings change), `person-hero.tsx` (external links)

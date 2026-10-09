@@ -34,10 +34,19 @@ Canonical implementations live in code — import them instead of copying class 
 | Section heading (h2: `text-xl font-semibold tracking-tight`) + header row with optional action | `<SectionHeading>` from `@/components/features/layout/section-heading` |
 | Navigation pending feedback (card dim+spinner / inline spinner, 150ms-delayed via `.nav-pending-in`; pairs with `prefetch={false}` on grid/carousel card links) | `CardPendingOverlay` / `InlinePendingSpinner` from `@/components/features/layout/nav-pending` |
 | Sticky in-page bar, hero tagline, overline label, page padding | class constants in `@/lib/design` |
+| Title action row (Watched · Watchlist ▾ · Rate · Log; compact = preview/drawer, hero = detail bar; confirm-before-unmark lives in `use-watched-toggle.ts`) | `TitleActions` from `@/components/features/media/title-actions/title-actions`. Never hand-roll a watched/watchlist button or write the store raw (DESIGN.md → Hover preview & title actions) |
+| Title preview content (desktop hover preview + mobile quick-info drawer) | `PreviewBody` via `LazyPreviewBody` (`@/components/features/hover-card/lazy-preview-body`). Cards stay display-only (`movie/card-core.tsx`) |
 | Social signals (personal-state cluster on cards, %-filled star, hairline progress bar; theme-led on `--sig`) | `PersonalCornerCluster` / `PartialStar` / `CardProgressBar` from `@/components/features/media/social-signals` (see DESIGN.md → Social signals) |
 
 If a new pattern appears 3+ times, promote it: add a constant/component, document the
 recipe in DESIGN.md Components, and add a row here.
+
+**`useLoginDialog()` is LOCAL state.** `openLoginDialog()` does nothing unless the same
+component also renders `<LoginDialog open={isOpen} …>`. WatchedButton, QuickLogButton
+and the detail Diary opener called it without one, so signed-out clicks silently did
+nothing (fixed Oct 9 2026). Use `useSignInPrompt()`
+(`media/title-actions/sign-in-dialog.tsx`), which returns `{ prompt, dialog }`. Render
+`dialog`.
 
 Gotchas when composing constants with `cn()`:
 

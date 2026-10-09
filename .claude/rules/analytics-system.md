@@ -37,7 +37,7 @@ const { trackAction, trackWatchlistAdd, trackWatchlistRemove, trackRating,
 
 | Category | Components | Events |
 |----------|-----------|--------|
-| Media actions | media-actions, movie-card-actions | watchlist_add/remove, rate_like/dislike, watched |
+| Media actions | title-actions (TitleActions → SaveButton / WatchedButton / RateButton / QuickLogButton), media-actions | watchlist_add/remove, rate_like/dislike, watched |
 | Watch | watch-options, wide-card | watch_click, continue_watching_click |
 | Search | search-command | search_submit, search_result_click, topic_select, mood_select |
 | Filters | filter-sidebar | filter_apply (1s debounce) |

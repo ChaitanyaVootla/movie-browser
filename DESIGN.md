@@ -346,9 +346,11 @@ never `--sig`. The two are visually distinct at a glance on the same surface.
 - **Whole poster** — grayscale when watched (watched is conveyed by grayscale; the
   chip carries rating/heart).
 
-**Wide card** — backdrop carries a **footer line of social proof** on the image
-(`💬 discussing · 👥 friends`); the title moves **below** the card (no in-card title),
-and the same `--sig` hairline progress bar sits on the bottom edge.
+**Wide card** — the title sits **below** the card (no in-card title), and the same
+`--sig` hairline progress bar sits on the bottom edge. *Planned, not built:* a
+**footer line of social proof** on the image (`💬 discussing · 👥 friends`). There is
+no friends signal yet, and the discussion count renders below the card
+(`DiscussionCountBadge`).
 
 **Community data viz** — the rating-distribution **histogram bars use true `--brand`**
 (the full-saturation Scarlet), NOT the dulled `--sig`. Only the small personal glyphs
@@ -369,6 +371,82 @@ proof reads as negative. Mirrors the existing discussion-badge rule.
   client-side** — it must never bake into ISR-cacheable HTML (see
   `.claude/rules/social-features.md` § HARD INVARIANTS, edge-cache). Global counts are
   cacheable; personal signals are client islands.
+
+## Hover preview & title actions
+
+Cards are **display-only**. Every action on a title lives in ONE shared row,
+`TitleActions`, which is rendered in three places with the same order and glyphs.
+Spec: `docs/superpowers/specs/2026-10-09-card-hover-preview-overhaul-design.md`.
+
+**Cards** (`MovieCard` poster 2:3, `WideMovieCard` 16:9, both on `movie/card-core.tsx`):
+art, the community vote chip (top-right), the bottom-left scoop (personal cluster,
+otherwise the quality badge), the `--sig` progress hairline, `CardPendingOverlay`, and
+grayscale when watched. No buttons, no hover scale on the card (the scroller's
+`overflow-x:auto` clips the y-axis, and the preview now grows out of the card). The
+inner image zoom stays because it is clipped by the art. The keyboard focus ring is
+drawn **inset** on the art (`ring-inset`), so a scroller can never clip it. Identical on
+home, browse, person, library and similar rows.
+
+**The row** — `[leading] · Watched · Watchlist ▾ · Rate · Log · [trailing]`:
+
+| Action | Idle → active glyph | Active fill |
+|--------|---------------------|-------------|
+| Watched (movie) | `Eye` → `Check` (the "eye/check tick") | brand tint |
+| Watched (series) | `ListChecks` + `%` → `Check` when complete; links to the detail page (a series is a watch *position*) | brand tint once tracked |
+| Watchlist | `Plus` → `Check`, plus a caret that opens the list picker | brand tint |
+| Rate | `Star` → %-filled `PartialStar` + 1–10 score (+ heart) | brand tint |
+| Log | `NotebookPen` | — |
+
+- **hero** variant: the detail action bar, over imagery, with white-alpha recipes.
+  Trailer leads, Share trails, and `SeenCluster` supplies the progressive Rate + Diary.
+- **compact** variant: the hover preview and the mobile quick-info drawer. These are
+  40px round buttons on the themed popover surface using semantic tokens
+  (`title-actions/styles.ts`): idle `border-border bg-muted/50`, active
+  `border-brand/60 bg-brand/15 text-brand`.
+- Behaviour is shared, never per surface:
+  - Unmarking a movie with **more than one diary entry asks first** (it deletes them all).
+  - Every write goes through `useUserLibrary`, which gates on auth and toasts on
+    failure. Analytics fire only after a successful write.
+  - Signed-out clicks open the sign-in dialog.
+
+**Hover preview** (desktop fine pointer + keyboard). Do not width-detect touch.
+- Trigger:
+  - It opens after a 500ms rest on a card. A press in the card cancels it until the
+    pointer leaves.
+  - Keyboard: a 700ms focus-visible peek. ArrowDown opens it and moves focus inside;
+    Esc closes it and returns focus to the card.
+- Geometry:
+  - Width is `clamp(300px, 1.6 × card width, 400px)`, centered on the card.
+  - Top sits 8px above the card top, and the preview grows downward. It flips up
+    (bottom-anchored to the card) on the **measured** height, and clears the 64px
+    navbar + 8.
+  - On a viewport too short for it, it pins and the body scrolls inside.
+- Surface: `bg-popover border border-border rounded-xl shadow-lg`, `z-50`. Popovers
+  and dialogs opened from it portal later, so they stack above it.
+- Motion: a ~260ms ease-out grow-out. The clip opens from the card's rect, and a ghost
+  of the card's own artwork moves into the art region and fades out. Body rows rise in
+  4px with a 40ms stagger. `prefers-reduced-motion`: a 120ms fade only.
+- Content order:
+  - art (backdrop, title, vote chip, badges, progress hairline). This is the only link.
+  - meta (year, runtime/seasons, two genres)
+  - overview (`line-clamp-3`)
+  - `TitleActions`
+  - ratings
+  - where to watch (logo links)
+  - cast
+- States:
+  - Loading: art, title and actions render from the list item, and the rest is a
+    skeleton.
+  - Failure: "Couldn't load the details for this title." with **Retry** and
+    **View details**. Never an endless skeleton.
+- Dismissal:
+  - It closes on pointer leave (200ms grace), page scroll, resize, route change and Esc.
+  - Scrolling inside it does not close it.
+  - Neither does an open popover or dialog launched from it (`usePreviewHold`).
+
+**Mobile / touch**: a long-press (500ms, 10px slop) on any touch pointer, at any width,
+opens the Vaul quick-info drawer with the same `PreviewBody` + `TitleActions`. A tap
+still navigates. Back dismisses it (`useHistoryDismiss`).
 
 ## Components
 
@@ -427,6 +505,9 @@ class strings**:
 | Section heading + header row | `<SectionHeading>` — `@/components/features/layout/section-heading` |
 | Sticky bar, hero tagline, overline label, page padding constants | `@/lib/design` |
 | Navigation pending overlay / inline spinner | `CardPendingOverlay`, `InlinePendingSpinner` — `@/components/features/layout/nav-pending` |
+| Title action row (watched / watchlist / rate / log) | `TitleActions` — `@/components/features/media/title-actions/title-actions` |
+| Title preview content (hover preview + quick-info drawer) | `PreviewBody` — `@/components/features/hover-card/preview-body` (lazy: `lazy-preview-body`) |
+| Card core (personal state, overlays, inset focus ring) | `useCardPersonalState`, `CardArtOverlays` — `@/components/features/movie/card-core` |
 
 When a recipe changes here, change its canonical implementation in the same commit
 (and vice versa). `.claude/rules/design-system.md` is the enforcement rule.

@@ -23,7 +23,7 @@ Baseline (base f79204ee, recorded before any change):
    emitDiaryUpdated, ai-post-watch, analytics after success) and
    `watched-confirm-dialog.tsx`.
 3. Rewrite `tracking/watched-button.tsx` on top of the hook (hero visual unchanged).
-   Add `compact-watched-button.tsx` and `series-progress-pill.tsx`.
+   Give WatchedButton a `compact` variant and add `series-progress-pill.tsx`.
 4. SaveButton: the toggle returns boolean, analytics fire only on success, add a 40px
    `compact` size, fix the comment, and wire `usePreviewHold` for the picker.
 5. RateButton: `variant="compact"` and `reviewHref`, plus `usePreviewHold`.
@@ -58,7 +58,7 @@ Baseline (base f79204ee, recorded before any change):
   focus ring). Thin `movie-card.tsx` / `wide-movie-card.tsx`, both memo'd. Remove the
   hover scale. Delete `movie-card-actions.tsx` and `stop-portal-clicks.*` if unused.
 - `MediaCard` passes the displayed image src into the wrapper (for the ghost).
-- `movie-card.test.tsx`: display-only (no buttons). Commit.
+- `media-card.test.tsx`: display-only (no buttons), plus the wrapper triggers. Commit.
 
 ## T7 — Cleanup
 - Delete UserStatusBadge, PersonCard*, RecommendationsSection (after a grep) and their
@@ -74,3 +74,37 @@ Baseline (base f79204ee, recorded before any change):
 - DESIGN.md gets a "Hover preview & title actions" section. Update the Social signals
   wide-card line, the pwa-mobile/perf rules where they are now wrong, and the
   design-system rule table row. Commit.
+
+## Status — DONE (2026-10-09)
+
+**Tests and checks**
+- Unit tests: 1058 passed. The 23 failures are the same pre-existing ones as baseline, in
+  the same 3 files. 44 new tests: geometry 15, TitleActions 11, overlay 7, cards 7, plus
+  the existing press-drag suite still passing.
+- tsc is clean. eslint: 0 errors, 115 warnings, same as baseline.
+
+**Browser (dev on :3012, because :3011 was taken by another local app)**
+- At 1440 and 1024, in poster and wide modes: left/right clamps, bottom flip,
+  scroll-inside, list picker held open and stacked above, click suppression, keyboard
+  peek + ArrowDown focus + Esc focus return, and the error fallback.
+- Short viewport 1024x560: the preview pins and scrolls internally; a page scroll
+  closes it.
+- Mobile 390: long-press opens the drawer. After Back, `body` pointer-events are `auto`,
+  there is no view-transition snapshot, and real touch scroll works. Tap navigates.
+- The morph was verified by pausing WAAPI at 0/90/170ms.
+
+**Bundle (entry JS, gzip)**
+
+| Route | Before | After |
+|---|---|---|
+| home | 249.0KB | 195.4KB |
+| browse | 267.6KB | 208.5KB |
+| movie | 310.3KB | 309.9KB |
+| series | 325.7KB | 325.2KB |
+| person | 248.4KB | 247.1KB |
+| privacy | 240.2KB | 165.2KB |
+
+**Not verifiable locally (no TMDB key in the worktree)**
+- The home carousel, /browse grid and person filmography render 0 cards locally.
+- The preview was exercised on the library grids, which use the same `MediaCard`.
+- Watch-provider links render only when the PG hover path returns them.

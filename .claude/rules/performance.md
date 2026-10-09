@@ -514,6 +514,15 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    `"use client"` file or from a page — import the file. Keep editors, charts and
    admin tools behind `next/dynamic`. Never let a client file value-import from
    `@/server/db` or `@/server/services` (type-only imports are fine).
+   **Anything the ROOT `Providers` mounts is in every route's entry JS (Oct 9 2026).**
+   The hover preview and the quick-info drawer are mounted there. So their body (the
+   whole TitleActions stack: SaveButton + list picker, RateButton, QuickLog form,
+   LoginDialog) is `next/dynamic` (`hover-card/lazy-preview-body.tsx`) and preloaded at
+   the 200ms hover-warm. The panel stays hidden until the body has height. Removing the
+   media barrel import from the hover files and lazy-loading the body moved entry JS
+   (gz, same method as above): home 249.0→195.4KB, browse 267.6→208.5KB,
+   privacy 240.2→165.2KB. Movie/series/person were flat (−0.4/−0.5/−1.3KB) because the
+   detail action bar ships those primitives anyway.
 
 16. **A hardcoded lookup id made a whole feature silently inert — and fixing it
    would have been a perf regression (Oct 8 2026).** `smart-discover.ts` used
@@ -592,7 +601,14 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    Providers) loads `domAnimation` as an async chunk; `strict` rejects `motion.*`.
    −27KB gz on every route. Use `m` from "framer-motion"; if you add `layout`,
    `layoutId` or `drag`, switch the features to `domMax` — otherwise the
-   animation silently does nothing. Verify with a page sweep that no element is
+   animation silently does nothing. Prefer the Web Animations API (`el.animate`) for
+   one-off geometry morphs: it is native, costs 0KB, and needs no domMax. The card
+   preview's grow-out (`hover-card/preview-morph.ts`) is clip-path + a ghost layer on
+   WAAPI. **Variant propagation does not replay for children that mount after the
+   parent animated.** Preview rows that arrived with late data stayed at `opacity: 0`
+   until each row got its own `initial`/`animate` (Oct 9 2026). Verify by pausing
+   `document.getAnimations()` at a `currentTime`; headless screenshot latency outlasts
+   a 260ms animation. Verify with a page sweep that no element is
    stuck at its `initial` opacity after load.
 
 ## Testing a fix

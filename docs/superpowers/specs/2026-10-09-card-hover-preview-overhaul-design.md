@@ -146,7 +146,7 @@ Status: decided (the owner delegated design calls; decisions below are final unl
   - After success it calls `emitDiaryUpdated` and dispatches `ai-post-watch` (800ms), and
     fires analytics with the title.
 - `watched-confirm-dialog.tsx` — the shared "Remove from watched?" dialog.
-- `WatchedButton` (hero) and `CompactWatchedButton` both use the hook. The glyph is Eye
+- `WatchedButton` (`variant="hero" | "compact"`) is built on the hook. The glyph is Eye
   when idle and Check when active, with the active fill `border-brand/70 bg-brand/40`.
   This unifies DESIGN.md's "eye/check tick" (EyeOff is gone).
 - Series: `watchSlot` defaults to `SeriesProgressPill`. It reads `selectSeriesProgress`,
@@ -188,7 +188,7 @@ Status: decided (the owner delegated design calls; decisions below are final unl
 | Surface | Watched | Watchlist (+lists caret) | Rate/heart | Log | Confirm unmark >1 | Series |
 |---|---|---|---|---|---|---|
 | Card (all pages) | – (display only) | – | – | – | n/a | display only |
-| Hover preview (fine pointer / keyboard) | CompactWatchedButton | SaveButton compact | RateButton compact | QuickLog compact | yes (lazy count) | progress pill → detail; watchlist/rate/log |
+| Hover preview (fine pointer / keyboard) | WatchedButton compact | SaveButton compact | RateButton compact | QuickLog compact | yes (lazy count) | progress pill → detail; watchlist/rate/log |
 | Mobile drawer (long-press, any touch) | same as preview | same | same | same | yes | same |
 | Detail action bar | WatchedButton hero (×N) | SaveButton hero | SeenCluster → RateButton | Diary panel | yes (eager count) | SeriesProgressInline |
 
@@ -209,7 +209,7 @@ hover-card/
   mobile-quick-info-drawer.tsx Vaul drawer shell + provider-less store use
 media/title-actions/
   title-actions.tsx · use-watched-toggle.ts · watched-confirm-dialog.tsx
-  compact-watched-button.tsx · series-progress-pill.tsx
+  sign-in-dialog.tsx · styles.ts · series-progress-pill.tsx (WatchedButton gained variant="compact")
 movie/card-core.tsx            shared personal-state hook + overlays
 ```
 
@@ -226,8 +226,8 @@ movie/card-core.tsx            shared personal-state hook + overlays
   - A `null` fetch shows the fallback with Retry and View details, and Retry refetches.
   - The preview + TitleActions mount exactly once (element counts).
   - No interactive element sits inside an `<a>`.
-- `movie-card.test.tsx`: the card renders no buttons (display-only) and the store
-  subscription count is 1 (via a render count).
+- `movie/media-card.test.tsx`: the card renders no buttons (display-only), plus
+  hover intent, click suppression, touch long-press at tablet width, and ArrowDown.
 - Browser checks (:3011, 1440 and 1024):
   - home carousel, /browse, person, detail
   - small and large cards; left, right and bottom edges
@@ -235,3 +235,14 @@ movie/card-core.tsx            shared personal-state hook + overlays
   - keyboard open and the error fallback
   - 390px long-press drawer, then dismissing via Back with no stuck `pointer-events`
 - Bundle: per-route `entryJSFiles` gzip, before and after (performance.md item 15).
+
+## Outcome (2026-10-09)
+
+Implemented as specced, with these deviations:
+- One `WatchedButton` with a `compact` variant instead of a separate component.
+- `PreviewBody` is lazy-loaded, because the overlay is mounted by the root Providers.
+- The art link receives focus only as a fallback: ArrowDown focuses the first action.
+- Esc while a nested popover is open closes the popover. The preview then closes too if
+  the pointer is outside it, which is consistent with pointer-leave.
+
+Verification evidence is in the plan file.

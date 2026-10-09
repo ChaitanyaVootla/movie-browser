@@ -130,7 +130,9 @@ overlay stayed = the "back went back a page but the modal remained" bug). Fixed 
   bespoke handler leaked a dangling entry on non-Back closes — replaced). One hook,
   everywhere. Every Vaul `Drawer` consumer + `search-command` + `trailer-modal` +
   `profile-settings-dialog` now route through it.
-- The `mobile-quick-info-drawer` keeps its `usePathname` auto-close as a separate
+- The `mobile-quick-info-drawer` (touch long-press at ANY width, `pointerType === "touch"`;
+  it renders the shared `PreviewBody` + `TitleActions`, and its state lives in
+  `hover-card/quick-info-store.ts`) keeps its `usePathname` auto-close as a separate
   safety (closes after an in-drawer link navigation); the hook coexists because
   `removeOverlay` skips the synthetic `back()` once history has moved forward.
 - **Multi-second page FREEZE after a Back/programmatic close — the controlled-prop
