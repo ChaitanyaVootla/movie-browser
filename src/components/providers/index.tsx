@@ -10,11 +10,10 @@ import { AuthProvider } from "./auth-provider";
 import { UserStoreProvider } from "./user-store-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { GoogleOneTap } from "@/components/features/auth";
-import {
-  HoverCardProvider,
-  HoverCardOverlay,
-  QuickInfoProvider,
-} from "@/components/features/hover-card";
+// Direct files, no hover-card barrel. The preview/quick-info state lives in
+// zustand stores, so no provider wraps the tree.
+import { HoverCardOverlay } from "@/components/features/hover-card/hover-card-overlay";
+import { MobileQuickInfoDrawer } from "@/components/features/hover-card/mobile-quick-info-drawer";
 import { AssistantFloaty } from "@/components/features/ai";
 // search-context directly: the barrel also exports SearchCommand, which would
 // defeat the dynamic() import below and put cmdk + the palette in every page.
@@ -56,34 +55,33 @@ export function Providers({ children }: ProvidersProps) {
               <QueryProvider>
                 <AnalyticsProvider>
                   <SearchProvider>
-                    <HoverCardProvider>
-                      <QuickInfoProvider>
-                        {children}
-                        <HoverCardOverlay />
-                        {/* Mobile has no top navbar — without an offset, toasts sit
+                    {children}
+                    {/* Card title preview: desktop hover / keyboard, and the
+                        touch long-press drawer (one shared PreviewBody). */}
+                    <HoverCardOverlay />
+                    <MobileQuickInfoDrawer />
+                    {/* Mobile has no top navbar — without an offset, toasts sit
                         UNDER the h-14 bottom nav (+ its safe-area growth). Lift
                         them clear of it so no toast hides behind the nav. The PWA
                         install banner lives higher (bottom-32) so they don't overlap. */}
-                        <Toaster
-                          position="bottom-right"
-                          mobileOffset={{
-                            bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))",
-                            left: "1rem",
-                            right: "1rem",
-                          }}
-                        />
-                        {/* Google One Tap - shows login prompt for unauthenticated users */}
-                        <GoogleOneTap delay={2000} />
-                        {/* Cue - AI chat assistant */}
-                        <AssistantFloaty />
-                        {/* Search dialog - single instance */}
-                        <SearchDialogRenderer />
-                        {/* PWA: service worker, install prompt, badge */}
-                        <ServiceWorkerRegister />
-                        <InstallBanner />
-                        <BadgeManager />
-                      </QuickInfoProvider>
-                    </HoverCardProvider>
+                    <Toaster
+                      position="bottom-right"
+                      mobileOffset={{
+                        bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))",
+                        left: "1rem",
+                        right: "1rem",
+                      }}
+                    />
+                    {/* Google One Tap - shows login prompt for unauthenticated users */}
+                    <GoogleOneTap delay={2000} />
+                    {/* Cue - AI chat assistant */}
+                    <AssistantFloaty />
+                    {/* Search dialog - single instance */}
+                    <SearchDialogRenderer />
+                    {/* PWA: service worker, install prompt, badge */}
+                    <ServiceWorkerRegister />
+                    <InstallBanner />
+                    <BadgeManager />
                   </SearchProvider>
                 </AnalyticsProvider>
               </QueryProvider>

@@ -18,7 +18,13 @@ import { useMobile } from "@/hooks/use-mobile";
 import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { LoginDialog, useLoginDialog } from "@/components/features/auth/login-dialog";
 import { useAnalytics } from "@/hooks/use-analytics";
-import { useUserStore, selectLiked, selectRating, selectScore, type MediaType } from "@/stores/user";
+import {
+  useUserStore,
+  selectLiked,
+  selectRating,
+  selectScore,
+  type MediaType,
+} from "@/stores/user";
 import Link from "next/link";
 import { usePreviewHold } from "@/components/features/hover-card/preview-store";
 import { COMPACT_ACTIVE, COMPACT_BTN, COMPACT_IDLE } from "./title-actions/styles";
@@ -50,13 +56,14 @@ interface RateButtonProps {
 
 const STAR_COUNT = 5;
 
-const TRIGGER_IDLE =
-  "bg-white/10 hover:bg-white/20 border-white/20 text-white/80 hover:text-white";
+const TRIGGER_IDLE = "bg-white/10 hover:bg-white/20 border-white/20 text-white/80 hover:text-white";
 const TRIGGER_ACTIVE =
   "bg-brand/40 text-white border-2 border-brand/70 hover:bg-brand/50 shadow-[0_0_12px_rgba(var(--brand-rgb),0.3)]";
 
-const TOGGLE = "flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border text-sm font-medium transition-colors";
-const TOGGLE_IDLE = "border-border bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted";
+const TOGGLE =
+  "flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border text-sm font-medium transition-colors";
+const TOGGLE_IDLE =
+  "border-border bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted";
 const TOGGLE_ON = "border-brand/60 bg-brand/15 text-brand";
 
 /**
@@ -179,9 +186,18 @@ export function RateButton({
       if (next !== 0) cascadeWatched();
       setBusy(value === 1 ? "like" : "dislike");
       try {
-        const r = await persistRating({ itemId, itemType: mediaType, thumb: next === 0 ? null : next });
+        const r = await persistRating({
+          itemId,
+          itemType: mediaType,
+          thumb: next === 0 ? null : next,
+        });
         if (!r.success) throw new Error(r.error);
-        trackRating(itemId, mediaType, next === 0 ? "remove" : value === 1 ? "like" : "dislike", title);
+        trackRating(
+          itemId,
+          mediaType,
+          next === 0 ? "remove" : value === 1 ? "like" : "dislike",
+          title
+        );
       } catch (error: unknown) {
         setRatingLocal(itemId, mediaType, prev);
         if (isStaleServerActionError(error)) {
@@ -327,7 +343,11 @@ export function RateButton({
           })}
         </div>
         <div className="flex h-5 items-center text-sm font-semibold tabular-nums text-foreground">
-          {display > 0 ? `${display}/10` : <span className="text-muted-foreground">Tap a star to rate</span>}
+          {display > 0 ? (
+            `${display}/10`
+          ) : (
+            <span className="text-muted-foreground">Tap a star to rate</span>
+          )}
         </div>
       </div>
 

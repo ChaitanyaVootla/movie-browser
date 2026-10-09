@@ -76,7 +76,8 @@ export function useUserLibrary(
     }
     try {
       await storeToggleWatchlist(itemId, mediaType);
-      if (showToasts) toast.success(isInWatchlist ? "Removed from watchlist" : "Added to watchlist");
+      if (showToasts)
+        toast.success(isInWatchlist ? "Removed from watchlist" : "Added to watchlist");
       return true;
     } catch {
       if (showToasts) toast.error("Couldn't update watchlist — try again");

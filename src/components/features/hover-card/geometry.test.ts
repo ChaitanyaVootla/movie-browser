@@ -74,7 +74,12 @@ describe("computePreviewPlacement", () => {
 
   it("pins to minTop with a maxHeight on short viewports so the content scrolls", () => {
     const short = { width: 1024, height: 500 };
-    const p = computePreviewPlacement({ ...base, viewport: short, card: card(400, 200), height: 600 });
+    const p = computePreviewPlacement({
+      ...base,
+      viewport: short,
+      card: card(400, 200),
+      height: 600,
+    });
     expect(p.placement).toBe("pinned");
     expect(p.top).toBe(MIN_TOP);
     expect(p.maxHeight).toBe(500 - EDGE - MIN_TOP);
@@ -89,7 +94,12 @@ describe("computePreviewPlacement", () => {
   it("reports the card rect relative to the preview (for the grow-out morph)", () => {
     const c = card(600, 200);
     const p = computePreviewPlacement({ ...base, card: c, height: 500 });
-    expect(p.cardInPreview).toEqual({ left: 600 - p.left, top: 200 - p.top, width: 200, height: 300 });
+    expect(p.cardInPreview).toEqual({
+      left: 600 - p.left,
+      top: 200 - p.top,
+      width: 200,
+      height: 300,
+    });
   });
 
   it("scales width with the card size (small vs wide cards)", () => {

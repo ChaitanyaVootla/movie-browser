@@ -4,12 +4,7 @@ import { useState, useCallback } from "react";
 import { m } from "framer-motion";
 import { Bookmark, Check, ChevronDown, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useMobile } from "@/hooks/use-mobile";
@@ -85,7 +80,15 @@ export function SaveButton({
     } finally {
       setUpdating(false);
     }
-  }, [isInWatchlist, toggleWatchlist, trackWatchlistAdd, trackWatchlistRemove, itemId, mediaType, title]);
+  }, [
+    isInWatchlist,
+    toggleWatchlist,
+    trackWatchlistAdd,
+    trackWatchlistRemove,
+    itemId,
+    mediaType,
+    title,
+  ]);
 
   const sheetProps = {
     open: pickerOpen,
@@ -137,7 +140,11 @@ export function SaveButton({
             isInWatchlist ? COMPACT_ACTIVE : COMPACT_IDLE
           )}
         >
-          <m.span className="flex items-center" animate={bump ? { scale: [1, 1.25, 0.95, 1.05, 1] } : {}} transition={BUMP}>
+          <m.span
+            className="flex items-center"
+            animate={bump ? { scale: [1, 1.25, 0.95, 1.05, 1] } : {}}
+            transition={BUMP}
+          >
             {glyph("h-4 w-4")}
           </m.span>
         </button>
@@ -199,7 +206,11 @@ export function SaveButton({
                   : "border border-r-0 border-white/20 bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
               )}
             >
-              <m.span className="flex items-center" animate={bump ? { scale: [1, 1.25, 0.95, 1.05, 1] } : {}} transition={BUMP}>
+              <m.span
+                className="flex items-center"
+                animate={bump ? { scale: [1, 1.25, 0.95, 1.05, 1] } : {}}
+                transition={BUMP}
+              >
                 {glyph("h-3.5 w-3.5")}
               </m.span>
               <span className="text-[13px] font-semibold">

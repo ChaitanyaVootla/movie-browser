@@ -33,11 +33,7 @@ export function SeriesProgressPill({ seriesId, href }: { seriesId: number; href:
       title={label}
       className={cn(COMPACT_BTN, tracked ? COMPACT_ACTIVE : COMPACT_IDLE)}
     >
-      {complete ? (
-        <Check className="h-4 w-4 stroke-[2.5]" />
-      ) : (
-        <ListChecks className="h-4 w-4" />
-      )}
+      {complete ? <Check className="h-4 w-4 stroke-[2.5]" /> : <ListChecks className="h-4 w-4" />}
       {tracked && !complete && <span>{progress?.pct}%</span>}
     </Link>
   );

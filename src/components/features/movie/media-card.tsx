@@ -3,7 +3,7 @@
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import { MovieCard, MovieCardSkeleton } from "./movie-card";
 import { WideMovieCard, WideMovieCardSkeleton } from "./wide-movie-card";
-import { HoverCardWrapper } from "@/components/features/hover-card";
+import { HoverCardWrapper } from "@/components/features/hover-card/hover-card-wrapper";
 // Direct import, NOT the `@/components/features/discussion` barrel: this card
 // is a client component rendered on nearly every page, and the barrel's
 // server-component exports (DiscussionSection → @/server/db/postgres → Prisma,
@@ -84,12 +84,14 @@ export function MediaCard({
       />
     );
 
-  const badge = commentCount !== undefined ? (
-    <DiscussionCountBadge count={commentCount} />
-  ) : null;
+  const badge = commentCount !== undefined ? <DiscussionCountBadge count={commentCount} /> : null;
 
   const wrapped = enableHover ? (
-    <HoverCardWrapper item={item}>{card}</HoverCardWrapper>
+    // touch-callout none: iOS would show its link-preview sheet over the
+    // long-press quick-info drawer.
+    <HoverCardWrapper item={item} className="[-webkit-touch-callout:none]">
+      {card}
+    </HoverCardWrapper>
   ) : (
     card
   );

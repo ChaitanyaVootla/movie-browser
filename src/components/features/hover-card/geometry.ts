@@ -49,7 +49,11 @@ export interface Placement {
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 
 export function previewWidth(cardWidth: number, viewportWidth: number, edge: number): number {
-  const scaled = clamp(Math.round(cardWidth * PREVIEW_CARD_SCALE), PREVIEW_MIN_WIDTH, PREVIEW_MAX_WIDTH);
+  const scaled = clamp(
+    Math.round(cardWidth * PREVIEW_CARD_SCALE),
+    PREVIEW_MIN_WIDTH,
+    PREVIEW_MAX_WIDTH
+  );
   return Math.max(0, Math.min(scaled, viewportWidth - 2 * edge));
 }
 
@@ -81,7 +85,11 @@ export function computePreviewPlacement({
     top = Math.max(minTop, card.top - PREVIEW_ANCHOR_GAP);
     placement = "below";
     if (top + height > bottomLimit) {
-      top = clamp(card.top + card.height + PREVIEW_ANCHOR_GAP - height, minTop, bottomLimit - height);
+      top = clamp(
+        card.top + card.height + PREVIEW_ANCHOR_GAP - height,
+        minTop,
+        bottomLimit - height
+      );
       placement = "above";
     }
   }

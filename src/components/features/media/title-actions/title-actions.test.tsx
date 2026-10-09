@@ -10,9 +10,14 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const session = vi.hoisted(() => ({ status: "authenticated" as "authenticated" | "unauthenticated" }));
+const session = vi.hoisted(() => ({
+  status: "authenticated" as "authenticated" | "unauthenticated",
+}));
 vi.mock("next-auth/react", () => ({
-  useSession: () => ({ data: session.status === "authenticated" ? { user: {} } : null, status: session.status }),
+  useSession: () => ({
+    data: session.status === "authenticated" ? { user: {} } : null,
+    status: session.status,
+  }),
   signIn: vi.fn(),
 }));
 
@@ -71,7 +76,13 @@ function seed(partial: Partial<ReturnType<typeof useUserStore.getState>>) {
 
 function renderMovie() {
   return render(
-    <TitleActions variant="compact" itemId={42} mediaType="movie" title="Heat" href="/movie/42/heat" />
+    <TitleActions
+      variant="compact"
+      itemId={42}
+      mediaType="movie"
+      title="Heat"
+      href="/movie/42/heat"
+    />
   );
 }
 
@@ -93,7 +104,12 @@ afterEach(() => {
 describe("TitleActions — watched (movie)", () => {
   it("asks before unmarking when there are several diary entries, and only deletes on confirm", async () => {
     seed({ watchedMovies: new Set([42]) });
-    getTitleDiary.mockResolvedValue({ watchCount: 3, entries: [], rating: null, lastWatchedAt: null });
+    getTitleDiary.mockResolvedValue({
+      watchCount: 3,
+      entries: [],
+      rating: null,
+      lastWatchedAt: null,
+    });
     renderMovie();
 
     fireEvent.click(screen.getByRole("button", { name: "Mark as unwatched" }));
@@ -105,12 +121,19 @@ describe("TitleActions — watched (movie)", () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith("/api/user/movie/42/watched", { method: "DELETE" })
     );
-    await waitFor(() => expect(analytics.trackWatched).toHaveBeenCalledWith(42, "movie", false, "Heat"));
+    await waitFor(() =>
+      expect(analytics.trackWatched).toHaveBeenCalledWith(42, "movie", false, "Heat")
+    );
   });
 
   it("does not delete anything when the confirmation is cancelled", async () => {
     seed({ watchedMovies: new Set([42]) });
-    getTitleDiary.mockResolvedValue({ watchCount: 2, entries: [], rating: null, lastWatchedAt: null });
+    getTitleDiary.mockResolvedValue({
+      watchCount: 2,
+      entries: [],
+      rating: null,
+      lastWatchedAt: null,
+    });
     renderMovie();
     fireEvent.click(screen.getByRole("button", { name: "Mark as unwatched" }));
     fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
@@ -120,7 +143,12 @@ describe("TitleActions — watched (movie)", () => {
 
   it("unmarks straight away with a single diary entry", async () => {
     seed({ watchedMovies: new Set([42]) });
-    getTitleDiary.mockResolvedValue({ watchCount: 1, entries: [], rating: null, lastWatchedAt: null });
+    getTitleDiary.mockResolvedValue({
+      watchCount: 1,
+      entries: [],
+      rating: null,
+      lastWatchedAt: null,
+    });
     renderMovie();
     fireEvent.click(screen.getByRole("button", { name: "Mark as unwatched" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
@@ -145,7 +173,9 @@ describe("TitleActions — watched (movie)", () => {
       expect(fetchMock).toHaveBeenCalledWith("/api/user/movie/42/watched", { method: "POST" })
     );
     expect(getTitleDiary).not.toHaveBeenCalled();
-    await waitFor(() => expect(analytics.trackWatched).toHaveBeenCalledWith(42, "movie", true, "Heat"));
+    await waitFor(() =>
+      expect(analytics.trackWatched).toHaveBeenCalledWith(42, "movie", true, "Heat")
+    );
   });
 
   it("a failed write toasts, reverts, and fires no analytics (no unhandled rejection)", async () => {
@@ -179,7 +209,9 @@ describe("TitleActions — watchlist", () => {
     seed({});
     renderMovie();
     fireEvent.click(screen.getByRole("button", { name: "Add to watchlist" }));
-    await waitFor(() => expect(analytics.trackWatchlistAdd).toHaveBeenCalledWith(42, "movie", "Heat"));
+    await waitFor(() =>
+      expect(analytics.trackWatchlistAdd).toHaveBeenCalledWith(42, "movie", "Heat")
+    );
     expect(toast.success).toHaveBeenCalledWith("Added to watchlist");
   });
 
@@ -199,7 +231,13 @@ describe("TitleActions — series", () => {
       seriesProgress: new Map([[7, { watched: 4, total: 10, pct: 40, status: "WATCHING" }]]),
     });
     render(
-      <TitleActions variant="compact" itemId={7} mediaType="series" title="Dark" href="/series/7/dark" />
+      <TitleActions
+        variant="compact"
+        itemId={7}
+        mediaType="series"
+        title="Dark"
+        href="/series/7/dark"
+      />
     );
     expect(screen.queryByRole("button", { name: /Mark as/ })).not.toBeInTheDocument();
     const progress = screen.getByRole("link", { name: /40% watched/ });
@@ -212,7 +250,13 @@ describe("TitleActions — series", () => {
   it("series watchlist writes the series endpoint", async () => {
     seed({});
     render(
-      <TitleActions variant="compact" itemId={7} mediaType="series" title="Dark" href="/series/7/dark" />
+      <TitleActions
+        variant="compact"
+        itemId={7}
+        mediaType="series"
+        title="Dark"
+        href="/series/7/dark"
+      />
     );
     fireEvent.click(screen.getByRole("button", { name: "Add to watchlist" }));
     await waitFor(() =>

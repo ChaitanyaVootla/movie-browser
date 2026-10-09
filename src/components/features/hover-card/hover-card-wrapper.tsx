@@ -1,200 +1,231 @@
 "use client";
 
-import { useRef, useCallback, useEffect, type ReactNode } from "react";
-import { useHoverCardContext } from "./hover-card-context";
-import { useQuickInfo } from "./mobile-quick-info-drawer";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import { fetchHoverCardData } from "./hover-data-cache";
-import type { MovieListItem, SeriesListItem } from "@/types";
+import { usePreviewStore, type PreviewItem } from "./preview-store";
+import { useQuickInfoStore } from "./quick-info-store";
+import { preloadPreviewBody } from "./lazy-preview-body";
 
-/** Hover-intent delay before warming the data cache (ms). Sweeping the cursor
- * across a row stays free; only a deliberate pause fires the (cached) fetch. */
-const DATA_WARM_DELAY = 200;
+/** Rest time on a card before the preview opens (ms). */
+export const PREVIEW_OPEN_DELAY_MS = 500;
+/** Hover-intent pause before warming the data cache (ms): sweeping a row stays free. */
+export const DATA_WARM_DELAY_MS = 200;
+/** Keyboard focus rest before the peek opens (ms). */
+export const KEYBOARD_PEEK_DELAY_MS = 700;
+/** Touch hold before the quick-info drawer opens (ms). */
+export const LONG_PRESS_MS = 500;
+const LONG_PRESS_SLOP_PX = 10;
+
+/** Real hovering pointers only. Touch is never detected by width. */
+export const FINE_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
+
+/** The preview panel element (portalled), for focus/relatedTarget checks. */
+export const PREVIEW_PANEL_SELECTOR = "[data-hover-preview]";
 
 interface HoverCardWrapperProps {
-  /** The card component to wrap */
   children: ReactNode;
-  /** The media item data */
-  item: MovieListItem | SeriesListItem;
-  /** Delay before showing hover card (ms) - default 1000ms (Netflix-style) */
-  delay?: number;
-  /** Delay before showing mobile quick info (ms) - default 500ms */
-  longPressDelay?: number;
-  /** Whether hover card is enabled - default true */
+  item: PreviewItem;
   enabled?: boolean;
-  /** Additional className for the wrapper */
   className?: string;
 }
 
+const isMovieItem = (item: PreviewItem) => "title" in item;
+
 /**
- * HoverCardWrapper - Wraps any card component to enable hover card functionality
+ * Wraps a card to open the title preview (spec 2026-10-09 D2/D4).
  *
- * Usage:
- * ```tsx
- * <HoverCardWrapper item={movie}>
- *   <MovieCard item={movie} />
- * </HoverCardWrapper>
- * ```
+ * - Fine pointer (mouse/pen, `(hover:hover) and (pointer:fine)`): it opens after
+ *   a 500ms rest and warms the data at 200ms. A press anywhere in the card
+ *   cancels it and suppresses re-opening until the pointer leaves. Leaving
+ *   starts the store's close grace. A held button (row drag) never arms it.
+ * - Keyboard: focus-visible on the card link for 700ms opens a peek (focus
+ *   stays on the card). ArrowDown opens it now and moves focus inside. The
+ *   preview handles Esc (close + focus back here).
+ * - Touch (any width, including tablets ≥768px): long-press opens the Vaul
+ *   quick-info drawer. The click that ends the press is swallowed, along with
+ *   the native context menu, so tap-to-navigate is unchanged.
  *
- * The wrapper handles:
- * - Hover delay to prevent accidental triggers (desktop)
- * - Long-press to open quick info drawer (mobile)
- * - Getting element bounds for positioning
- * - Opening/closing the hover card via context
+ * Cards only call the stores' stable actions (`getState()`), so opening or
+ * closing a preview re-renders no card.
  */
 export function HoverCardWrapper({
   children,
   item,
-  delay = 1000,
-  longPressDelay = 500,
   enabled = true,
   className,
 }: HoverCardWrapperProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const warmTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const longPressTriggeredRef = useRef(false);
-  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const warmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressStart = useRef<{ x: number; y: number } | null>(null);
+  const longPressFired = useRef(false);
+  /** Set by a press inside the card; cleared when the pointer leaves. */
+  const suppressed = useRef(false);
 
-  const { openHoverCard, startClose, closeHoverCard } = useHoverCardContext();
-  const { openQuickInfo } = useQuickInfo();
-
-  const isMovie = "title" in item;
-
-  const clearHoverTimeout = useCallback(() => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-    if (warmTimeoutRef.current) {
-      clearTimeout(warmTimeoutRef.current);
-      warmTimeoutRef.current = null;
-    }
+  const clearTimers = useCallback(() => {
+    if (openTimer.current) clearTimeout(openTimer.current);
+    if (warmTimer.current) clearTimeout(warmTimer.current);
+    openTimer.current = warmTimer.current = null;
+  }, []);
+  const clearPress = useCallback(() => {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+    pressStart.current = null;
   }, []);
 
-  const clearLongPressTimeout = useCallback(() => {
-    if (longPressTimeoutRef.current) {
-      clearTimeout(longPressTimeoutRef.current);
-      longPressTimeoutRef.current = null;
-    }
-  }, []);
-
-  // Desktop: Mouse hover handlers
-  const handleMouseEnter = useCallback(
-    (e: React.MouseEvent) => {
-      if (!enabled) return;
-
-      // A button is held: the pointer is sweeping across mid-drag (row scroll,
-      // text selection), not resting on this card — don't arm the hover card.
-      if (e.buttons !== 0) return;
-
-      // Don't show on mobile/touch devices
-      if (window.innerWidth < 768) return;
-
-      clearHoverTimeout();
-
-      // Warm the hover data cache after a short hover-intent pause so the card
-      // has data (or an in-flight request) by the time it opens. Cancelled on
-      // mouse-out; results are cached, so an item is fetched at most once.
-      warmTimeoutRef.current = setTimeout(() => {
-        fetchHoverCardData(item.id, isMovie ? "movie" : "series");
-      }, DATA_WARM_DELAY);
-
-      hoverTimeoutRef.current = setTimeout(() => {
-        if (containerRef.current) {
-          const bounds = containerRef.current.getBoundingClientRect();
-          openHoverCard(item, bounds);
-        }
-      }, delay);
+  useEffect(
+    () => () => {
+      clearTimers();
+      clearPress();
     },
-    [enabled, delay, item, isMovie, openHoverCard, clearHoverTimeout]
+    [clearTimers, clearPress]
   );
 
-  const handleMouseLeave = useCallback(() => {
-    clearHoverTimeout();
-    startClose();
-  }, [clearHoverTimeout, startClose]);
-
-  // On click, ensure hover card closes (navigation will happen)
-  const handleClick = useCallback(() => {
-    clearHoverTimeout();
-    closeHoverCard();
-  }, [clearHoverTimeout, closeHoverCard]);
-
-  // Mobile: Long-press (touch) handlers
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      if (!enabled) return;
-      // Only on mobile
-      if (window.innerWidth >= 768) return;
-
-      longPressTriggeredRef.current = false;
-      touchStartPosRef.current = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY,
-      };
-
-      clearLongPressTimeout();
-
-      longPressTimeoutRef.current = setTimeout(() => {
-        longPressTriggeredRef.current = true;
-        // Vibrate for haptic feedback (if supported)
-        if (navigator.vibrate) {
-          navigator.vibrate(50);
-        }
-        openQuickInfo(item, isMovie);
-      }, longPressDelay);
-    },
-    [enabled, longPressDelay, item, isMovie, openQuickInfo, clearLongPressTimeout]
-  );
-
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
-      // Cancel if finger moves more than 10px (prevents accidental triggers during scroll)
-      if (touchStartPosRef.current) {
-        const dx = Math.abs(e.touches[0].clientX - touchStartPosRef.current.x);
-        const dy = Math.abs(e.touches[0].clientY - touchStartPosRef.current.y);
-        if (dx > 10 || dy > 10) {
-          clearLongPressTimeout();
-          touchStartPosRef.current = null;
-        }
-      }
-    },
-    [clearLongPressTimeout]
-  );
-
-  const handleTouchEnd = useCallback(
-    (e: React.TouchEvent) => {
-      clearLongPressTimeout();
-      touchStartPosRef.current = null;
-
-      // Prevent click/navigation if long-press was triggered
-      if (longPressTriggeredRef.current) {
-        e.preventDefault();
-        longPressTriggeredRef.current = false;
-      }
-    },
-    [clearLongPressTimeout]
-  );
-
-  // Clear all pending timers on unmount (e.g. carousel virtualization)
+  // Advertise the keyboard shortcut on the card's link (the focusable element).
   useEffect(() => {
-    return () => {
-      clearHoverTimeout();
-      clearLongPressTimeout();
-    };
-  }, [clearHoverTimeout, clearLongPressTimeout]);
+    if (!enabled) return;
+    const link = ref.current?.querySelector("a[href]");
+    link?.setAttribute("aria-keyshortcuts", "ArrowDown");
+    link?.setAttribute("aria-haspopup", "dialog");
+  }, [enabled]);
+
+  const isOpenHere = () => usePreviewStore.getState().target?.anchor === ref.current;
+
+  const open = useCallback(
+    (openedBy: "pointer" | "keyboard", focusInside: boolean) => {
+      const anchor = ref.current;
+      if (!anchor || !anchor.isConnected) return;
+      const img = anchor.querySelector<HTMLImageElement>("[data-card-art] img");
+      usePreviewStore.getState().open({
+        item,
+        anchor,
+        imageSrc: img?.currentSrc || img?.src || null,
+        openedBy,
+        focusInside,
+      });
+    },
+    [item]
+  );
+
+  const warm = useCallback(() => {
+    warmTimer.current = setTimeout(() => {
+      void preloadPreviewBody();
+      void fetchHoverCardData(item.id, isMovieItem(item) ? "movie" : "series");
+    }, DATA_WARM_DELAY_MS);
+  }, [item]);
+
+  // --- fine pointer ---------------------------------------------------------
+  const onPointerEnter = (e: React.PointerEvent) => {
+    if (!enabled || e.pointerType === "touch") return;
+    if (!window.matchMedia(FINE_POINTER_QUERY).matches) return;
+    if (e.buttons !== 0 || suppressed.current) return;
+    clearTimers();
+    if (isOpenHere()) {
+      usePreviewStore.getState().cancelClose();
+      return;
+    }
+    warm();
+    openTimer.current = setTimeout(() => open("pointer", false), PREVIEW_OPEN_DELAY_MS);
+  };
+
+  const onPointerLeave = (e: React.PointerEvent) => {
+    if (e.pointerType === "touch") return;
+    clearTimers();
+    suppressed.current = false;
+    if (isOpenHere()) usePreviewStore.getState().scheduleClose();
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (!enabled) return;
+    if (e.pointerType !== "touch") {
+      // A press means "open this" or "drag the row", never "preview this".
+      clearTimers();
+      suppressed.current = true;
+      if (isOpenHere()) usePreviewStore.getState().close();
+      return;
+    }
+    longPressFired.current = false;
+    clearPress();
+    void preloadPreviewBody();
+    pressStart.current = { x: e.clientX, y: e.clientY };
+    pressTimer.current = setTimeout(() => {
+      pressTimer.current = null;
+      longPressFired.current = true;
+      if (navigator.vibrate) navigator.vibrate(50);
+      useQuickInfoStore.getState().open(item);
+    }, LONG_PRESS_MS);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    const start = pressStart.current;
+    if (e.pointerType !== "touch" || !start) return;
+    if (
+      Math.abs(e.clientX - start.x) > LONG_PRESS_SLOP_PX ||
+      Math.abs(e.clientY - start.y) > LONG_PRESS_SLOP_PX
+    ) {
+      clearPress();
+    }
+  };
+
+  const onPointerEnd = () => clearPress();
+
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (!longPressFired.current) return;
+    longPressFired.current = false;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const onContextMenu = (e: React.MouseEvent) => {
+    // Android fires the native long-press menu (open link / save image) at the
+    // same moment; it would cover the drawer.
+    if (longPressFired.current || pressTimer.current) e.preventDefault();
+  };
+
+  // --- keyboard -------------------------------------------------------------
+  const onFocus = (e: React.FocusEvent) => {
+    if (!enabled) return;
+    const el = e.target as HTMLElement;
+    if (!el.matches("a[href]") || !el.matches(":focus-visible")) return;
+    clearTimers();
+    void preloadPreviewBody();
+    openTimer.current = setTimeout(() => open("keyboard", false), KEYBOARD_PEEK_DELAY_MS);
+  };
+
+  const onBlur = (e: React.FocusEvent) => {
+    clearTimers();
+    const next = e.relatedTarget as Node | null;
+    const panel = document.querySelector(PREVIEW_PANEL_SELECTOR);
+    if (next && panel?.contains(next)) return;
+    const s = usePreviewStore.getState();
+    if (s.target?.anchor === ref.current && s.target.openedBy === "keyboard" && s.holds === 0)
+      s.close();
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!enabled || e.key !== "ArrowDown") return;
+    if (!(e.target as HTMLElement).matches("a[href]")) return;
+    e.preventDefault();
+    clearTimers();
+    open("keyboard", true);
+  };
 
   return (
     <div
-      ref={containerRef}
+      ref={ref}
       className={className}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onClick={handleClick}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
+      onClickCapture={onClickCapture}
+      onContextMenu={onContextMenu}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      onKeyDown={onKeyDown}
     >
       {children}
     </div>
