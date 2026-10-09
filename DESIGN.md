@@ -395,7 +395,7 @@ home, browse, person, library and similar rows.
 | Watched (series) | `ListChecks` + `%` → `Check` when complete; links to the detail page (a series is a watch *position*) | brand tint once tracked |
 | Watchlist | `Plus` → `Check`, plus a caret that opens the list picker | brand tint |
 | Rate | `Star` → %-filled `PartialStar` + 1–10 score (+ heart) | brand tint |
-| Log | `NotebookPen` | — |
+| Log | `NotebookPen` (movie: "Log to diary", a WATCH; series: "Add a diary note", NOTE-only, because a series-level WATCH derives COMPLETED) | — |
 
 - **hero** variant: the detail action bar, over imagery, with white-alpha recipes.
   Trailer leads, Share trails, and `SeenCluster` supplies the progressive Rate + Diary.
@@ -414,7 +414,10 @@ home, browse, person, library and similar rows.
   - It opens after a 500ms rest on a card. A press in the card cancels it until the
     pointer leaves.
   - Keyboard: a 700ms focus-visible peek. ArrowDown opens it and moves focus inside;
-    Esc closes it and returns focus to the card.
+    Esc closes it and returns focus to the card without re-peeking. Shift+Tab on its
+    first control closes it and returns to the card; Tab past its last control closes
+    it and moves to the next control after the card (it never strands focus at the
+    end of `<body>`, where it is portalled).
 - Geometry:
   - Width is `clamp(300px, 1.6 × card width, 400px)`, centered on the card.
   - Top sits 8px above the card top, and the preview grows downward. It flips up
