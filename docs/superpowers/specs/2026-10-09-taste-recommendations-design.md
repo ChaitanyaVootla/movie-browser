@@ -78,8 +78,11 @@ WHERE adult IS NOT TRUE                         -- notAdult("m")
               AND r.vote_count >= $floor)
 ```
 
-N = 150 per vector (≤ 4 vectors × 2 tables = 8 index scans, ~8–15ms each warm
-on the prod dump numbers in §19). Vote floors: movies 150, series 75 (series
+N = `min(1000, 150 + |exclusions for that table|)` per vector, and the same value
+is the batch's `ef_search` (review fix: exclusions and the vote floor run AFTER the
+LIMIT, and a heavy user's own titles ARE the nearest neighbours of their centroid —
+on the dev seed a fixed LIMIT 5 left 1 survivor for local_tester). ≤ 4 vectors ×
+2 tables = 8 index scans, ~8–20ms each warm on the prod dump numbers in §19. Vote floors: movies 150, series 75 (series
 vote counts run ~½ of movies on TMDB). Exclusions = every title the user has
 any WATCH event on, any watchlist row, any title-level rating row (score,
 thumb or heart — "rated" includes disliked), any series_progress row. Then a
@@ -147,9 +150,15 @@ Greedy selection; at each step pick the candidate maximising
 ### 3.9 Caching
 
 In-process LRU (`Map` insertion order), max 500 entries, TTL 1h, key
-`userId:computedAt:REC_ALGO_VERSION`. A taste recompute changes `computedAt`, so
-a rating/watch invalidates the cache naturally (taste rows are dirty-marked on
-every write). Recs never enter ISR/edge HTML.
+`userId:computedAt:REC_ALGO_VERSION`. A taste recompute changes `computedAt`, but
+the taste row recomputes LAZILY, so a hit can predate a rating/watch made seconds
+ago: every cache hit is re-filtered against a fresh `fetchRecExclusions` (one
+UNION query; cluster rows that fall under 4 items are dropped). That also backs
+the Cue tool's "all picks are unwatched" claim. Recs never enter ISR/edge HTML.
+
+Cold-start popular queries order by exactly `popularity DESC` with
+`popularity IS NOT NULL` in the WHERE, so the `popularity DESC` btree serves them
+(`DESC NULLS LAST` cannot use that index and sorted the whole table).
 
 ### 3.10 Evaluation (`scripts/eval-recs.ts`)
 
@@ -195,12 +204,14 @@ on private-only titles dropped via `isPrivateOnly`), and the PUBLIC centroid.
 |---|---|
 | no session, or viewer = target | deny |
 | BLOCK either direction, or viewer muted target (`getHiddenUserIds`) | deny |
-| viewer public AND target public AND target `showTaste !== false` | allow |
-| mutual follow | allow |
+| target `showTaste === false` OR target private | deny (a follow never overrides the target's privacy) |
+| viewer public | allow |
+| viewer private AND mutual follow | allow |
 | otherwise | deny |
 
-Private profiles render no body, so the mutual-follow branch has no UI today
-(the server gate supports it for a future compare page).
+Review fix (2026-10-09): the first version let a mutual follow override
+`showTaste=false` and private profiles. The target's choices are now checked
+first; a private-profile compare surface needs its own consent design.
 
 ### 4.3 Taste twins
 

@@ -18,6 +18,9 @@ let ready = false;
 let ada = 0;
 let bea = 0;
 let tester = 0;
+/** Ids of rows THIS test created — afterAll removes only these. */
+let createdBlockId: number | null = null;
+let createdWatchlistId: number | null = null;
 
 beforeAll(async () => {
   if (!ENABLED) return;
@@ -37,8 +40,18 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (ready) await prisma.block.deleteMany({ where: { blockerId: ada, blockedId: tester } });
+  if (createdBlockId !== null) await prisma.block.deleteMany({ where: { id: createdBlockId } });
+  if (createdWatchlistId !== null) await prisma.watchlistItem.deleteMany({ where: { id: createdWatchlistId } });
   await prisma.$disconnect();
+});
+
+describe("annLimitFor (pure)", () => {
+  it("grows the inner ANN LIMIT with the exclusion count, capped at 1000", async () => {
+    const { annLimitFor, ANN_MAX_LIMIT } = await import("@/server/db/postgres/social/taste-recs");
+    expect(annLimitFor(150, 0)).toBe(150);
+    expect(annLimitFor(150, 400)).toBe(550);
+    expect(annLimitFor(150, 5000)).toBe(ANN_MAX_LIMIT);
+  });
 });
 
 describe("taste recs (live dev DB)", () => {
@@ -70,12 +83,46 @@ describe("taste recs (live dev DB)", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it("serves the cached result on a second call", async (ctx) => {
+  it("re-filters a cached result against fresh exclusions (just-watchlisted title disappears)", async (ctx) => {
     if (!ready) return ctx.skip();
     const { getRecommendationsForUser } = await import("./recommend");
-    const a = await getRecommendationsForUser(ada);
-    const b = await getRecommendationsForUser(ada);
-    expect(b).toBe(a);
+    const before = await getRecommendationsForUser(ada);
+    const first = before.rows[0]?.items[0];
+    if (!first) return ctx.skip();
+    // Direct write: does NOT mark taste dirty, so the cache key is unchanged.
+    const row = await prisma.watchlistItem.create({
+      data: { userId: ada, ...(first.mediaType === "movie" ? { movieId: first.id } : { seriesId: first.id }) },
+    });
+    createdWatchlistId = row.id;
+    const after = await getRecommendationsForUser(ada);
+    const keys = after.rows.flatMap((r) => r.items).map((i) => `${i.mediaType}:${i.id}`);
+    expect(keys).not.toContain(`${first.mediaType}:${first.id}`);
+    await prisma.watchlistItem.deleteMany({ where: { id: row.id } });
+    createdWatchlistId = null;
+  });
+
+  it("heavy persona: the ANN pool does not collapse when most neighbours are excluded", async (ctx) => {
+    if (!ready) return ctx.skip();
+    const { annCandidates, fetchRecExclusions } = await import("@/server/db/postgres/social/taste-recs");
+    const { hasVectorIndex } = await import("@/server/db/postgres/vector-index");
+    const { getTasteVectors } = await import("./index");
+    if (!(await hasVectorIndex("movies"))) return ctx.skip();
+    const { centroid } = await getTasteVectors(tester);
+    if (!centroid) return ctx.skip();
+    const ex = await fetchRecExclusions(tester);
+    const base = 5;
+    // Precondition that makes this a starvation case: far more exclusions than the base LIMIT.
+    expect(ex.movieIds.length).toBeGreaterThan(base * 4);
+    const eligible = await prisma.$queryRaw<Array<{ n: bigint }>>`
+      SELECT count(*) AS n FROM movies t
+      WHERE t.embedding IS NOT NULL AND t.adult IS NOT TRUE AND NOT (t.id = ANY(${ex.movieIds}::int[]))
+        AND EXISTS (SELECT 1 FROM ratings r WHERE r.movie_id = t.id
+          AND r.source_id = (SELECT id FROM data_sources WHERE slug = 'tmdb') AND r.vote_count >= 150)`;
+    const hits = await annCandidates("movies", [centroid], { excludeIds: ex.movieIds, minVotes: 150, perQuery: base });
+    // With a fixed LIMIT 5 the user's own titles would fill the nearest 5 and leave ~0;
+    // the exclusion-sized LIMIT still returns up to `base` survivors.
+    expect(hits.length).toBeGreaterThanOrEqual(Math.min(base, Number(eligible[0]?.n ?? 0)));
+    expect(hits.some((h) => ex.movieIds.includes(h.id))).toBe(false);
   });
 });
 
@@ -96,9 +143,16 @@ describe("taste match (live dev DB)", () => {
       expect(t.mediaType === "movie" && privateOnly.has(t.id)).toBe(false);
     }
 
-    await prisma.block.create({ data: { blockerId: ada, blockedId: tester, type: "BLOCK" } });
+    const existing = await prisma.block.findFirst({ where: { blockerId: ada, blockedId: tester } });
+    if (!existing) {
+      const row = await prisma.block.create({ data: { blockerId: ada, blockedId: tester, type: "BLOCK" } });
+      createdBlockId = row.id;
+    }
     expect(await getTasteMatchFor(tester, "cinephile_ada")).toBeNull();
-    await prisma.block.deleteMany({ where: { blockerId: ada, blockedId: tester } });
+    if (createdBlockId !== null) {
+      await prisma.block.deleteMany({ where: { id: createdBlockId } });
+      createdBlockId = null;
+    }
   });
 
   it("denies self and unknown users", async (ctx) => {

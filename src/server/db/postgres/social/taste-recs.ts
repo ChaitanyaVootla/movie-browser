@@ -14,6 +14,7 @@ import { notAdult } from "@/server/db/postgres/adult-filter";
 import { TMDB_SOURCE_ID_SQL } from "@/server/db/postgres/smart-discover";
 import { annDistanceSql, annSessionSql, type VectorTable } from "@/server/db/postgres/vector-index";
 import { titleKey, type TasteMediaType } from "@/lib/taste/types";
+import { TASTE_ALGO_VERSION } from "@/lib/taste/constants";
 import type { RecCandidate } from "@/lib/taste/recommend";
 
 const TABLE_MEDIA: Record<VectorTable, TasteMediaType> = { movies: "movie", series: "series" };
@@ -69,10 +70,24 @@ export interface AnnHit {
   query: number;
 }
 
+/** Hard ceiling on one HNSW scan (matches annSessionSql's ef_search cap). */
+export const ANN_MAX_LIMIT = 1000;
+
+/**
+ * Inner ANN LIMIT for a user. Exclusions and the vote floor run AFTER the
+ * LIMIT, and the nearest neighbours of a user's own centroid/cluster vectors
+ * are mostly titles they already engaged with — so a fixed 150 starved heavy
+ * users (a 500-title diary could filter the whole candidate set away). Grow
+ * the scan by the exclusion count, capped.
+ */
+export function annLimitFor(base: number, excludedCount: number): number {
+  return Math.min(ANN_MAX_LIMIT, Math.floor(base) + Math.max(0, excludedCount));
+}
+
 /**
  * Nearest neighbours for several query vectors in ONE batch transaction
- * (ef_search applies to every SELECT in it). Filters run on the materialised
- * candidates only. Returns hits that survived the filters, per query.
+ * (ef_search = the same inner LIMIT, applied to every SELECT in it). Filters
+ * run on the materialised candidates only. Returns surviving hits per query.
  */
 export async function annCandidates(
   table: VectorTable,
@@ -81,6 +96,8 @@ export async function annCandidates(
 ): Promise<AnnHit[]> {
   if (queries.length === 0) return [];
   const c = cols(table);
+  const limit = annLimitFor(opts.perQuery, opts.excludeIds.length);
+  const session = annSessionSql(limit);
   const selects = queries.map((q, qi) => {
     const lit = vectorLiteral(q);
     const sql = `
@@ -88,7 +105,7 @@ export async function annCandidates(
         SELECT id AS cid, ${annDistanceSql("embedding", lit)} AS dist
         FROM ${table}
         ORDER BY ${annDistanceSql("embedding", lit)}
-        LIMIT ${Math.floor(opts.perQuery)}
+        LIMIT ${limit}
       )
       SELECT c.cid AS id, c.dist::float8 AS dist, ${qi}::int AS query
       FROM c JOIN ${table} t ON t.id = c.cid
@@ -103,10 +120,10 @@ export async function annCandidates(
     return prisma.$queryRawUnsafe<AnnHit[]>(sql, [...opts.excludeIds], opts.minVotes);
   });
   const results = await prisma.$transaction([
-    ...annSessionSql(opts.perQuery).map((s) => prisma.$executeRawUnsafe(s)),
+    ...session.map((s) => prisma.$executeRawUnsafe(s)),
     ...selects,
   ]);
-  return (results.slice(annSessionSql(opts.perQuery).length) as AnnHit[][]).flat().map((h) => ({
+  return (results.slice(session.length) as AnnHit[][]).flat().map((h) => ({
     id: Number(h.id),
     dist: Number(h.dist),
     query: Number(h.query),
@@ -176,7 +193,11 @@ export async function fetchCandidateDetails(
 /**
  * Cold-start / no-index fallback: popular titles (PG popularity), optionally
  * restricted to genres, with the same adult / vote / exclusion filters.
- * Uses the popularity DESC btree — no vector work.
+ * No vector work. Walks the `popularity DESC` btree (`movies_popularity_idx` /
+ * `series_popularity_idx`, NULLS FIRST by default) and stops at LIMIT: the
+ * ORDER BY must be exactly `popularity DESC` (NOT `DESC NULLS LAST`, which the
+ * index cannot serve — that sorted all ~807k movies on every cold-start call),
+ * so NULL popularity is excluded in the WHERE instead.
  */
 export async function fetchPopularCandidates(
   table: VectorTable,
@@ -192,12 +213,13 @@ export async function fetchPopularCandidates(
   if (genreFilter) params.push([...(opts.genres ?? [])]);
   const rows = await prisma.$queryRawUnsafe<Array<{ id: number }>>(
     `SELECT t.id FROM ${table} t
-     WHERE ${notAdult("t")}
+     WHERE t.popularity IS NOT NULL
+       AND ${notAdult("t")}
        AND NOT (t.id = ANY($1::int[]))
        AND EXISTS (SELECT 1 FROM ratings r WHERE r.${c.fk} = t.id
                    AND r.source_id = ${TMDB_SOURCE_ID_SQL} AND r.vote_count >= $2)
        ${genreFilter}
-     ORDER BY t.popularity DESC NULLS LAST
+     ORDER BY t.popularity DESC
      LIMIT ${Math.floor(opts.limit)}`,
     ...params
   );
@@ -297,7 +319,8 @@ export interface TwinRow extends MatchUserInfo {
  * Nearest PUBLIC centroids among public, taste-visible, non-bot users with a
  * username. Exact scan of user_taste_profiles (one row per user — hundreds
  * today); add a halfvec HNSW index on public_centroid at ~50k profiles or when
- * this exceeds ~20ms. Exclusions (self / hidden / followed) applied in SQL.
+ * this exceeds ~20ms. Exclusions (self / hidden / followed) applied in SQL;
+ * candidates must have a clean row at the current TASTE_ALGO_VERSION.
  */
 export async function fetchTwinCandidates(
   viewerId: number,
@@ -310,6 +333,10 @@ export async function fetchTwinCandidates(
            (1 - (t.public_centroid <=> v.public_centroid))::float8 AS cos
     FROM user_taste_profiles v
     JOIN user_taste_profiles t ON t.user_id <> v.user_id AND t.public_centroid IS NOT NULL
+      -- Only current, clean public centroids: a dirty row may still encode a
+      -- watch the user has since made private, and an old algo version was
+      -- computed by different rules. They rejoin after their next recompute.
+      AND NOT t.dirty AND t.algo_version = ${TASTE_ALGO_VERSION}
     JOIN users u ON u.id = t.user_id
     WHERE v.user_id = ${viewerId}
       AND v.public_centroid IS NOT NULL
