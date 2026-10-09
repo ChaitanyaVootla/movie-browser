@@ -32,14 +32,10 @@ vi.mock("@/hooks/use-analytics", () => ({
     trackRating: vi.fn(),
   }),
 }));
-// Render the body synchronously (the real module is next/dynamic).
-vi.mock("./lazy-preview-body", async () => {
-  const mod = await import("./preview-body");
-  return { LazyPreviewBody: mod.PreviewBody, preloadPreviewBody: vi.fn() };
-});
 
 import { HoverCardOverlay } from "./hover-card-overlay";
 import { usePreviewStore } from "./preview-store";
+import { preloadPreviewBody } from "./lazy-preview-body";
 
 const ITEM = {
   id: 603,
@@ -100,7 +96,8 @@ function openPreview(focusInside = false) {
 
 const panel = () => document.querySelector<HTMLElement>("[data-hover-preview]");
 
-beforeAll(() => {
+beforeAll(async () => {
+  await preloadPreviewBody(); // real lazy module; warm its transform once
   // happy-dom has no layout; give the content a height so placement resolves.
   Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
     configurable: true,

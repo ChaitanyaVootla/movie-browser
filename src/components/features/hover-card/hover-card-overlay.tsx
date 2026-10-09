@@ -9,13 +9,31 @@ import { computePreviewPlacement, type Placement, type Rect } from "./geometry";
 import { InPreviewScope, usePreviewStore, type PreviewTarget } from "./preview-store";
 import { usePreviewData } from "./use-preview-data";
 import { usePressDragDismiss } from "./use-press-drag-dismiss";
-import { LazyPreviewBody as PreviewBody } from "./lazy-preview-body";
 import { morphIn } from "./preview-morph";
+import { nextTabbableAfter, tabEdge } from "./preview-focus";
+import { LazyPreviewBody as PreviewBody, PreviewChunkBoundary } from "./lazy-preview-body";
 
 /** Distance kept from every viewport edge (px). */
 const EDGE = 12;
 /** Desktop navbar (64px, DESIGN.md) + breathing room. */
 const NAVBAR_CLEARANCE = 64 + 8;
+
+/**
+ * Stable per-element key. The panel is keyed on anchor + title, so the SAME
+ * title opened from a DIFFERENT card (two rows showing one film) remounts and
+ * re-measures. Keyed on the title id alone, it kept the first card's rect and
+ * floated over the wrong card.
+ */
+const anchorKeys = new WeakMap<Element, number>();
+let nextAnchorKey = 1;
+function anchorKey(el: Element): number {
+  let k = anchorKeys.get(el);
+  if (k === undefined) {
+    k = nextAnchorKey++;
+    anchorKeys.set(el, k);
+  }
+  return k;
+}
 
 const toRect = (r: DOMRect): Rect => ({
   left: r.left,
@@ -49,7 +67,7 @@ export function HoverCardOverlay() {
     <AnimatePresence>
       {target && (
         <PreviewPanel
-          key={`${"title" in target.item ? "m" : "s"}${target.item.id}`}
+          key={`${"title" in target.item ? "m" : "s"}${target.item.id}@${anchorKey(target.anchor)}`}
           target={target}
         />
       )}
@@ -127,15 +145,33 @@ function PreviewPanel({ target }: { target: PreviewTarget }) {
   }, [placement, reduceMotion]);
 
   // --- focus: keyboard ArrowDown moves focus inside --------------------------
+  // ONCE per open: placement re-runs when the height changes (details
+  // arriving), and re-focusing then would yank focus back from wherever the
+  // user had tabbed to. If the lazily-loaded body isn't in the DOM yet, wait
+  // for it.
+  const focusedInside = useRef(false);
+  const hasPlacement = placement !== null;
   useEffect(() => {
-    if (!placement || !target.focusInside) return;
-    // First action (a selector LIST would return the art link: document order).
+    if (!hasPlacement || !target.focusInside || focusedInside.current) return;
     const panel = panelRef.current;
-    const first =
-      panel?.querySelector<HTMLElement>("[data-title-actions] :is(button, a[href])") ??
-      panel?.querySelector<HTMLElement>("a[href]");
-    first?.focus({ preventScroll: true });
-  }, [placement, target.focusInside]);
+    if (!panel) return;
+    const tryFocus = () => {
+      // First action (a selector LIST would return the art link: document order).
+      const first =
+        panel.querySelector<HTMLElement>("[data-title-actions] :is(button, a[href])") ??
+        panel.querySelector<HTMLElement>("a[href]");
+      if (!first) return false;
+      focusedInside.current = true;
+      first.focus({ preventScroll: true });
+      return true;
+    };
+    if (tryFocus()) return;
+    const mo = new MutationObserver(() => {
+      if (tryFocus()) mo.disconnect();
+    });
+    mo.observe(panel, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, [hasPlacement, target.focusInside]);
 
   // --- dismissal ------------------------------------------------------------
   useEffect(() => {
@@ -153,7 +189,11 @@ function PreviewPanel({ target }: { target: PreviewTarget }) {
       if (inPanel(e.target) || held()) return;
       closeNow();
     };
-    const onResize = () => closeNow();
+    // Not while a nested overlay is open: closing would unmount e.g. the Log
+    // dialog and discard a typed note (a resize also fires for zoom / devtools).
+    const onResize = () => {
+      if (!held()) closeNow();
+    };
     const onPointerDown = (e: PointerEvent) => {
       if (inPanel(e.target) || held() || anchor.contains(e.target as Node)) return;
       closeNow();
@@ -180,6 +220,24 @@ function PreviewPanel({ target }: { target: PreviewTarget }) {
       if (store().holds > 0 || (active && panelRef.current?.contains(active))) return;
       if (next) closeNow();
     }, 0);
+  };
+
+  // Tab / Shift+Tab at the panel edges: never strand focus at the end of
+  // <body> (where the portal lives). See preview-focus.ts.
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "Tab" || store().holds > 0) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const edge = tabEdge(panel, document.activeElement, e.shiftKey);
+    if (!edge) return;
+    e.preventDefault();
+    if (edge === "before-first") {
+      closeNow(true);
+      return;
+    }
+    const next = nextTabbableAfter(anchor, panel);
+    closeNow();
+    next?.focus();
   };
 
   const shown = placement !== null;
@@ -209,6 +267,7 @@ function PreviewPanel({ target }: { target: PreviewTarget }) {
         if (!navPending) store().scheduleClose();
       }}
       onBlur={onFocusOut}
+      onKeyDown={onKeyDown}
       {...pressDrag}
     >
       {/* Ghost: the card's own artwork, starting exactly over the card, then
@@ -231,16 +290,18 @@ function PreviewPanel({ target }: { target: PreviewTarget }) {
       )}
       <div ref={contentRef}>
         <InPreviewScope>
-          <PreviewBody
-            item={item}
-            state={state}
-            onRetry={retry}
-            variant="popover"
-            titleId={titleId}
-            artRef={artRef}
-            onNavPendingChange={setNavPending}
-            stagger={!reduceMotion}
-          />
+          <PreviewChunkBoundary item={item} onClose={() => closeNow()}>
+            <PreviewBody
+              item={item}
+              state={state}
+              onRetry={retry}
+              variant="popover"
+              titleId={titleId}
+              artRef={artRef}
+              onNavPendingChange={setNavPending}
+              stagger={!reduceMotion}
+            />
+          </PreviewChunkBoundary>
         </InPreviewScope>
       </div>
     </m.div>

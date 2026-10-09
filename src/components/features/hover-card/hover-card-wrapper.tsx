@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import { fetchHoverCardData } from "./hover-data-cache";
-import { usePreviewStore, type PreviewItem } from "./preview-store";
+import { isRestoringFocus, usePreviewStore, type PreviewItem } from "./preview-store";
 import { useQuickInfoStore } from "./quick-info-store";
 import { preloadPreviewBody } from "./lazy-preview-body";
 
@@ -188,6 +188,9 @@ export function HoverCardWrapper({
     if (!enabled) return;
     const el = e.target as HTMLElement;
     if (!el.matches("a[href]") || !el.matches(":focus-visible")) return;
+    // Focus handed back by a closing preview (Esc / Shift+Tab) is not a fresh
+    // visit: peeking again would re-open what the user just dismissed.
+    if (isRestoringFocus(el)) return;
     clearTimers();
     void preloadPreviewBody();
     openTimer.current = setTimeout(() => open("keyboard", false), KEYBOARD_PEEK_DELAY_MS);

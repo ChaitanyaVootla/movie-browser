@@ -13,7 +13,7 @@ import {
 import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { useQuickInfoStore } from "./quick-info-store";
 import { usePreviewData } from "./use-preview-data";
-import { LazyPreviewBody as PreviewBody } from "./lazy-preview-body";
+import { LazyPreviewBody as PreviewBody, PreviewChunkBoundary } from "./lazy-preview-body";
 
 /**
  * Touch long-press → Vaul quick-info drawer (spec 2026-10-09 D4). It renders the
@@ -66,14 +66,19 @@ export function MobileQuickInfoDrawer() {
         </DrawerClose>
         <div className="overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom,0px)]">
           {item && (
-            <PreviewBody
+            <PreviewChunkBoundary
               key={`${isMovie ? "m" : "s"}${item.id}`}
               item={item}
-              state={state}
-              onRetry={retry}
-              variant="drawer"
-              titleId={titleId}
-            />
+              onClose={close}
+            >
+              <PreviewBody
+                item={item}
+                state={state}
+                onRetry={retry}
+                variant="drawer"
+                titleId={titleId}
+              />
+            </PreviewChunkBoundary>
           )}
         </div>
       </DrawerContent>

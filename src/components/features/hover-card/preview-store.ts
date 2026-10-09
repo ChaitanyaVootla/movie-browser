@@ -48,6 +48,29 @@ interface PreviewState {
 export const PREVIEW_CLOSE_GRACE_MS = 200;
 
 let closeTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Set only DURING a programmatic focus restore. Focus events fire
+ * synchronously inside `el.focus()`, so the card wrapper can tell "focus came
+ * back because the preview closed" apart from "the user tabbed here". Without
+ * this, Esc returned focus to the card and the keyboard peek re-opened the
+ * preview ~700ms later (review Oct 9 2026).
+ */
+let restoringFocus: Element | null = null;
+
+export function isRestoringFocus(el: Element): boolean {
+  return restoringFocus !== null && (restoringFocus === el || restoringFocus.contains(el));
+}
+
+/** Focus `el` without arming the keyboard peek on it. */
+export function restoreFocusTo(el: HTMLElement): void {
+  restoringFocus = el;
+  try {
+    el.focus({ preventScroll: true });
+  } finally {
+    restoringFocus = null;
+  }
+}
 const clearCloseTimer = () => {
   if (closeTimer) {
     clearTimeout(closeTimer);
@@ -71,7 +94,7 @@ export const usePreviewStore = create<PreviewState>()((set, get) => ({
     set({ target: null, holds: 0, pointerInside: false });
     if (opts?.restoreFocus && target?.anchor.isConnected) {
       const link = target.anchor.querySelector<HTMLElement>("a[href]");
-      (link ?? target.anchor).focus({ preventScroll: true });
+      restoreFocusTo(link ?? target.anchor);
     }
   },
 
