@@ -36,6 +36,7 @@ import {
   UpNextSection,
   GettingStartedStrip,
 } from "@/components/features/home";
+import { ForYouSection } from "@/components/features/home/for-you-section";
 import { buildBrowseUrl } from "@/lib/discover";
 import { getPopularTopics, getTopicByKey } from "@/lib/topics";
 
@@ -185,6 +186,10 @@ export default async function HomePage() {
 
         {/* Up Next - next unwatched episodes (client island, per-user) */}
         <UpNextSection />
+
+        {/* For you + "Because you loved …" + taste twins (client island, per-user;
+            the page stays ISR — recs load via a POST server action) */}
+        <ForYouSection />
 
         {/* Topic Pills for Quick Navigation */}
         <TopicPills topics={popularTopics} />

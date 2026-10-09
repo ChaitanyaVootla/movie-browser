@@ -89,7 +89,14 @@ export type ActionType =
   // Phase 1 (safety: block/mute)
   | "block_user"
   | "mute_user"
-  | "unblock_user";
+  | "unblock_user"
+  // Taste recs + match (Oct 2026). rec_impression = one per row render
+  // (metadata: row, source, reason, count, ids); rec_click metadata: row,
+  // source, position, explanation kind. See taste-profile.md.
+  | "rec_impression"
+  | "rec_click"
+  | "taste_match_view"
+  | "taste_twin_click";
 
 // =============================================================================
 // Query Types (AI)
