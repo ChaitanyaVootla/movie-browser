@@ -3,7 +3,7 @@
 import { useMemo, useState, type ReactNode, type Ref } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { m, type Variants } from "framer-motion";
+import { m } from "framer-motion";
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, getMediaHref } from "@/lib/utils";
@@ -46,14 +46,11 @@ interface PreviewBodyProps {
   stagger?: boolean;
 }
 
-const LIST: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.04, delayChildren: 0.08 } },
-};
-const ROW: Variants = {
-  hidden: { opacity: 0, y: 4 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.18, ease: [0.23, 1, 0.32, 1] } },
-};
+const ROW_HIDDEN = { opacity: 0, y: 4 };
+const ROW_SHOWN = { opacity: 1, y: 0 };
+const ROW_TRANSITION = { duration: 0.18, ease: [0.23, 1, 0.32, 1] as const };
+const STAGGER_BASE_S = 0.08;
+const STAGGER_STEP_S = 0.04;
 
 /**
  * The title preview content, ONE component for the desktop hover preview and
@@ -231,18 +228,21 @@ export function PreviewBody({
         </div>
       </Link>
 
-      <m.div
-        className={cn("flex flex-col gap-3", variant === "drawer" ? "p-4" : "p-3.5")}
-        variants={LIST}
-        initial={stagger ? "hidden" : false}
-        animate="show"
-      >
-        {rows.map((row) => (
-          <m.div key={row.key} variants={ROW}>
+      {/* Each row owns its initial/animate. Variant propagation does not replay
+          for children that mount AFTER the parent animated (details arriving
+          late), and those rows stayed stuck at opacity 0. */}
+      <div className={cn("flex flex-col gap-3", variant === "drawer" ? "p-4" : "p-3.5")}>
+        {rows.map((row, i) => (
+          <m.div
+            key={row.key}
+            initial={stagger ? ROW_HIDDEN : false}
+            animate={ROW_SHOWN}
+            transition={{ ...ROW_TRANSITION, delay: STAGGER_BASE_S + i * STAGGER_STEP_S }}
+          >
             {row.node}
           </m.div>
         ))}
-      </m.div>
+      </div>
     </div>
   );
 }

@@ -129,9 +129,11 @@ function PreviewPanel({ target }: { target: PreviewTarget }) {
   // --- focus: keyboard ArrowDown moves focus inside --------------------------
   useEffect(() => {
     if (!placement || !target.focusInside) return;
-    const first = panelRef.current?.querySelector<HTMLElement>(
-      "[data-title-actions] button, [data-title-actions] a, a[href]"
-    );
+    // First action (a selector LIST would return the art link: document order).
+    const panel = panelRef.current;
+    const first =
+      panel?.querySelector<HTMLElement>("[data-title-actions] :is(button, a[href])") ??
+      panel?.querySelector<HTMLElement>("a[href]");
     first?.focus({ preventScroll: true });
   }, [placement, target.focusInside]);
 
