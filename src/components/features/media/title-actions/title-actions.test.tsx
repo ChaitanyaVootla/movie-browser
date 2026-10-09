@@ -7,7 +7,7 @@
  * They also wrote the store raw, so a failed sync was an unhandled rejection
  * with no toast, and analytics fired before the write landed.
  */
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const session = vi.hoisted(() => ({
@@ -34,7 +34,8 @@ const analytics = vi.hoisted(() => ({
 vi.mock("@/hooks/use-analytics", () => ({ useAnalytics: () => analytics }));
 
 const getTitleDiary = vi.hoisted(() => vi.fn());
-vi.mock("@/server/actions/tracking", () => ({ getTitleDiary, logWatchAction: vi.fn() }));
+const logWatchAction = vi.hoisted(() => vi.fn());
+vi.mock("@/server/actions/tracking", () => ({ getTitleDiary, logWatchAction }));
 vi.mock("@/server/actions/user-ratings", () => ({ getRating: vi.fn(), setRating: vi.fn() }));
 vi.mock("@/server/actions/lists", () => ({
   getItemListMembership: vi.fn(),
@@ -244,7 +245,8 @@ describe("TitleActions — series", () => {
     expect(progress).toHaveAttribute("href", "/series/7/dark");
     expect(screen.getByRole("button", { name: "Add to watchlist" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Rate & review" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Log to diary" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add a diary note" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Log to diary" })).not.toBeInTheDocument();
   });
 
   it("series watchlist writes the series endpoint", async () => {
@@ -262,5 +264,46 @@ describe("TitleActions — series", () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith("/api/user/series/7/watchlist", { method: "POST" })
     );
+  });
+
+  it("a series-level log from the preview is a NOTE, never a WATCH (would derive COMPLETED)", async () => {
+    // BUG (review Oct 9 2026): the compact Log defaulted LogWatchForm to
+    // isWatch=true, and progress-derive.ts turns a series-level WATCH into
+    // COMPLETED, so one tap from a hover preview finished the whole series.
+    seed({});
+    logWatchAction.mockResolvedValue({ ok: true });
+    render(
+      <TitleActions
+        variant="compact"
+        itemId={7}
+        mediaType="series"
+        title="Dark"
+        href="/series/7/dark"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add a diary note" }));
+    expect(await screen.findByText("Add a note “Dark”")).toBeInTheDocument();
+    // No watch/note toggle: the entry kind is forced.
+    expect(document.getElementById("log-iswatch")).toBeNull();
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Add note" }));
+    await waitFor(() => expect(logWatchAction).toHaveBeenCalledTimes(1));
+    expect(logWatchAction.mock.calls[0][0]).toMatchObject({
+      mediaType: "series",
+      tmdbId: 7,
+      kind: "NOTE",
+    });
+  });
+
+  it("a movie log stays a WATCH by default", async () => {
+    seed({});
+    logWatchAction.mockReset();
+    logWatchAction.mockResolvedValue({ ok: true });
+    renderMovie();
+    fireEvent.click(screen.getByRole("button", { name: "Log to diary" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Log to diary" }));
+    await waitFor(() => expect(logWatchAction).toHaveBeenCalledTimes(1));
+    expect(logWatchAction.mock.calls[0][0]).toMatchObject({ mediaType: "movie", kind: "WATCH" });
+    expect(useUserStore.getState().watchedMovies.has(42)).toBe(true);
   });
 });

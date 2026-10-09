@@ -62,6 +62,15 @@ export function QuickLogButton({
   useHistoryDismiss(open, () => setOpen(false));
   usePreviewHold(open);
 
+  // A SERIES-level log is note-only, mirroring the detail DiaryPanel's
+  // `forceNote={isSeries}`. A series-level WATCH event is derived as COMPLETED
+  // by progress-derive.ts, so one tap from the hover preview would mark a
+  // whole series finished. Episode-level logs (season+episode given) stay real
+  // watches.
+  const noteOnly = mediaType === "series" && seasonNumber === undefined;
+  const heading = noteOnly ? "Add a note" : "Log";
+  const actionLabel = noteOnly ? "Add a diary note" : "Log to diary";
+
   const subtitle =
     seasonNumber !== undefined && episodeNumber !== undefined
       ? `${title} ${episodeCode(seasonNumber, episodeNumber)}`
@@ -78,6 +87,7 @@ export function QuickLogButton({
   };
 
   const handleSubmit = async (values: LogWatchFormValues) => {
+    const isWatch = values.isWatch && !noteOnly;
     setBusy(true);
     try {
       const result = await logWatchAction({
@@ -89,21 +99,21 @@ export function QuickLogButton({
         watchedAt: values.watchedAt,
         note: values.note || undefined,
         score: values.score,
-        kind: values.isWatch ? "WATCH" : "NOTE",
+        kind: isWatch ? "WATCH" : "NOTE",
         isPrivate: values.isPrivate,
       });
       if (result.ok) {
-        toast.success(values.isWatch ? "Logged to your diary" : "Added a note to your diary");
+        toast.success(isWatch ? "Logged to your diary" : "Added a note to your diary");
         trackAction({
           action: "log_watch",
           mediaType,
           itemId: tmdbId,
           itemTitle: title,
-          metadata: { seasonNumber, episodeNumber, note: !values.isWatch },
+          metadata: { seasonNumber, episodeNumber, note: !isWatch },
         });
         // A WATCH entry marks the movie watched server-side, so mirror it in the
         // store (preview/cards update) and pulse any Diary opener on the page.
-        if (values.isWatch && mediaType === "movie") markWatchedLocal(tmdbId);
+        if (isWatch && mediaType === "movie") markWatchedLocal(tmdbId);
         emitDiaryUpdated(mediaType, tmdbId);
         setOpen(false);
         onLogged?.();
@@ -119,7 +129,8 @@ export function QuickLogButton({
 
   const form = (
     <LogWatchForm
-      submitLabel="Log to diary"
+      submitLabel={noteOnly ? "Add note" : "Log to diary"}
+      forceNote={noteOnly}
       busy={busy}
       onSubmit={(values) => void handleSubmit(values)}
     />
@@ -136,7 +147,7 @@ export function QuickLogButton({
             className
           )}
           onClick={handleOpen}
-          aria-label="Log to diary"
+          aria-label={actionLabel}
         >
           {busy ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -150,8 +161,8 @@ export function QuickLogButton({
           type="button"
           className={cn(COMPACT_BTN, COMPACT_IDLE, className)}
           onClick={handleOpen}
-          aria-label="Log to diary"
-          title="Log to diary"
+          aria-label={actionLabel}
+          title={actionLabel}
         >
           <NotebookPen className="h-4 w-4" />
         </button>
@@ -162,7 +173,7 @@ export function QuickLogButton({
           <DrawerContent>
             <DrawerHeader className="text-left">
               <DrawerTitle className="text-lg font-semibold line-clamp-1">
-                Log “{subtitle}”
+                {heading} “{subtitle}”
               </DrawerTitle>
             </DrawerHeader>
             <div className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]">{form}</div>
@@ -173,7 +184,7 @@ export function QuickLogButton({
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="text-lg font-semibold line-clamp-1">
-                Log “{subtitle}”
+                {heading} “{subtitle}”
               </DialogTitle>
             </DialogHeader>
             {form}
