@@ -102,3 +102,17 @@ describe("rankPeople", () => {
     expect(ben?.shrunkScore).toBe(5.75); // v=2, R=4.5 → (9 + 14)/4
   });
 });
+
+describe("liftFacets without a baseline (fresh env, cron not run yet)", () => {
+  it("falls back to a uniform prior over the user's own values — never empty, never a scan", () => {
+    const items = [
+      { key: "m:1", ref: ref(1), weight: 2, facets: [g("horror")] },
+      { key: "m:2", ref: ref(2), weight: 2, facets: [g("horror")] },
+      { key: "m:3", ref: ref(3), weight: 1, facets: [g("drama")] },
+      { key: "m:4", ref: ref(4), weight: 1, facets: [g("comedy")] },
+    ];
+    const out = liftFacets("genre", items, baseline({}, 0));
+    expect(out.map((f) => f.key)).toEqual(["horror"]); // v=1 values filtered by min support
+    expect(out[0].lift).toBeCloseTo((4 / 6) / (1 / 3), 2);
+  });
+});

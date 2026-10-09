@@ -1324,10 +1324,41 @@ model UserStats {
   publicStats Json?    @map("public_stats")
   computedAt  DateTime @map("computed_at")
   dirty       Boolean  @default(true)
+  // Set to clock_timestamp() by markStatsDirty. A recompute only clears `dirty`
+  // when dirty_at is unchanged since it read the row (lost-dirty race guard).
+  dirtyAt     DateTime? @map("dirty_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_stats")
+}
+
+// Catalog baseline for taste-facet lift, precomputed nightly by the
+// `taste-baseline` PM2 cron (scripts/refresh-taste-baseline.ts). The request
+// path does PK lookups by (type, key) only — NEVER a catalog scan. Empty table
+// (fresh env) → the service falls back to a uniform prior.
+model TasteFacetBaseline {
+  type String // FacetType: genre|keyword|theme|mood|director|cast|country|language|decade
+  key  String
+  n    Int    @default(0)
+
+  @@id([type, key])
+  @@map("taste_facet_baseline")
+}
+
+// Singleton (id = 1): baseline population sizes + catalog quantiles, written by
+// the same cron. computed_at NULL = never refreshed.
+model TasteBaselineMeta {
+  id                  Int       @id @default(1)
+  mode                String    @default("votes") // "votes" | "all"
+  catalogSize         Int       @default(0) @map("catalog_size")
+  enrichedSize        Int       @default(0) @map("enriched_size")
+  popularityQuantiles Float[]   @default([]) @map("popularity_quantiles")
+  yearQuantiles       Float[]   @default([]) @map("year_quantiles")
+  computedAt          DateTime? @map("computed_at")
+  durationMs          Int?      @map("duration_ms")
+
+  @@map("taste_baseline_meta")
 }
 
 // Derived taste profile (spec docs/superpowers/specs/2026-10-09-taste-profile-design.md).

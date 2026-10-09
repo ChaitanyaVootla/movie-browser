@@ -178,3 +178,49 @@ describe("foldSignals", () => {
     expect(capped.titles.map((t) => t.key)).toEqual(["m:2", "m:3"]);
   });
 });
+
+describe("privacy over ALL entry kinds (NOTE entries, reviews)", () => {
+  const rated = { score: 10, thumb: null, liked: true, ratedAt: NOW };
+  const entries = (o: Partial<NonNullable<TitleSignals["entries"]>>) => ({
+    hasPublic: false, hasPrivate: false, publicScored: false, privateScored: false, ...o,
+  });
+
+  it("a score logged via a PRIVATE NOTE (no WATCH events at all) is not public", () => {
+    const s = sig({ rating: rated, entries: entries({ hasPrivate: true, privateScored: true }) });
+    expect(s.watches.count.all).toBe(0);
+    expect(titleWeight(s, "public", ctx).weight).toBe(0);
+    expect(titleWeight(s, "public", ctx).score).toBeNull();
+    expect(titleWeight(s, "full", ctx).weight).toBe(4.5);
+  });
+
+  it("a score that only arrived via a PRIVATE review is withheld even with a public unscored entry", () => {
+    const s = sig({ rating: rated, entries: entries({ hasPublic: true, hasPrivate: true, privateScored: true }) });
+    expect(titleWeight(s, "public", ctx).score).toBeNull();
+  });
+
+  it("a public scored entry keeps the rating public", () => {
+    const s = sig({
+      rating: rated,
+      watches: watched(1),
+      entries: entries({ hasPublic: true, hasPrivate: true, publicScored: true, privateScored: true }),
+    });
+    expect(titleWeight(s, "public", ctx).score).toBe(10);
+  });
+
+  it("entries decide privacy even when WATCH counts are missing (outside the row cap)", () => {
+    const s = sig({ rating: rated, entries: entries({ hasPrivate: true }) });
+    expect(titleWeight(s, "public", ctx).weight).toBe(0);
+  });
+
+  it("a series finish counts publicly only when every WATCH is public", () => {
+    const mixed = sig({
+      mediaType: "series",
+      watches: { count: { public: 2, all: 10 }, maxCycle: { public: 1, all: 1 }, lastAt: { public: NOW, all: NOW } },
+      progress: { status: "COMPLETED", updatedAt: NOW },
+    });
+    expect(titleWeight(mixed, "public", ctx).weight).toBe(0.5); // engagement only, no finish bonus
+    expect(titleWeight(mixed, "full", ctx).weight).toBe(1.25);
+    const allPublic = { ...mixed, watches: { ...mixed.watches, count: { public: 10, all: 10 } } };
+    expect(titleWeight(allPublic, "public", ctx).weight).toBe(1.25);
+  });
+});
