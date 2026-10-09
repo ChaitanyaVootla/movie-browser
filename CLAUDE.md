@@ -288,6 +288,7 @@ This is an **AI-agent-first codebase**. Use `/frontend-design` skill for all UI 
 | `sitemap-generator` | 22:00 UTC (03:30 IST) | Generate sitemaps from PG (quality-gated top 50k movies / 25k series / 25k persons via `SITEMAP_*_LIMIT` envs, honest `lastmod` from `updated_at`, 50k-URL file chunking) |
 | `isr-cache-prune` | 23:00 UTC (04:30 IST) | Keep `.next/server/app/{movie,series,person}` under `ISR_CACHE_BUDGET_MB` (5GB). Jun 10 2026: unbounded ISR cache hit 41GB → disk-full outage loop |
 | `episode-drop-notify` | 05:00 UTC (10:30 IST) | Diff newly-aired episodes → EPISODE_DROP notifications for viewers tracking the series (bounded, idempotent) |
+| `taste-baseline` | 19:00 UTC (00:30 IST) | Rebuild `taste_facet_baseline` + `taste_baseline_meta` (taste-facet catalog counts + popularity/year quantiles) so the profile render path only does PK lookups; server-side SQL aggregation, diff-only writes. Branch `feat/taste-profile-core` — see `.claude/rules/taste-profile.md` |
 | `cue-seed` | **DISABLED (not scheduled)** | Seed ONE spoiler-free Cue opener on top-N trending virgin titles (idempotent; one Bedrock Flex call per seed). Code kept; PM2 entry **commented out** in `ecosystem.config.cjs` per a 2026-06-15 product decision — the only AI-generated kickoff stays OFF until explicitly enabled. Run manually: `FORCE_RUN=1 npx tsx scripts/seed-cue-comments.ts --limit=20`. |
 
 All run under `nice -n 19` and carry a **cron-window guard** (`CRON_HOUR_UTC`

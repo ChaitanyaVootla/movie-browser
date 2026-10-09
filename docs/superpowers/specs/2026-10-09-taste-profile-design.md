@@ -63,6 +63,9 @@ model UserTasteProfile {
 }
 ```
 
+Also (review fix, v2): `taste_facet_baseline` + `taste_baseline_meta` (§6) and
+`user_stats.dirty_at` (§10) — all defaulted/nullable. `TASTE_ALGO_VERSION` = 2.
+
 Additions vs. the brief, with reasons:
 
 - **`publicCentroid`** — user↔user compatibility and follow suggestions are shown
@@ -131,9 +134,11 @@ embedding. `negCentroid` = the normalised negative mean (NULL when N is empty).
 |---|---|---|
 | WATCH events, `is_private = false` | yes | yes |
 | WATCH events, `is_private = true` | yes | **no** |
-| Ratings / hearts | yes | yes, **unless** the title's only WATCH events are private (a private watch logged with a score also upserts the canonical rating — counting it would leak the private watch) |
+| Ratings / hearts | yes | yes, **unless** (a) the title's entries are ALL private — over EVERY entry kind: WATCH and NOTE diary entries and reviews — or (b) a private entry that can carry a score (a private scored watch/NOTE, a private review) exists and no public one does. Any private entry with a score upserts the canonical rating, so counting it would leak it. Decided per title by id with NO row cap (`fetchEntryVisibility`) |
 | Four Favorites | yes | yes (the list is always shown on the profile) |
-| Series progress status | yes | yes, under the same "not private-only" rule |
+| Series progress status | yes | yes, under the same "not private-only" rule; the COMPLETED/CAUGHT_UP bonus additionally requires every WATCH on the series to be public (a finish resting on private viewing is not credited) |
+| Profile "Currently watching" shelf | — | only series with ≥1 PUBLIC WATCH, shown at the furthest PUBLIC episode (`getPublicProgressShelf`) |
+| Adult titles / adult-adjacent keywords | — | excluded from all metadata (facets, evidence posters, cluster medoids); keyword/theme labels matching the adult pattern are dropped (`isAdultKeyword`) — /u/* is indexable |
 | Watchlist | yes | **no** |
 | `recent_items`, `continue_watching` | no | no |
 | `users.metadata.profile.showTaste === false` | — | public snapshot not rendered at all |
@@ -159,6 +164,25 @@ non-adult titles. AI facets use the enriched catalog (titles with `ai_data`) as
 their population, because only those titles can carry a tag. Baseline counts are
 fetched only for the facet keys the user actually has and cached in-process for
 24h (`baseline-cache.ts`).
+
+**Precomputed, never scanned on a request (review fix, v2).** The baseline lives
+in `taste_facet_baseline (type, key, n)` + the singleton `taste_baseline_meta`
+(population sizes + 101-point popularity/year quantiles), rebuilt nightly by the
+`taste-baseline` PM2 cron at 19:00 UTC (`scripts/refresh-taste-baseline.ts`,
+`src/server/db/postgres/social/taste-baseline.ts`): one transaction, B
+materialised into temp tables, all aggregation server-side (INSERT … SELECT into a
+stage table), diff-only writes (UPDATE only changed `n`, DELETE vanished keys).
+The THEME/VIBE normalisation runs only there. The request path does PK lookups by
+`(type, key)` for the user's own keys (1h in-process cache). **Empty tables (fresh
+env) → uniform prior** over the user's own values of that type (no scan, facets
+still rank by concentration) and no catalog quantiles (percentile axes omitted).
+Measured locally (dev DB, 142-title "all" population): 61–170ms. Expected prod
+cost (estimate, not measured — ~900k-title catalog, ~50–70k titles in B, ~1.5M
+ai_insights rows): B temp tables from a `ratings` scan ~1s; keyword and cast joins
+~1–3s each; theme aggregation with the regexp normaliser ~2–5s; total ~10–30s of
+`nice -n 19` DB time, Node RSS ≪ 100MB; first run inserts ~150–300k baseline rows,
+later runs touch only changed keys. Measure on the first prod run
+(`logs/taste-baseline-out.log` prints per-type ms).
 
 For facet value f of type T over the positive titles P_T that carry ANY value of
 type T (so missing metadata does not dilute the share):
@@ -222,7 +246,16 @@ only private watches are excluded), so it agrees with the taste projection.
 
 - `getTasteProfile` reads the row; recomputes when missing, `dirty`, older than
   24h, or `algoVersion ≠ TASTE_ALGO_VERSION`. Concurrent recomputes per user share
-  one in-flight promise.
+  one in-flight promise; globally at most 2 run at once (`p-limit`), each capped
+  at 20s. A reader waits at most 1.5s, then gets the stale row (or, for a
+  first-ever compute, `getProfileTaste` returns null → no widgets this render)
+  while the recompute finishes in the background. A failed/timed-out recompute
+  puts the user in backoff (5 min doubling to 1h) during which the stale row is
+  served without retrying.
+- Stats: `markStatsDirty` stamps `user_stats.dirty_at = clock_timestamp()`;
+  `refreshUserStatsSnapshot` only clears `dirty` if `dirty_at` is unchanged since
+  it read the row (same lost-dirty guard as `writeTasteRow`). The profile reads
+  stats and the histogram fail-open (error → empty + warn).
 - Dirty marking: `markStatsDirty(tx, userId)` now also upserts
   `user_taste_profiles.dirty = true` in the SAME statement (a CTE), so every
   existing hook site (ratings, watch events, progress, import runner) flags both

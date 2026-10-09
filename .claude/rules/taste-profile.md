@@ -9,6 +9,9 @@ paths:
   - "src/components/features/profile/widgets/taste-*.tsx"
   - "src/components/features/profile/taste-owner-hint.tsx"
   - "scripts/seed-taste-demo.ts"
+  - "scripts/refresh-taste-baseline.ts"
+  - "src/server/db/postgres/social/taste-baseline.ts"
+  - "src/server/db/postgres/social/progress.ts"
 ---
 
 # Taste Profile (Oct 2026, branch `feat/taste-profile-core`)
@@ -43,8 +46,20 @@ Interface for consumers: `getTasteProfile(userId, {scope})`, `getTasteClusters`,
    score upserts the canonical rating), progress on such titles, and the watchlist.
    **Anything shown to a user other than the owner — compatibility, follow
    suggestions, profile widgets, OG cards — uses PUBLIC.** The filtering happens in
-   `weights.ts` (`titleWeight` / `isPrivateOnly`), before any aggregation; never by
-   redacting a full result.
+   `weights.ts` (`titleWeight` / `isPrivateOnly` / `isRatingPrivate`), before any
+   aggregation; never by redacting a full result.
+   - **Privacy is decided over ALL entry kinds, uncapped.** A private NOTE with a
+     score and a private review BOTH upsert the canonical rating (`logWatchAction`,
+     the review composer), so a WATCH-only check leaks them (review finding, v2).
+     `fetchEntryVisibility` unions watch_events (any kind) + user_reviews per title
+     id with NO row cap; WATCH-only counts are used for WEIGHTING only. A rated
+     title whose watches fall outside the 500 most recent must still get its
+     privacy decision — never infer "public" from a missing aggregate row.
+   - The profile histogram (`getPublicScoreHistogramRows`) and the "Currently
+     watching" shelf (`getPublicProgressShelf`) apply the same rules; any new
+     public read of diary/rating data must too.
+   - A COMPLETED/CAUGHT_UP finish is credited publicly only when every WATCH on
+     the series is public.
 2. **No AI.** Stored embeddings + catalog joins only. Fable rule: captions are number
    templates about titles; endpoints are dimension labels. Tests assert no "you're /
    you are / are a" in rendered copy.
@@ -59,8 +74,22 @@ Interface for consumers: `getTasteProfile(userId, {scope})`, `getTasteClusters`,
    site got taste for free. Writes that change taste but not stats call
    `markTasteDirty` (watchlist add/remove, fire-and-forget) or `markTasteDirtyTx`
    (`setFourFavorites`). New taste-relevant write paths must do the same.
+6. **Adult content never reaches /u/*** (indexable): `fetchMetaFor` filters
+   `adult = false`, and `isAdultKeyword` drops adult-adjacent keyword/theme labels
+   (display hygiene; see `seo-search-console.md`).
+7. **No catalog scan on a request.** Lift baselines come from
+   `taste_facet_baseline`/`taste_baseline_meta` (PK lookups), rebuilt by the
+   `taste-baseline` cron (19:00 UTC, `nice -n 19`, CRON_HOUR_UTC guard). Empty
+   tables → uniform prior. Recomputes: per-user dedupe, global `p-limit(2)`, 20s
+   cap, 1.5s reader wait then stale, failure backoff 5 min→1 h.
 
 ## Gotchas (each cost time)
+
+- **`user_stats` has the same lost-dirty race** — `dirty_at` (clock_timestamp)
+  guards `refreshUserStatsSnapshot` exactly like `updated_at` guards
+  `writeTasteRow`.
+- **`series.episode_run_time` can be NULL**, not just `{}` — stats crashed with
+  `fallbackRuntimes.length` on such rows (found by the privacy integration test).
 
 - **Mark-dirty during a recompute must survive it.** Markers set `updated_at =
   clock_timestamp()` (NOT `now()`, which is the transaction START time and can be
@@ -72,11 +101,11 @@ Interface for consumers: `getTasteProfile(userId, {scope})`, `getTasteClusters`,
 - **Lift baseline = catalog, not users** (stable, cacheable, not circular).
   Population = non-adult titles with ≥100 TMDB votes; falls back to all non-adult
   titles when that is < 1000 (dev). AI tags use `ai_data` as their population.
-  Baseline counts are fetched only for the user's own facet keys, cached 24h
-  in-process (`baseline-cache.ts`).
+  The nightly cron precomputes every key; requests read only the user's own keys
+  by PK (1h in-process cache in `baseline-cache.ts`).
 - **Free-text AI tags** are keyed `lower + whitespace-collapsed` in BOTH the JS
-  (`normalizeTagKey`) and the baseline SQL (`lower(regexp_replace(btrim(text),'\s+',' ','g'))`)
-  — change one, change both.
+  (`normalizeTagKey`) and the cron's baseline SQL (`TAG_KEY` in `taste-baseline.ts`)
+  — change one, change both, and bump `TASTE_ALGO_VERSION`.
 - **Embeddings are read as `embedding::real[]`** (driver returns number[]; no 12KB
   text parse per title). Vectors are written with `${literal}::vector`.
 - **PM2 only treats `*.config.{js,cjs}` as an ecosystem file.** A local
@@ -102,14 +131,18 @@ handle `local_tester` so an E2E session can view its own profile. Recompute is
 
 ## Pre-deploy
 
-- `db push` adds `user_taste_profiles` (all columns nullable/defaulted) and
-  `user_stats.public_stats` (nullable) — no NOT-NULL-on-populated risk, no
-  `--accept-data-loss`.
+- `db push` adds `user_taste_profiles`, `taste_facet_baseline`,
+  `taste_baseline_meta` (all columns nullable/defaulted) and
+  `user_stats.public_stats` + `user_stats.dirty_at` (nullable) — no
+  NOT-NULL-on-populated risk, no `--accept-data-loss`.
+- Until the first `taste-baseline` run, lifts use the uniform prior and the
+  percentile axes are absent. Run it once by hand after the first deploy:
+  `FORCE_RUN=1 nice -n 19 npx tsx scripts/refresh-taste-baseline.ts`, then check
+  `logs/taste-baseline-out.log` per-type timings against the spec §6 estimate.
 - The first public-profile render per user after deploy recomputes both stats
   projections (public_stats NULL) and the taste row — bounded queries, but expect a
   slightly slower first render per profile. Baseline cache is per process and
-  cold after each restart (one population count + quantile scan on first use —
-  measure on prod data before relying on its latency).
+  cold after each restart, but it only reads the precomputed tables.
 - The privacy toggle revalidates `/u/<username>`; the CDN copy can lag ~5 min
   (same as other profile edits — `social-features.md` pre-deploy item 4).
 
