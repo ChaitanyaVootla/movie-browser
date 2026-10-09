@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarPlus, Loader2 } from "lucide-react";
+import { CalendarPlus, Loader2, NotebookPen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,19 +16,23 @@ import { IS_IOS } from "@/lib/device";
 import { useMobile } from "@/hooks/use-mobile";
 import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { useSession } from "next-auth/react";
-import { useLoginDialog } from "@/components/features/auth";
+import { useSignInPrompt } from "@/components/features/media/title-actions/sign-in-dialog";
+import { usePreviewHold } from "@/components/features/hover-card/preview-store";
+import { COMPACT_BTN, COMPACT_IDLE } from "@/components/features/media/title-actions/styles";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { logWatchAction } from "@/server/actions/tracking";
 import type { TrackedMediaType } from "@/types/social";
 import { episodeCode } from "@/lib/tracking-format";
+import { useUserStore } from "@/stores/user";
+import { emitDiaryUpdated } from "@/hooks/use-diary-pulse";
 import { LogWatchForm, type LogWatchFormValues } from "./log-watch-form";
 
 interface QuickLogButtonProps {
   mediaType: TrackedMediaType;
   tmdbId: number;
   title: string;
-  /** "bar" = detail-page pill (over hero-adjacent chrome); "card" = poster overlay icon. */
-  variant: "bar" | "card";
+  /** "bar" = detail-page pill (over hero-adjacent chrome); "compact" = hover preview / quick-info drawer icon. */
+  variant: "bar" | "compact";
   seasonNumber?: number;
   episodeNumber?: number;
   tmdbEpisodeId?: number;
@@ -56,10 +60,12 @@ export function QuickLogButton({
   const [busy, setBusy] = useState(false);
   const isMobile = useMobile();
   const { status } = useSession();
-  const { openLoginDialog } = useLoginDialog();
+  const signIn = useSignInPrompt();
   const { trackAction } = useAnalytics();
+  const markWatchedLocal = useUserStore((s) => s.markWatchedLocal);
 
   useHistoryDismiss(open, () => setOpen(false));
+  usePreviewHold(open);
 
   const subtitle =
     seasonNumber !== undefined && episodeNumber !== undefined
@@ -70,7 +76,7 @@ export function QuickLogButton({
     e.preventDefault();
     e.stopPropagation();
     if (status !== "authenticated") {
-      openLoginDialog();
+      signIn.prompt("Sign in to keep a diary of what you watch");
       return;
     }
     setOpen(true);
@@ -100,6 +106,10 @@ export function QuickLogButton({
           itemTitle: title,
           metadata: { seasonNumber, episodeNumber, note: !values.isWatch },
         });
+        // A WATCH entry marks the movie watched server-side, so mirror it in the
+        // store (preview/cards update) and pulse any Diary opener on the page.
+        if (values.isWatch && mediaType === "movie") markWatchedLocal(tmdbId);
+        emitDiaryUpdated(mediaType, tmdbId);
         setOpen(false);
         onLogged?.();
       } else {
@@ -141,18 +151,15 @@ export function QuickLogButton({
           <span className="text-[13px] font-semibold">Log</span>
         </Button>
       ) : (
-        <Button
-          variant="secondary"
-          size="icon"
-          className={cn(
-            "h-8 w-8 bg-black/70 hover:bg-black/90 border border-white/20",
-            className
-          )}
+        <button
+          type="button"
+          className={cn(COMPACT_BTN, COMPACT_IDLE, className)}
           onClick={handleOpen}
           aria-label="Log to diary"
+          title="Log to diary"
         >
-          <CalendarPlus className="h-4 w-4" />
-        </Button>
+          <NotebookPen className="h-4 w-4" />
+        </button>
       )}
 
       {isMobile ? (
@@ -178,6 +185,7 @@ export function QuickLogButton({
           </DialogContent>
         </Dialog>
       )}
+      {signIn.dialog}
     </>
   );
 }

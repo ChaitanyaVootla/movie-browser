@@ -16,9 +16,12 @@ import {
 import { cn } from "@/lib/utils";
 import { useMobile } from "@/hooks/use-mobile";
 import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
-import { LoginDialog, useLoginDialog } from "@/components/features/auth";
+import { LoginDialog, useLoginDialog } from "@/components/features/auth/login-dialog";
 import { useAnalytics } from "@/hooks/use-analytics";
-import { useUserStore, selectLiked, selectRating, type MediaType } from "@/stores/user";
+import { useUserStore, selectLiked, selectRating, selectScore, type MediaType } from "@/stores/user";
+import Link from "next/link";
+import { usePreviewHold } from "@/components/features/hover-card/preview-store";
+import { COMPACT_ACTIVE, COMPACT_BTN, COMPACT_IDLE } from "./title-actions/styles";
 import { getRating, setRating as persistRating } from "@/server/actions/user-ratings";
 import { isStaleServerActionError, recoverFromStaleAction } from "@/lib/stale-action";
 import { PartialStar } from "./social-signals";
@@ -32,6 +35,17 @@ interface RateButtonProps {
   autoOpenToken?: number;
   /** Whether the viewer already has a review (controls the review CTA label). */
   hasReview?: boolean;
+  /**
+   * hero = detail action bar pill (over imagery); compact = 40px icon pill for
+   * the hover preview / quick-info drawer (themed surface).
+   */
+  variant?: "hero" | "compact";
+  /**
+   * Off the detail page there is no on-page composer to open, so "Write a
+   * review" becomes a link to the title's reviews section instead of emitting
+   * the open-review event (which nothing would hear).
+   */
+  reviewHref?: string;
 }
 
 const STAR_COUNT = 5;
@@ -56,7 +70,16 @@ const TOGGLE_ON = "border-brand/60 bg-brand/15 text-brand";
  * implied-watch cascade for movies) and optimistically syncs the user store so
  * cards/nav stay consistent. Client island — no viewer state in cached HTML.
  */
-export function RateButton({ itemId, mediaType, title, autoOpenToken, hasReview }: RateButtonProps) {
+export function RateButton({
+  itemId,
+  mediaType,
+  title,
+  autoOpenToken,
+  hasReview,
+  variant = "hero",
+  reviewHref,
+}: RateButtonProps) {
+  const compact = variant === "compact";
   const { status } = useSession();
   const isAuthenticated = status === "authenticated";
   const isMobile = useMobile();
@@ -65,6 +88,7 @@ export function RateButton({ itemId, mediaType, title, autoOpenToken, hasReview 
 
   const [open, setOpen] = useState(false);
   useHistoryDismiss(open, () => setOpen(false));
+  usePreviewHold(open || loginOpen);
 
   // Reactive personal state from the store (hydrated on load).
   const thumb = useUserStore(selectRating(itemId, mediaType)); // -1 | 0 | 1
@@ -76,11 +100,16 @@ export function RateButton({ itemId, mediaType, title, autoOpenToken, hasReview 
 
   // Score (1–10) is title-level and loaded directly (not in the card store map
   // for series-level granularity); hover preview is a separate transient.
-  const [score, setScore] = useState<number | null>(null);
+  const [fetchedScore, setScore] = useState<number | null>(null);
+  // Compact reads the hydrated store score instead of a per-open server action
+  // (opening a hover preview must stay free). commitScore writes the store too.
+  const storeScore = useUserStore(selectScore(itemId, mediaType));
+  const score = compact ? storeScore : fetchedScore;
   const [hoverScore, setHoverScore] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
+    if (compact) return;
     if (!isAuthenticated) {
       setScore(null);
       return;
@@ -99,7 +128,7 @@ export function RateButton({ itemId, mediaType, title, autoOpenToken, hasReview 
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, itemId, mediaType]);
+  }, [compact, isAuthenticated, itemId, mediaType]);
 
   // Auto-open once when the token changes (skip the initial mount value).
   const [seenToken, setSeenToken] = useState(autoOpenToken);
@@ -206,7 +235,25 @@ export function RateButton({ itemId, mediaType, title, autoOpenToken, hasReview 
   const hasScore = score !== null;
   const active = hasScore || thumb !== 0 || liked;
 
-  const trigger = (
+  const trigger = compact ? (
+    <button
+      type="button"
+      className={cn(COMPACT_BTN, active ? COMPACT_ACTIVE : COMPACT_IDLE)}
+      onClick={handleTriggerClick}
+      aria-label={hasScore ? `Your rating: ${score} out of 10. Rate & review` : "Rate & review"}
+      title={hasScore ? `Your rating: ${score}/10` : "Rate & review"}
+    >
+      {hasScore && score !== null ? (
+        <>
+          <PartialStar value={score / 2} size={14} />
+          <span>{score}</span>
+        </>
+      ) : (
+        <Star className="h-4 w-4" />
+      )}
+      {liked && <Heart className="h-3 w-3 fill-current" />}
+    </button>
+  ) : (
     <Button
       size="sm"
       variant="secondary"
@@ -331,10 +378,19 @@ export function RateButton({ itemId, mediaType, title, autoOpenToken, hasReview 
 
       <div className="h-px bg-border" />
 
-      <Button variant="outline" size="sm" className="gap-1.5" onClick={handleReview}>
-        <PenLine className="h-3.5 w-3.5" />
-        {hasReview ? "Edit your review" : "Write a review"}
-      </Button>
+      {reviewHref ? (
+        <Button asChild variant="outline" size="sm" className="gap-1.5">
+          <Link href={reviewHref} prefetch={false} onClick={() => setOpen(false)}>
+            <PenLine className="h-3.5 w-3.5" />
+            {hasReview ? "Edit your review" : "Write a review"}
+          </Link>
+        </Button>
+      ) : (
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={handleReview}>
+          <PenLine className="h-3.5 w-3.5" />
+          {hasReview ? "Edit your review" : "Write a review"}
+        </Button>
+      )}
     </div>
   );
 

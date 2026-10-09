@@ -9,7 +9,7 @@ import { TrailerModal, type TrailerModalData } from "@/components/features/home/
 import { QuickTake } from "./quick-take";
 import { WatchedButton } from "@/components/features/tracking/watched-button";
 import { DiaryPanel } from "@/components/features/tracking/diary-panel";
-import { useLoginDialog } from "@/components/features/auth";
+import { useSignInPrompt } from "./title-actions/sign-in-dialog";
 import type { TrailerData } from "@/types";
 import type { MediaType } from "@/stores/user";
 
@@ -53,13 +53,13 @@ export function MediaActionBar({
   // component) and any peer re-reads stay in sync without tight coupling.
   const [diaryVersion, setDiaryVersion] = useState(0);
   const { status } = useSession();
-  const { openLoginDialog } = useLoginDialog();
+  const signIn = useSignInPrompt();
 
   const isMovie = mediaType === "movie";
 
   const openDiary = () => {
     if (status !== "authenticated") {
-      openLoginDialog("Sign in to keep a diary of what you watch");
+      signIn.prompt("Sign in to keep a diary of what you watch");
       return;
     }
     setDiaryOpen(true);
@@ -93,11 +93,9 @@ export function MediaActionBar({
               posterPath={posterPath}
               hasTrailer={!!trailer}
               onPlayTrailer={() => setShowTrailer(true)}
-              variant="hero"
               watchSlot={
                 isMovie ? (
                   <WatchedButton
-                    mediaType="movie"
                     tmdbId={itemId}
                     title={title}
                     version={diaryVersion}
@@ -135,6 +133,9 @@ export function MediaActionBar({
         onOpenChange={setDiaryOpen}
         onChanged={bumpDiary}
       />
+
+      {/* Sign-in prompt for the Diary opener (useLoginDialog is local state). */}
+      {signIn.dialog}
 
       {/* Trailer Modal */}
       {modalTrailer && (

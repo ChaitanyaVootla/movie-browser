@@ -1,8 +1,15 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { useUserStore, type MediaType } from "@/stores/user";
+import {
+  useUserStore,
+  selectIsHydrated,
+  selectIsInWatchlist,
+  selectIsWatched,
+  selectRating,
+  type MediaType,
+} from "@/stores/user";
 import { toast } from "sonner";
 
 interface UseUserLibraryOptions {
@@ -14,16 +21,18 @@ interface UseUserLibraryOptions {
 }
 
 /**
- * Hook for accessing and modifying user library state.
- * Provides a clean API for watchlist, watched, and rating operations.
+ * The ONE write path for a title's watchlist / watched / thumb state from UI
+ * (detail action bar, hover preview, mobile quick-info drawer).
  *
- * @example
- * ```tsx
- * const { isInWatchlist, toggleWatchlist, rating, setRating } = useUserLibrary({
- *   itemId: movie.id,
- *   mediaType: "movie",
- * });
- * ```
+ * - Auth gate: a signed-out call toasts "Sign in…" and resolves `false`.
+ * - Every store write is awaited inside try/catch: the store reverts its
+ *   optimistic update and RETHROWS on a failed sync, so calling it raw (as the
+ *   old card/hover buttons did) produced an unhandled promise rejection and no
+ *   feedback. Here a failure toasts and resolves `false`.
+ * - Actions resolve `true` only on success, so callers fire analytics AFTER the
+ *   write actually landed.
+ * - Per-item selectors: the hook re-renders only when THIS title's state
+ *   changes (it used to subscribe to the whole watched/watchlist Sets).
  */
 export function useUserLibrary(
   itemId: number,
@@ -34,85 +43,53 @@ export function useUserLibrary(
   const { status } = useSession();
   const isAuthenticated = status === "authenticated";
 
-  // Store selectors
-  const isHydrated = useUserStore((state) => state.isHydrated);
+  const isHydrated = useUserStore(selectIsHydrated);
+  const watchedMovie = useUserStore(selectIsWatched(itemId));
+  const isWatched = mediaType === "movie" && watchedMovie;
+  const isInWatchlist = useUserStore(selectIsInWatchlist(itemId, mediaType));
+  const rating = useUserStore(selectRating(itemId, mediaType));
 
-  // For movies only
-  const watchedMovies = useUserStore((state) => state.watchedMovies);
-  const isWatched = mediaType === "movie" ? watchedMovies.has(itemId) : false;
-
-  // Watchlist
-  const watchlistMovies = useUserStore((state) => state.watchlistMovies);
-  const watchlistSeries = useUserStore((state) => state.watchlistSeries);
-  const isInWatchlist = useMemo(() => {
-    if (mediaType === "movie") {
-      return watchlistMovies.has(itemId);
-    }
-    return watchlistSeries.has(itemId);
-  }, [mediaType, itemId, watchlistMovies, watchlistSeries]);
-
-  // Rating
-  const ratings = useUserStore((state) => state.ratings);
-  const rating = useMemo(() => {
-    const key = `${mediaType}:${itemId}`;
-    return ratings.get(key) ?? 0;
-  }, [mediaType, itemId, ratings]);
-
-  // Actions
   const storeToggleWatched = useUserStore((state) => state.toggleWatched);
   const storeToggleWatchlist = useUserStore((state) => state.toggleWatchlist);
   const storeSetRating = useUserStore((state) => state.setRating);
   const storeClearRating = useUserStore((state) => state.clearRating);
 
-  const toggleWatched = useCallback(async () => {
+  const toggleWatched = useCallback(async (): Promise<boolean> => {
     if (!isAuthenticated) {
-      if (showToasts) {
-        toast.error("Sign in to mark as watched");
-      }
-      return;
+      if (showToasts) toast.error("Sign in to mark as watched");
+      return false;
     }
-
     try {
       await storeToggleWatched(itemId);
-      if (showToasts) {
-        toast.success(isWatched ? "Removed from watched" : "Marked as watched");
-      }
+      if (showToasts) toast.success(isWatched ? "Removed from watched" : "Marked as watched");
+      return true;
     } catch {
-      if (showToasts) {
-        toast.error("Failed to update watched status");
-      }
+      if (showToasts) toast.error("Couldn't update watched — try again");
+      return false;
     }
   }, [isAuthenticated, itemId, isWatched, storeToggleWatched, showToasts]);
 
-  const toggleWatchlist = useCallback(async () => {
+  const toggleWatchlist = useCallback(async (): Promise<boolean> => {
     if (!isAuthenticated) {
-      if (showToasts) {
-        toast.error("Sign in to add to watchlist");
-      }
-      return;
+      if (showToasts) toast.error("Sign in to add to watchlist");
+      return false;
     }
-
     try {
       await storeToggleWatchlist(itemId, mediaType);
-      if (showToasts) {
-        toast.success(isInWatchlist ? "Removed from watchlist" : "Added to watchlist");
-      }
+      if (showToasts) toast.success(isInWatchlist ? "Removed from watchlist" : "Added to watchlist");
+      return true;
     } catch {
-      if (showToasts) {
-        toast.error("Failed to update watchlist");
-      }
+      if (showToasts) toast.error("Couldn't update watchlist — try again");
+      return false;
     }
   }, [isAuthenticated, itemId, mediaType, isInWatchlist, storeToggleWatchlist, showToasts]);
 
   const setRating = useCallback(
-    async (newRating: number) => {
+    async (newRating: number): Promise<boolean> => {
       if (!isAuthenticated) {
-        if (showToasts) {
-          toast.error("Sign in to rate");
-        }
-        return;
+        if (showToasts) toast.error("Sign in to rate");
+        return false;
       }
-
       try {
         if (newRating === 0) {
           await storeClearRating(itemId, mediaType);
@@ -120,90 +97,29 @@ export function useUserLibrary(
           await storeSetRating(itemId, mediaType, newRating);
         }
         if (showToasts) {
-          if (newRating === 1) {
-            toast.success("Liked!");
-          } else if (newRating === -1) {
-            toast.success("Disliked");
-          } else {
-            toast.success("Rating cleared");
-          }
+          if (newRating === 1) toast.success("Liked!");
+          else if (newRating === -1) toast.success("Disliked");
+          else toast.success("Rating cleared");
         }
+        return true;
       } catch {
-        if (showToasts) {
-          toast.error("Failed to update rating");
-        }
+        if (showToasts) toast.error("Couldn't update rating — try again");
+        return false;
       }
     },
     [isAuthenticated, itemId, mediaType, storeSetRating, storeClearRating, showToasts]
   );
 
-  const clearRating = useCallback(async () => {
-    await setRating(0);
-  }, [setRating]);
-
   return {
-    // State
     isAuthenticated,
     isHydrated,
     isWatched,
     isInWatchlist,
     rating,
-
-    // Derived
     isLiked: rating === 1,
     isDisliked: rating === -1,
-
-    // Actions
     toggleWatched,
     toggleWatchlist,
     setRating,
-    clearRating,
-
-    // Convenience
-    like: () => setRating(rating === 1 ? 0 : 1),
-    dislike: () => setRating(rating === -1 ? 0 : -1),
-  };
-}
-
-/**
- * Hook for bulk checking watchlist/watched status.
- * Useful for lists/grids where you need to check many items.
- */
-export function useUserLibraryBulk() {
-  const { status } = useSession();
-  const isAuthenticated = status === "authenticated";
-  const isHydrated = useUserStore((state) => state.isHydrated);
-
-  const watchedMovies = useUserStore((state) => state.watchedMovies);
-  const watchlistMovies = useUserStore((state) => state.watchlistMovies);
-  const watchlistSeries = useUserStore((state) => state.watchlistSeries);
-  const ratings = useUserStore((state) => state.ratings);
-
-  const isWatched = useCallback((movieId: number) => watchedMovies.has(movieId), [watchedMovies]);
-
-  const isInWatchlist = useCallback(
-    (id: number, mediaType: MediaType) => {
-      if (mediaType === "movie") {
-        return watchlistMovies.has(id);
-      }
-      return watchlistSeries.has(id);
-    },
-    [watchlistMovies, watchlistSeries]
-  );
-
-  const getRating = useCallback(
-    (id: number, mediaType: MediaType) => {
-      const key = `${mediaType}:${id}`;
-      return ratings.get(key) ?? 0;
-    },
-    [ratings]
-  );
-
-  return {
-    isAuthenticated,
-    isHydrated,
-    isWatched,
-    isInWatchlist,
-    getRating,
   };
 }
