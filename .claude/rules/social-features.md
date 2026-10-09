@@ -204,6 +204,15 @@ widget-dashboard spec `docs/superpowers/specs/2026-06-13-profile-widget-dashboar
   in `services/import/{csv,letterboxd,trakt,imdb}.ts`; resolution + runner in
   `resolve.ts`/`runner.ts`; raw upload retained as lossless fallback. Action:
   `imports.ts`.
+- **Taste profile** (branch `feat/taste-profile-core`, Oct 2026) — derived
+  `user_taste_profiles` + four `/u/*` widgets (Taste DNA, Moods & themes, Your
+  people, Taste clusters) rendered from a PUBLIC snapshot; FULL centroid/clusters
+  for owner recs. Full reference: **`.claude/rules/taste-profile.md`**. Same branch
+  fixed a privacy leak: `user_stats` now stores `stats` (FULL, owner `/stats`) AND
+  `public_stats` (private watch events dropped) — `getUserStatsSnapshot(userId,
+  { scope })` defaults to `"public"`; the profile score histogram drops scores whose
+  title has only private watches. **Any new profile/public read of watch data must
+  filter `is_private = false`.**
 - **Audit backbone** — generic trigger-based `audit_log` over an opt-in set of
   low-churn tables. Detailed in **`.claude/rules/audit-log.md`** — read it before
   touching `postgres/init/05-audit.sql` or `src/server/db/audit.ts`.

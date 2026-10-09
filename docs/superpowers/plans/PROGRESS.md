@@ -7,6 +7,21 @@ Phases 2–4 (taste artifacts, full circles/clubs, AI second screen) remain PLAN
 
 ---
 
+## ✅ TASTE PROFILE CORE + PROFILE UI — BUILT LOCALLY (2026-10-09, branch `feat/taste-profile-core`)
+
+Spec `docs/superpowers/specs/2026-10-09-taste-profile-design.md`, plan
+`docs/superpowers/plans/2026-10-09-taste-profile-core.md`, rule
+`.claude/rules/taste-profile.md`. Not pushed, not deployed.
+- `user_taste_profiles` (full + public centroids, neg centroid, medoid clusters,
+  lift facets, axes, public snapshot, algo_version) with lazy dirty/24h recompute.
+- Pure math in `src/lib/taste/` (weights, Rocchio, shrunk lift, Ward clusters, axes).
+- Four profile widgets + owner hint + "Show taste profile" privacy toggle.
+- FIXED: public profile stats counted private watches (`user_stats.public_stats`).
+- NEXT (other agent): recommendations + user↔user taste match on
+  `getUserTasteEmbedding` / `getTasteClusters` (public scope for anything shared).
+
+---
+
 ## ✅ DISCUSSIONS POSITIONING + RICH-CONTENT EFFORT — COMPLETE (2026-06-15)
 
 Layered on Phase 1's discussion engine. Spec: `docs/superpowers/specs/2026-06-15-discussions-positioning-design.md`.

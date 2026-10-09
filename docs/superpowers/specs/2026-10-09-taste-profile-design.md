@@ -184,7 +184,7 @@ watches). Scores display as stars (score/2).
 | Axis | 0 ↔ 1 | Value | Min support | Caption template |
 |---|---|---|---|---|
 | `mainstream` | Mainstream ↔ Niche | 1 − mean popularity percentile of positives within B | 5 | "Favourites average the top {p}% by popularity" |
-| `era` | Classic ↔ New | percentile of the positives' median release year within B's years | 5 | "Median release year {y} · catalog {cy}" |
+| `era` | Classic ↔ New | percentile of the positives' median release year within B's years | 5 | "Median release year {y} (catalog median {cy})" |
 | `range` | Focused ↔ Eclectic | normalised Shannon entropy of the weighted genre distribution of positives | 8 | "Favourites span {n} genres" |
 | `rating` | Generous ↔ Tough | `0.5 − mean(score − tmdbAvg)/4`, clipped | 5 rated titles with a TMDB average | "Rates {d} points above/below TMDB on average" / "in line with" |
 | `weight` | Light ↔ Heavy | mean of AI `emotional` (light 0 / medium .5 / heavy 1) and `tone` (light 0 / mixed .5 / dark 1) over positives | 5 | "{h}% of favourites are emotionally heavy" |
@@ -280,7 +280,14 @@ getTasteClusters(userId): Promise<TasteCluster[]>          // FULL, with memberI
 getUserTasteEmbedding(userId, { scope?: "full" | "public" }): Promise<number[] | null>  // default full
 getTasteVectors(userId): Promise<{ centroid; negCentroid; publicCentroid }>
 markTasteDirty(userId): void                                // fire-and-forget
+getProfileTaste(userId, show): Promise<ProfileTasteDTO | null>  // profile DTO, never throws
+recomputeTasteNow(userId)                                   // dev/test: force a recompute
 ```
+
+Storage note: the `facets` column holds `{ facets, moods, people }` (every
+lift-derived table of the FULL scope); `clusters` holds the FULL clusters with
+`memberKeys`/`medoidKey` ("m:<id>" / "s:<id>"); the public snapshot's clusters
+are the display view without member keys.
 
 Pure helpers in `src/lib/taste/`: `cosineSimilarity`, `l2Normalize`,
 `rocchioCentroid`, `titleWeight`, `decayFactor`, `liftFacets`, `shrink`,
