@@ -159,7 +159,97 @@ export async function fetchTasteSignals(userId: number): Promise<TitleSignals[]>
     const s = get(w.movieId, w.seriesId);
     if (s) s.watchlistedAt = w.addedAt;
   }
+
+  // Titles that reached the map via ratings/progress/favorites/watchlist but
+  // fell outside the 500 most-recent WATCH aggregates: fetch their WATCH counts
+  // by id (bounded by the other sources' caps) so weighting isn't starved.
+  const all = [...map.values()];
+  const missingM = all.filter((s) => s.mediaType === "movie" && s.watches.count.all === 0).map((s) => s.id);
+  const missingS = all.filter((s) => s.mediaType === "series" && s.watches.count.all === 0).map((s) => s.id);
+  const movieIds = all.filter((s) => s.mediaType === "movie").map((s) => s.id);
+  const seriesIds = all.filter((s) => s.mediaType === "series").map((s) => s.id);
+  const [extraWatches, entries] = await Promise.all([
+    missingM.length + missingS.length > 0
+      ? prisma.$queryRaw<WatchRaw[]>`
+          SELECT movie_id, series_id,
+                 count(*)::int AS all_count,
+                 (count(*) FILTER (WHERE NOT is_private))::int AS public_count,
+                 COALESCE(max(cycle), 0)::int AS all_max_cycle,
+                 COALESCE(max(cycle) FILTER (WHERE NOT is_private), 0)::int AS public_max_cycle,
+                 max(COALESCE(watched_at, created_at)) AS all_last,
+                 max(COALESCE(watched_at, created_at)) FILTER (WHERE NOT is_private) AS public_last
+          FROM watch_events
+          WHERE user_id = ${userId} AND kind = 'WATCH'
+            AND (movie_id = ANY(${missingM}::int[]) OR series_id = ANY(${missingS}::int[]))
+          GROUP BY movie_id, series_id`
+      : Promise.resolve([] as WatchRaw[]),
+    fetchEntryVisibility(userId, movieIds, seriesIds),
+  ]);
+  for (const w of extraWatches) {
+    const s = get(w.movie_id, w.series_id);
+    if (!s) continue;
+    s.watches = {
+      count: { public: Number(w.public_count), all: Number(w.all_count) },
+      maxCycle: { public: Number(w.public_max_cycle), all: Number(w.all_max_cycle) },
+      lastAt: { public: w.public_last, all: w.all_last },
+    };
+  }
+  for (const e of entries) {
+    const s = get(e.movie_id, e.series_id);
+    if (s) {
+      s.entries = {
+        hasPublic: e.has_public,
+        hasPrivate: e.has_private,
+        publicScored: e.public_scored,
+        privateScored: e.private_scored,
+      };
+    }
+  }
+  // Titles with no entry rows at all keep `entries` undefined → treated as a
+  // public quick-rate (no diary/review evidence either way).
   return [...map.values()];
+}
+
+interface EntryVisibilityRaw {
+  movie_id: number | null;
+  series_id: number | null;
+  has_public: boolean;
+  has_private: boolean;
+  public_scored: boolean;
+  private_scored: boolean;
+}
+
+/**
+ * Visibility of ALL the user's entries per title — WATCH and NOTE diary
+ * entries (any kind) and reviews — computed by id with NO row cap, so the
+ * public/private decision never depends on how recent an entry is. A
+ * "scored" entry is one that can have written the canonical rating: a
+ * watch_event with a score, or a review (the review composer upserts it).
+ */
+export async function fetchEntryVisibility(
+  userId: number,
+  movieIds: number[],
+  seriesIds: number[]
+): Promise<EntryVisibilityRaw[]> {
+  if (movieIds.length + seriesIds.length === 0) return [];
+  return prisma.$queryRaw<EntryVisibilityRaw[]>`
+    SELECT movie_id, series_id,
+           bool_or(NOT is_private) AS has_public,
+           bool_or(is_private) AS has_private,
+           bool_or(NOT is_private AND scored) AS public_scored,
+           bool_or(is_private AND scored) AS private_scored
+    FROM (
+      SELECT movie_id, series_id, is_private, (score IS NOT NULL) AS scored
+      FROM watch_events
+      WHERE user_id = ${userId}
+        AND (movie_id = ANY(${movieIds}::int[]) OR series_id = ANY(${seriesIds}::int[]))
+      UNION ALL
+      SELECT movie_id, series_id, is_private, true AS scored
+      FROM user_reviews
+      WHERE user_id = ${userId}
+        AND (movie_id = ANY(${movieIds}::int[]) OR series_id = ANY(${seriesIds}::int[]))
+    ) e
+    GROUP BY movie_id, series_id`;
 }
 
 // ---------------------------------------------------------------------------
@@ -217,6 +307,20 @@ export function moodLabel(key: string): string | null {
   return MOOD_LABELS[key] ?? null;
 }
 
+/**
+ * Keyword names that must never surface as a public facet/cluster label on the
+ * indexable /u/* pages (seo-search-console.md: adult content stays out of
+ * search surfaces). Adult-flagged TITLES are already excluded from metadata;
+ * this catches adult-adjacent keywords on mainstream titles. Display hygiene,
+ * NOT classification — broad on purpose.
+ */
+const ADULT_KEYWORD_RE =
+  /\b(softcore|porn\w*|xxx|erotic\w*|sex\w*|nudity|nude|naked|fetish\w*|bdsm|orgy|orgies|striptease|stripper\w*|prostitut\w*|hentai|incest|masturbat\w*|voyeur\w*)\b/i;
+
+export function isAdultKeyword(name: string): boolean {
+  return ADULT_KEYWORD_RE.test(name);
+}
+
 /** Title-case a free-text tag for display without rewriting its words. */
 function displayTag(text: string): string {
   const t = text.trim().replace(/\s+/g, " ");
@@ -270,7 +374,7 @@ async function fetchMetaFor(mediaType: TasteMediaType, ids: number[]) {
         FROM movies m
         LEFT JOIN languages l ON l.code = m.original_language
         LEFT JOIN ratings r ON r.movie_id = m.id AND r.source_id = ${TMDB_SOURCE}
-        WHERE m.id = ANY(${ids}::int[])`
+        WHERE m.id = ANY(${ids}::int[]) AND m.adult = false`
     : prisma.$queryRaw<CoreRaw[]>`
         SELECT s.id, s.name AS title, s.poster_path, EXTRACT(YEAR FROM s.first_air_date)::int AS year,
                s.popularity, s.original_language AS language, l.english_name AS language_name,
@@ -278,7 +382,7 @@ async function fetchMetaFor(mediaType: TasteMediaType, ids: number[]) {
         FROM series s
         LEFT JOIN languages l ON l.code = s.original_language
         LEFT JOIN ratings r ON r.series_id = s.id AND r.source_id = ${TMDB_SOURCE}
-        WHERE s.id = ANY(${ids}::int[])`;
+        WHERE s.id = ANY(${ids}::int[]) AND s.adult = false`;
   const genres = isMovie
     ? prisma.$queryRaw<PairRaw[]>`
         SELECT mg.movie_id AS id, lower(g.name) AS key, g.name AS label
@@ -382,6 +486,7 @@ export async function fetchTitleMeta(
       });
     }
     for (const pr of data.pairs) {
+      if (pr.type === "keyword" && isAdultKeyword(pr.label)) continue;
       // TMDB keywords are lower-case ("time travel") — sentence-case them for display.
       const label = pr.type === "keyword" ? displayTag(pr.label) : pr.label;
       meta.get(titleKey(mediaType, pr.id))?.facets.push({ type: pr.type, key: pr.key, label });
@@ -406,7 +511,7 @@ export async function fetchTitleMeta(
         if (label) t.facets.push({ type: "mood", key, label });
       } else {
         const key = normalizeTagKey(a.text);
-        if (key.length > 0 && key.length <= 60) t.facets.push({ type: "theme", key, label: displayTag(a.text) });
+        if (key.length > 0 && key.length <= 60 && !isAdultKeyword(key)) t.facets.push({ type: "theme", key, label: displayTag(a.text) });
       }
     }
   };
@@ -416,177 +521,46 @@ export async function fetchTitleMeta(
 }
 
 // ---------------------------------------------------------------------------
-// Baseline (catalog) counts — cached by the service layer.
+// Baseline — REQUEST PATH: primary-key lookups only. The catalog scans that
+// fill these tables live in taste-baseline.ts and run in the nightly
+// `taste-baseline` cron, never on a render.
 // ---------------------------------------------------------------------------
 
-export type BaselineMode = "votes" | "all";
-
-/** Size of the vote-gated baseline (movies + series). */
-export async function countVoteBaseline(minVotes: number): Promise<number> {
-  const rows = await prisma.$queryRaw<Array<{ n: number }>>`
-    SELECT (
-      (SELECT count(*) FROM ratings r JOIN movies m ON m.id = r.movie_id
-        WHERE r.source_id = ${TMDB_SOURCE} AND r.vote_count >= ${minVotes} AND m.adult = false)
-      +
-      (SELECT count(*) FROM ratings r JOIN series s ON s.id = r.series_id
-        WHERE r.source_id = ${TMDB_SOURCE} AND r.vote_count >= ${minVotes} AND s.adult = false)
-    )::int AS n`;
-  return Number(rows[0]?.n ?? 0);
+export interface BaselineMeta {
+  mode: string;
+  catalogSize: number;
+  enrichedSize: number;
+  popularityQuantiles: number[];
+  yearQuantiles: number[];
+  computedAt: Date | null;
 }
 
-export async function countAllBaseline(): Promise<number> {
-  const rows = await prisma.$queryRaw<Array<{ n: number }>>`
-    SELECT ((SELECT count(*) FROM movies WHERE adult = false)
-          + (SELECT count(*) FROM series WHERE adult = false))::int AS n`;
-  return Number(rows[0]?.n ?? 0);
+/** The singleton baseline meta row (null on a fresh env before the first cron run). */
+export async function readBaselineMeta(): Promise<BaselineMeta | null> {
+  const row = await prisma.tasteBaselineMeta.findUnique({
+    where: { id: 1 },
+    select: {
+      mode: true,
+      catalogSize: true,
+      enrichedSize: true,
+      popularityQuantiles: true,
+      yearQuantiles: true,
+      computedAt: true,
+    },
+  });
+  return row && row.computedAt ? row : null;
 }
 
-export async function countEnrichedBaseline(): Promise<number> {
-  const rows = await prisma.$queryRaw<Array<{ n: number }>>`SELECT count(*)::int AS n FROM ai_data`;
-  return Number(rows[0]?.n ?? 0);
-}
-
-/** Membership predicate for a catalog row in the baseline population. */
-function inBaseline(mode: BaselineMode, table: "m" | "s", minVotes: number): Prisma.Sql {
-  const col = table === "m" ? Prisma.sql`r.movie_id = m.id` : Prisma.sql`r.series_id = s.id`;
-  const adult = table === "m" ? Prisma.sql`m.adult = false` : Prisma.sql`s.adult = false`;
-  if (mode === "all") return adult;
-  return Prisma.sql`${adult} AND EXISTS (
-    SELECT 1 FROM ratings r WHERE ${col} AND r.source_id = ${TMDB_SOURCE} AND r.vote_count >= ${minVotes})`;
-}
-
-type CountRow = { key: string; n: number };
-const toMap = (rows: CountRow[]) => {
+/** Stored catalog counts for specific facet keys of one type (PK index scan). */
+export async function readBaselineCounts(type: FacetValue["type"], keys: string[]): Promise<Map<string, number>> {
   const out = new Map<string, number>();
-  for (const r of rows) out.set(String(r.key), (out.get(String(r.key)) ?? 0) + Number(r.n));
+  if (keys.length === 0) return out;
+  const rows = await prisma.tasteFacetBaseline.findMany({
+    where: { type, key: { in: keys } },
+    select: { key: true, n: true },
+  });
+  for (const r of rows) out.set(r.key, r.n);
   return out;
-};
-
-/** Baseline counts for specific facet keys (keys must be non-empty). */
-export async function fetchBaselineCounts(
-  type: FacetValue["type"],
-  keys: string[],
-  mode: BaselineMode,
-  minVotes: number
-): Promise<Map<string, number>> {
-  if (keys.length === 0) return new Map();
-  const bm = inBaseline(mode, "m", minVotes);
-  const bs = inBaseline(mode, "s", minVotes);
-  switch (type) {
-    case "genre":
-      return toMap(await prisma.$queryRaw<CountRow[]>`
-        SELECT lower(g.name) AS key, count(*)::int AS n FROM movie_genres x
-          JOIN genres g ON g.id = x.genre_id JOIN movies m ON m.id = x.movie_id
-          WHERE lower(g.name) = ANY(${keys}::text[]) AND ${bm} GROUP BY 1
-        UNION ALL
-        SELECT lower(g.name) AS key, count(*)::int AS n FROM series_genres x
-          JOIN genres g ON g.id = x.genre_id JOIN series s ON s.id = x.series_id
-          WHERE lower(g.name) = ANY(${keys}::text[]) AND ${bs} GROUP BY 1`);
-    case "keyword": {
-      const ids = keys.map(Number).filter(Number.isFinite);
-      return toMap(await prisma.$queryRaw<CountRow[]>`
-        SELECT k.tmdb_id::text AS key, count(*)::int AS n FROM movie_keywords x
-          JOIN keywords k ON k.id = x.keyword_id JOIN movies m ON m.id = x.movie_id
-          WHERE k.tmdb_id = ANY(${ids}::int[]) AND ${bm} GROUP BY 1
-        UNION ALL
-        SELECT k.tmdb_id::text AS key, count(*)::int AS n FROM series_keywords x
-          JOIN keywords k ON k.id = x.keyword_id JOIN series s ON s.id = x.series_id
-          WHERE k.tmdb_id = ANY(${ids}::int[]) AND ${bs} GROUP BY 1`);
-    }
-    case "country":
-      return toMap(await prisma.$queryRaw<CountRow[]>`
-        SELECT x.country_code AS key, count(DISTINCT x.movie_id)::int AS n FROM movie_countries x
-          JOIN movies m ON m.id = x.movie_id
-          WHERE x.country_code = ANY(${keys}::text[]) AND ${bm} GROUP BY 1
-        UNION ALL
-        SELECT x.country_code AS key, count(DISTINCT x.series_id)::int AS n FROM series_countries x
-          JOIN series s ON s.id = x.series_id
-          WHERE x.country_code = ANY(${keys}::text[]) AND ${bs} GROUP BY 1`);
-    case "language":
-      return toMap(await prisma.$queryRaw<CountRow[]>`
-        SELECT m.original_language AS key, count(*)::int AS n FROM movies m
-          WHERE m.original_language = ANY(${keys}::text[]) AND ${bm} GROUP BY 1
-        UNION ALL
-        SELECT s.original_language AS key, count(*)::int AS n FROM series s
-          WHERE s.original_language = ANY(${keys}::text[]) AND ${bs} GROUP BY 1`);
-    case "decade": {
-      const decades = keys.map(Number).filter(Number.isFinite);
-      return toMap(await prisma.$queryRaw<CountRow[]>`
-        SELECT ((EXTRACT(YEAR FROM m.release_date)::int / 10) * 10)::text AS key, count(*)::int AS n
-          FROM movies m WHERE m.release_date IS NOT NULL AND ${bm}
-          AND ((EXTRACT(YEAR FROM m.release_date)::int / 10) * 10) = ANY(${decades}::int[]) GROUP BY 1
-        UNION ALL
-        SELECT ((EXTRACT(YEAR FROM s.first_air_date)::int / 10) * 10)::text AS key, count(*)::int AS n
-          FROM series s WHERE s.first_air_date IS NOT NULL AND ${bs}
-          AND ((EXTRACT(YEAR FROM s.first_air_date)::int / 10) * 10) = ANY(${decades}::int[]) GROUP BY 1`);
-    }
-    case "director": {
-      const ids = keys.map(Number).filter(Number.isFinite);
-      return toMap(await prisma.$queryRaw<CountRow[]>`
-        SELECT p.tmdb_id::text AS key, count(DISTINCT c.movie_id)::int AS n FROM persons p
-          JOIN credits c ON c.person_id = p.id JOIN movies m ON m.id = c.movie_id
-          WHERE p.tmdb_id = ANY(${ids}::int[]) AND c.credit_type = 'CREW' AND c.job = 'Director' AND ${bm}
-          GROUP BY 1
-        UNION ALL
-        SELECT p.tmdb_id::text AS key, count(DISTINCT x.series_id)::int AS n FROM persons p
-          JOIN series_creators x ON x.person_id = p.id JOIN series s ON s.id = x.series_id
-          WHERE p.tmdb_id = ANY(${ids}::int[]) AND ${bs} GROUP BY 1`);
-    }
-    case "cast": {
-      const ids = keys.map(Number).filter(Number.isFinite);
-      return toMap(await prisma.$queryRaw<CountRow[]>`
-        SELECT p.tmdb_id::text AS key, count(DISTINCT c.movie_id)::int AS n FROM persons p
-          JOIN credits c ON c.person_id = p.id JOIN movies m ON m.id = c.movie_id
-          WHERE p.tmdb_id = ANY(${ids}::int[]) AND c.credit_type = 'CAST'
-            AND c.credit_order IS NOT NULL AND c.credit_order < 5 AND ${bm}
-          GROUP BY 1
-        UNION ALL
-        SELECT p.tmdb_id::text AS key, count(DISTINCT c.series_id)::int AS n FROM persons p
-          JOIN credits c ON c.person_id = p.id JOIN series s ON s.id = c.series_id
-          WHERE p.tmdb_id = ANY(${ids}::int[]) AND c.credit_type = 'CAST' AND c.is_aggregate = false
-            AND c.credit_order IS NOT NULL AND c.credit_order < 5 AND ${bs}
-          GROUP BY 1`);
-    }
-    case "theme":
-      // Population = the enriched catalog (only ai_data titles can carry a tag).
-      return toMap(await prisma.$queryRaw<CountRow[]>`
-        SELECT lower(regexp_replace(btrim(text), '\\s+', ' ', 'g')) AS key,
-               count(DISTINCT ai_data_id)::int AS n
-        FROM ai_insights
-        WHERE category IN ('THEME', 'VIBE') AND spoiler_level = 'FREE'
-          AND lower(regexp_replace(btrim(text), '\\s+', ' ', 'g')) = ANY(${keys}::text[])
-        GROUP BY 1`);
-    case "mood":
-      return toMap(await prisma.$queryRaw<CountRow[]>`
-        SELECT subcategory || ':' || lower(btrim(text)) AS key, count(DISTINCT ai_data_id)::int AS n
-        FROM ai_insights
-        WHERE category = 'MOOD' AND subcategory || ':' || lower(btrim(text)) = ANY(${keys}::text[])
-        GROUP BY 1`);
-  }
-}
-
-/** 101 catalog quantiles of popularity and release year over the baseline. */
-export async function fetchCatalogQuantiles(
-  mode: BaselineMode,
-  minVotes: number
-): Promise<{ popularity: number[]; year: number[] }> {
-  const bm = inBaseline(mode, "m", minVotes);
-  const bs = inBaseline(mode, "s", minVotes);
-  const steps = Array.from({ length: 101 }, (_, i) => i / 100);
-  const rows = await prisma.$queryRaw<Array<{ pop: number[] | null; yr: number[] | null }>>`
-    WITH b AS (
-      SELECT m.popularity AS pop, EXTRACT(YEAR FROM m.release_date)::float8 AS yr FROM movies m WHERE ${bm}
-      UNION ALL
-      SELECT s.popularity AS pop, EXTRACT(YEAR FROM s.first_air_date)::float8 AS yr FROM series s WHERE ${bs}
-    )
-    SELECT percentile_cont(${steps}::float8[]) WITHIN GROUP (ORDER BY pop) FILTER (WHERE pop IS NOT NULL) AS pop,
-           percentile_cont(${steps}::float8[]) WITHIN GROUP (ORDER BY yr) FILTER (WHERE yr IS NOT NULL) AS yr
-    FROM b`;
-  const r = rows[0];
-  return {
-    popularity: (r?.pop ?? []).map(Number),
-    year: (r?.yr ?? []).map(Number),
-  };
 }
 
 // ---------------------------------------------------------------------------

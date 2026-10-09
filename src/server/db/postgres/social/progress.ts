@@ -155,6 +155,59 @@ export async function getProgressShelf(
   }));
 }
 
+/**
+ * PUBLIC shelf for the ISR-cached profile: only series with at least one
+ * PUBLIC WATCH event, positioned at the furthest PUBLIC episode and counting
+ * public episodes only. A series watched only privately never appears, and a
+ * private binge never advances the shown position. (The owner's own shelf —
+ * getProgressShelf — stays unfiltered.)
+ */
+export async function getPublicProgressShelf(
+  userId: number,
+  statuses: WatchStatus[],
+  limit = 20
+): Promise<ProgressShelfItem[]> {
+  const rows = await prisma.$queryRaw<
+    Array<{
+      series_id: number;
+      status: WatchStatus;
+      season_number: number | null;
+      episode_number: number | null;
+      episodes: number;
+      updated_at: Date;
+      name: string | null;
+      poster_path: string | null;
+    }>
+  >`
+    SELECT sp.series_id, sp.status, pub.season_number, pub.episode_number, pub.episodes,
+           sp.updated_at, s.name, s.poster_path
+    FROM series_progress sp
+    JOIN series s ON s.id = sp.series_id
+    JOIN LATERAL (
+      SELECT (array_agg(we.season_number ORDER BY we.season_number DESC NULLS LAST, we.episode_number DESC NULLS LAST))[1] AS season_number,
+             (array_agg(we.episode_number ORDER BY we.season_number DESC NULLS LAST, we.episode_number DESC NULLS LAST))[1] AS episode_number,
+             count(*) FILTER (WHERE we.episode_number IS NOT NULL)::int AS episodes,
+             count(*)::int AS n
+      FROM watch_events we
+      WHERE we.user_id = sp.user_id AND we.series_id = sp.series_id
+        AND we.kind = 'WATCH' AND we.is_private = false
+    ) pub ON pub.n > 0
+    WHERE sp.user_id = ${userId} AND sp.status::text = ANY(${statuses}::text[])
+    ORDER BY sp.updated_at DESC
+    LIMIT ${limit}
+  `;
+  return rows.map((r) => ({
+    seriesId: r.series_id,
+    status: r.status,
+    lastSeasonNumber: r.season_number,
+    lastEpisodeNumber: r.episode_number,
+    episodesWatched: Number(r.episodes),
+    updatedAt: r.updated_at,
+    name: r.name,
+    posterPath: r.poster_path,
+  }));
+}
+
 export async function getSeriesProgress(userId: number, seriesId: number) {
   return prisma.seriesProgress.findUnique({
     where: { userId_seriesId: { userId, seriesId } },

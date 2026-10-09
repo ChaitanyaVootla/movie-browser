@@ -9,7 +9,9 @@ import { getFourFavorites } from "./lists";
 import { getFollowCounts } from "./follows";
 import { getUserReviews } from "./reviews";
 import { getUserComments } from "../comments";
-import { getProgressShelf } from "./progress";
+import { getPublicProgressShelf } from "./progress";
+import { computeStats, type StatsSnapshot } from "./stats-compute";
+import { dataLogger } from "@/lib/logger";
 import { getProfileTaste } from "@/server/services/taste";
 import { resolveAvatarUrl, resolveAvatarCrop, resolveAccent } from "@/lib/resolve-avatar";
 import type {
@@ -92,34 +94,64 @@ function toSlices(items: { name?: string; decade?: string; count: number }[]): B
 
 /**
  * Score histogram for the PUBLIC profile. Same privacy rule as the taste
- * profile's public projection: a score on a title whose ONLY watch events are
- * private is excluded (logging a private watch with a score also upserts the
- * canonical rating — counting it would reveal the private watch).
+ * profile's public projection (`isRatingPrivate`), decided over ALL entry kinds
+ * (WATCH + NOTE diary entries and reviews): a score is withheld when the
+ * title's entries are all private, or when a private entry could have written
+ * it (a private scored diary entry or a private review) and no public one did.
+ * Fail-open: any error → empty histogram + warn (ISR render path).
  */
 async function getPublicScoreHistogramRows(
   userId: number
 ): Promise<Array<{ score: number; count: number }>> {
-  const rows = await prisma.$queryRaw<Array<{ score: number; count: number }>>`
-    SELECT ur.score, count(*)::int AS count
-    FROM user_ratings ur
-    WHERE ur.user_id = ${userId} AND ur.score IS NOT NULL
-      AND NOT (
-        EXISTS (
-          SELECT 1 FROM watch_events we
-          WHERE we.user_id = ur.user_id AND we.kind = 'WATCH' AND we.is_private = true
+  try {
+    const rows = await prisma.$queryRaw<Array<{ score: number; count: number }>>`
+      SELECT ur.score, count(*)::int AS count
+      FROM user_ratings ur
+      LEFT JOIN LATERAL (
+        SELECT bool_or(NOT e.is_private) AS has_public,
+               bool_or(e.is_private) AS has_private,
+               bool_or(NOT e.is_private AND e.scored) AS public_scored,
+               bool_or(e.is_private AND e.scored) AS private_scored
+        FROM (
+          SELECT we.is_private, (we.score IS NOT NULL) AS scored FROM watch_events we
+          WHERE we.user_id = ur.user_id
             AND ((ur.movie_id IS NOT NULL AND we.movie_id = ur.movie_id)
               OR (ur.series_id IS NOT NULL AND we.series_id = ur.series_id))
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM watch_events we
-          WHERE we.user_id = ur.user_id AND we.kind = 'WATCH' AND we.is_private = false
-            AND ((ur.movie_id IS NOT NULL AND we.movie_id = ur.movie_id)
-              OR (ur.series_id IS NOT NULL AND we.series_id = ur.series_id))
-        )
-      )
-    GROUP BY ur.score
-  `;
-  return rows.map((r) => ({ score: Number(r.score), count: Number(r.count) }));
+          UNION ALL
+          SELECT rv.is_private, true AS scored FROM user_reviews rv
+          WHERE rv.user_id = ur.user_id
+            AND ((ur.movie_id IS NOT NULL AND rv.movie_id = ur.movie_id)
+              OR (ur.series_id IS NOT NULL AND rv.series_id = ur.series_id))
+        ) e
+      ) v ON true
+      WHERE ur.user_id = ${userId} AND ur.score IS NOT NULL
+        AND NOT COALESCE(v.has_private AND NOT v.has_public, false)
+        AND NOT COALESCE(v.private_scored AND NOT COALESCE(v.public_scored, false), false)
+      GROUP BY ur.score
+    `;
+    return rows.map((r) => ({ score: Number(r.score), count: Number(r.count) }));
+  } catch (error: unknown) {
+    dataLogger.warn({
+      action: "getPublicScoreHistogramRows",
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  }
+}
+
+/** PUBLIC stats snapshot, fail-open (first read recomputes; an error must not take down the render). */
+async function getPublicStatsSafe(userId: number): Promise<StatsSnapshot> {
+  try {
+    return await getUserStatsSnapshot(userId, { scope: "public" });
+  } catch (error: unknown) {
+    dataLogger.warn({
+      action: "getPublicStatsSafe",
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return computeStats([], []);
+  }
 }
 
 export async function getPublicProfileByUsername(
@@ -138,7 +170,7 @@ export async function getPublicProfileByUsername(
   const [snapshot, favorites, follows, reviewsPage, discussions, watching, pinnedRows, histogramRows, dailyRows, recentRows, taste] =
     await Promise.all([
       // PUBLIC projection: private watch events never reach a profile visitor.
-      getUserStatsSnapshot(user.id, { scope: "public" }),
+      getPublicStatsSafe(user.id),
       getFourFavorites(user.id),
       getFollowCounts(user.id),
       // ISR-cached surface: NONE-scope only — non-NONE bodies must not bake into
@@ -147,7 +179,9 @@ export async function getPublicProfileByUsername(
       getUserReviews(user.id, { includePrivate: false, noneScopeOnly: true, limit: 6 }),
       // Same anon-cacheable-tier contract: PUBLISHED + NONE + circle-NULL roots only.
       getUserComments(user.id, 6),
-      getProgressShelf(user.id, ["WATCHING", "REWATCHING"], 6),
+      // Public shelf: only series with a PUBLIC watch, positioned at the max
+      // PUBLIC episode (private viewing never shows in the ISR HTML).
+      getPublicProgressShelf(user.id, ["WATCHING", "REWATCHING"], 6),
       prisma.list.findMany({
         where: { ownerId: user.id, isPinned: true, isPublic: true, kind: "REGULAR" },
         orderBy: { updatedAt: "desc" },

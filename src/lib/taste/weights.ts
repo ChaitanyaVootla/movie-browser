@@ -34,18 +34,33 @@ export function clip(x: number, lo: number, hi: number): number {
 }
 
 /**
- * True when every WATCH event on the title is private. A private watch logged
- * with a score also upserts the canonical rating, so in the PUBLIC scope that
- * rating (and any progress status) must be treated as private too.
+ * True when the user's entries on the title are ALL private — over every entry
+ * kind (WATCH and NOTE diary entries, reviews), not just WATCH events. A private
+ * entry logged with a score (a private watch, a private NOTE, a private review)
+ * also upserts the canonical rating, so in the PUBLIC scope that rating (and any
+ * progress status) must be treated as private too. Falls back to the WATCH
+ * counts when the uncapped entry visibility is unknown.
  */
 export function isPrivateOnly(s: TitleSignals): boolean {
+  if (s.entries) return s.entries.hasPrivate && !s.entries.hasPublic;
   return s.watches.count.all > 0 && s.watches.count.public === 0;
 }
 
-/** Ratings visible to a scope (public excludes ratings on private-only titles). */
+/**
+ * Could the canonical rating have come from a private entry? True when the
+ * title is private-only, or when a private entry carried a score (private
+ * scored watch/NOTE, private review) and no public entry did. Conservative:
+ * a later public quick-rate on such a title is also withheld.
+ */
+export function isRatingPrivate(s: TitleSignals): boolean {
+  if (isPrivateOnly(s)) return true;
+  return s.entries ? s.entries.privateScored && !s.entries.publicScored : false;
+}
+
+/** Ratings visible to a scope (public excludes ratings that may come from private entries). */
 function scopedRating(s: TitleSignals, scope: TasteScope): TitleSignals["rating"] {
   if (!s.rating) return null;
-  if (scope === "public" && isPrivateOnly(s)) return null;
+  if (scope === "public" && isRatingPrivate(s)) return null;
   return s.rating;
 }
 
@@ -101,7 +116,12 @@ export function titleWeight(
 
   if (s.progress && !(isPublic && isPrivateOnly(s))) {
     const d = decayFactor(s.progress.updatedAt, now);
-    if (s.progress.status === "COMPLETED" || s.progress.status === "CAUGHT_UP") {
+    const finished = s.progress.status === "COMPLETED" || s.progress.status === "CAUGHT_UP";
+    // Public scope credits a finish only when it is publicly evidenced: public
+    // WATCH events and no private ones (otherwise the finish may rest on
+    // private viewing).
+    const finishIsPublic = s.watches.count.public > 0 && s.watches.count.all === s.watches.count.public;
+    if (finished && (!isPublic || finishIsPublic)) {
       w += W_SERIES_FINISHED * d;
     } else if (s.progress.status === "DROPPED") {
       w += W_SERIES_DROPPED * d;

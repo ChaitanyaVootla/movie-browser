@@ -119,6 +119,30 @@ module.exports = {
       env: { NODE_ENV: "production", CRON_HOUR_UTC: "22" },
       kill_timeout: 300000, // 5 minutes - sitemap gen can take a while
     },
+    // Taste-profile catalog baseline - daily at 19:00 UTC (00:30 IST). Rebuilds
+    // taste_facet_baseline + taste_baseline_meta (facet counts + quantiles over the
+    // vote-gated catalog) so the profile render path only does PK lookups. All
+    // aggregation is server-side SQL (Node holds counts only); writes are diff-only.
+    // 19:00 is free (isr-cache-prune runs at 18:00; imdb 20, popularity 21, sitemap 22).
+    {
+      name: "taste-baseline",
+      cwd: "/home/ubuntu/movie-browser-next",
+      script: "bash",
+      args: ["-c", "exec nice -n 19 npx tsx scripts/refresh-taste-baseline.ts"],
+      cron_restart: "0 19 * * *",
+      autorestart: false,
+      restart_delay: 5000,
+      max_restarts: 2,
+      min_uptime: "1s",
+      watch: false,
+      max_memory_restart: "500M",
+      error_file: "./logs/taste-baseline-error.log",
+      out_file: "./logs/taste-baseline-out.log",
+      log_file: "./logs/taste-baseline-combined.log",
+      time: true,
+      env: { NODE_ENV: "production", CRON_HOUR_UTC: "19" },
+      kill_timeout: 300000,
+    },
     // Episode-drop notifications - daily at 05:00 UTC (10:30 IST). Diffs newly-aired
     // episodes against viewers' tracked sets and writes ONE bounded EPISODE_DROP per
     // (viewer, series, season). No fan-out; idempotent.

@@ -9,7 +9,7 @@
  * Before this, the public profile counted private watches in its films/hours/
  * genres/countries/people.
  */
-import { Prisma, type WatchedAtPrecision, type WatchEventSource } from "@prisma/client";
+import type { WatchedAtPrecision, WatchEventSource } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
 import {
   computeStats,
@@ -39,7 +39,7 @@ interface MovieEventRaw {
 
 interface SeriesEventRaw extends MovieEventRaw {
   episode_number: number | null;
-  fallback_runtimes: number[];
+  fallback_runtimes: number[] | null;
 }
 
 async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
@@ -100,7 +100,8 @@ async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
     title: r.title,
     // series-level events (granularity unknown) get zero runtime — honest hours.
     runtimeMinutes: r.episode_number !== null ? r.runtime : 0,
-    fallbackRuntimes: r.episode_number !== null ? r.fallback_runtimes : [],
+    // episode_run_time can be NULL (not just {}) on sparse series rows — never crash stats.
+    fallbackRuntimes: r.episode_number !== null ? (r.fallback_runtimes ?? []) : [],
     genres: r.genres,
     countries: r.countries,
     year: r.year,
@@ -173,24 +174,40 @@ export async function computeUserStats(
   return computeStats(rows, people, opts);
 }
 
-/** Recompute BOTH projections from one fetch and store them (non-dirty). */
+/**
+ * Recompute BOTH projections from one fetch and store them. Lost-dirty guard
+ * (same idea as writeTasteRow): `dirty` is only cleared when `dirty_at` is
+ * unchanged since we read it — a markStatsDirty that lands while we compute
+ * keeps the row dirty so the next read recomputes again.
+ */
 export async function refreshUserStatsSnapshot(
   userId: number
 ): Promise<{ full: StatsSnapshot; public: StatsSnapshot }> {
+  const before = await prisma.userStats.findUnique({ where: { userId }, select: { dirtyAt: true } });
+  const observed = before?.dirtyAt ?? null;
   const { events, people } = await fetchStatsInputs(userId);
   const pair = computeStatsPair(events, people);
-  const data = {
-    stats: pair.full as unknown as Prisma.InputJsonValue,
-    publicStats: pair.public as unknown as Prisma.InputJsonValue,
-    computedAt: new Date(),
-    dirty: false,
-  };
-  await prisma.userStats.upsert({
-    where: { userId },
-    create: { userId, ...data },
-    update: data,
-  });
+  await writeUserStatsSnapshot(userId, pair, observed);
   return pair;
+}
+
+/** Store both projections; clears `dirty` only if `dirty_at` still equals `observedDirtyAt`. */
+export async function writeUserStatsSnapshot(
+  userId: number,
+  pair: { full: StatsSnapshot; public: StatsSnapshot },
+  observedDirtyAt: Date | null
+): Promise<void> {
+  const observed = observedDirtyAt;
+  await prisma.$executeRaw`
+    INSERT INTO user_stats (user_id, stats, public_stats, computed_at, dirty)
+    VALUES (${userId}, ${JSON.stringify(pair.full)}::jsonb, ${JSON.stringify(pair.public)}::jsonb, now(), false)
+    ON CONFLICT (user_id) DO UPDATE SET
+      stats = EXCLUDED.stats,
+      public_stats = EXCLUDED.public_stats,
+      computed_at = EXCLUDED.computed_at,
+      dirty = CASE WHEN user_stats.dirty_at IS DISTINCT FROM ${observed}::timestamptz AND user_stats.dirty
+                   THEN true ELSE false END
+  `;
 }
 
 /**

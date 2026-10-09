@@ -52,6 +52,21 @@ export interface TitleSignals {
   };
   progress: { status: SeriesStatusLite; updatedAt: Date } | null;
   watchlistedAt: Date | null;
+  /**
+   * Visibility of the user's diary/review entries on this title, over ALL entry
+   * kinds (WATCH and NOTE watch_events + user_reviews), computed WITHOUT the
+   * source row cap. Drives the public-scope decision for ratings/progress:
+   * a title with private entries and no public one is private-only. Absent =
+   * no entries at all (a quick-rate, which is public).
+   */
+  entries?: {
+    hasPublic: boolean;
+    hasPrivate: boolean;
+    /** A public entry that can carry a score (public watch_event with a score, or a public review). */
+    publicScored: boolean;
+    /** A private entry that can carry a score (private watch_event with a score, or a private review). */
+    privateScored: boolean;
+  };
 }
 
 /** A title after folding its signals into one weight for a scope. */

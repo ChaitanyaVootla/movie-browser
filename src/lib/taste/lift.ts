@@ -81,12 +81,16 @@ export function liftFacets(
   if (totalMass === 0) return [];
 
   const size = Math.max(0, baseline.size(type));
+  // No baseline (fresh env before the first nightly cron): uniform prior over
+  // the values the user actually has, so facets still rank by concentration
+  // instead of vanishing — and nothing ever scans the catalog to find out.
+  const uniformShare = 1 / Math.max(2, byKey.size);
   const out: FacetStat[] = [];
   for (const [key, entry] of byKey) {
     const v = entry.members.length;
     if (v < minSupport) continue;
     const userShare = entry.mass / totalMass;
-    const baseShare = (Math.max(0, baseline.count(type, key)) + 1) / (size + 1);
+    const baseShare = size > 0 ? (Math.max(0, baseline.count(type, key)) + 1) / (size + 1) : uniformShare;
     const r = Math.log(userShare / baseShare);
     const score = shrink(v, r, m, 0);
     if (!(score > 0)) continue;

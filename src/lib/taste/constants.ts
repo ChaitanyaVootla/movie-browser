@@ -6,7 +6,7 @@
  * profiles with a different version are recomputed on their next read, so no
  * migration or backfill is needed.
  */
-export const TASTE_ALGO_VERSION = 1;
+export const TASTE_ALGO_VERSION = 2; // v2: privacy over all entry kinds, uncapped privacy, public-finish rule, adult filter
 
 /** Signal weights (spec §4). */
 export const W_FAVORITE = 3;

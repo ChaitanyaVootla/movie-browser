@@ -516,7 +516,10 @@ async function main(): Promise<void> {
     console.log(`    @${p.username}: ${c.events} watch events, ${c.ratings} ratings`);
   }
 
-  console.log("4/4 Recompute stats + taste...");
+  console.log("4/4 Baseline cron + recompute stats + taste...");
+  const { refreshTasteBaseline } = await import("../src/server/db/postgres/social/taste-baseline");
+  const base = await refreshTasteBaseline();
+  console.log(`    taste baseline: mode=${base.mode} catalog=${base.catalogSize} in ${base.totalMs}ms`);
   const { refreshUserStatsSnapshot } = await import("../src/server/db/postgres/social/stats");
   const { recomputeTasteNow } = await import("../src/server/services/taste");
   const { prisma: shared } = await import("../src/server/db/postgres");
