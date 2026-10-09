@@ -3,9 +3,10 @@
  * docs/superpowers/specs/2026-10-09-taste-recommendations-design.md §4).
  *
  * PUBLIC scope only, for BOTH sides: public ratings (private-only titles
- * dropped) and the PUBLIC centroid. Gate: blocks/mutes → nothing; allowed when
- * both profiles are public and the target shows their taste, otherwise only for
- * mutual follows. Never throws (→ null / []).
+ * dropped) and the PUBLIC centroid. Gate (`canViewTasteMatch`): blocks/mutes,
+ * a hidden taste profile or a private target → nothing (a follow never
+ * overrides the target's privacy); a public viewer → allowed; a private viewer
+ * → only with a mutual follow. Never throws (→ null / []).
  */
 import {
   canViewTasteMatch,

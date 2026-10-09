@@ -4,7 +4,9 @@ import type { TasteMatchDTO } from "@/lib/taste/recommend-types";
 
 const viewer = { resolved: true, authenticated: true, isOwner: false };
 vi.mock("./profile-viewer-context", () => ({ useProfileViewer: () => viewer }));
-vi.mock("@/hooks/use-analytics", () => ({ useAnalytics: () => ({ trackAction: vi.fn() }) }));
+const track = vi.fn();
+// A NEW function per render, like the real hook while the session settles.
+vi.mock("@/hooks/use-analytics", () => ({ useAnalytics: () => ({ trackAction: (...a: unknown[]) => track(...a) }) }));
 const getTasteMatch = vi.fn();
 vi.mock("@/server/actions/taste-recs", () => ({ getTasteMatch: (u: string) => getTasteMatch(u) }));
 
@@ -20,6 +22,7 @@ const match: TasteMatchDTO = {
 
 beforeEach(() => {
   getTasteMatch.mockReset();
+  track.mockReset();
   Object.assign(viewer, { resolved: true, authenticated: true, isOwner: false });
 });
 
@@ -54,5 +57,16 @@ describe("TasteMatch", () => {
     expect(screen.getByText("4.5")).toBeTruthy(); // owner's 9/10 as stars
     // Fable rule: copy never labels the person.
     expect(document.body.textContent ?? "").not.toMatch(/you're|you are|are a /i);
+  });
+
+  it("fires taste_match_view once per target and fetches once, across re-renders", async () => {
+    getTasteMatch.mockResolvedValue(match);
+    const { rerender } = render(<TasteMatch username="ada" displayName="Ada L" />);
+    await screen.findByText("72%");
+    rerender(<TasteMatch username="ada" displayName="Ada L" />);
+    rerender(<TasteMatch username="ada" displayName="Ada L" />);
+    await waitFor(() => expect(track).toHaveBeenCalledTimes(1));
+    expect(getTasteMatch).toHaveBeenCalledTimes(1);
+    expect(track.mock.calls[0][0]).toMatchObject({ action: "taste_match_view", metadata: { username: "ada" } });
   });
 });

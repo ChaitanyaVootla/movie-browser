@@ -187,12 +187,22 @@ Rules:
    `adult`; facet/cluster labels pass `isAdultKeyword`.
 4. Exclusions = any WATCH/NOTE event, watchlist row, title-level rating row (incl.
    dislikes and heart-only) and series_progress row (`fetchRecExclusions`).
-5. Cache key `userId:computedAt:REC_ALGO_VERSION` — a taste recompute (every
-   taste-relevant write marks the row dirty) naturally invalidates it. Bump
-   `REC_ALGO_VERSION` on any rec-constant change.
+5. Cache key `userId:computedAt:REC_ALGO_VERSION`, and EVERY cache hit is
+   re-filtered with a fresh `fetchRecExclusions` (`withoutExcluded`) — the taste row
+   recomputes lazily, so the key alone served just-watched titles for up to 1h.
+   Bump `REC_ALGO_VERSION` on any rec-constant change.
+5b. Inner ANN LIMIT = `annLimitFor(150, exclusions)` (≤ 1000), also the ef_search:
+   filters run after the LIMIT and a heavy user's own titles are their centroid's
+   nearest neighbours — a fixed LIMIT starves exactly the most engaged users.
+5c. Popular fallback: `WHERE popularity IS NOT NULL … ORDER BY popularity DESC`
+   (NOT `DESC NULLS LAST` — the default DESC btree can't serve it → full sort).
+5d. Twins only consider clean rows at the current `TASTE_ALGO_VERSION`; the row
+   medoid shown in "Because you loved X" must pass `notAdult` (else the cluster is
+   skipped).
 6. Gate (`canViewTasteMatch`): no session/self → deny; hidden (BLOCK either way or
-   viewer's MUTE, via `getHiddenUserIds`) → deny; viewer public + target public +
-   target `showTaste` → allow; mutual follow → allow. Twins use the same candidate
+   viewer's MUTE, via `getHiddenUserIds`) → deny; target `showTaste=false` or private
+   → deny, and a mutual follow NEVER overrides that (review fix — the first version
+   let it); viewer public → allow; private viewer + mutual follow → allow. Twins use the same candidate
    set minus already-followed (so a private viewer gets no twins).
 7. Twins scan `user_taste_profiles` exactly (a few hundred rows). Add a halfvec HNSW
    index on `public_centroid` (hash-gated raw SQL, §19) at ~50k profiles or when the

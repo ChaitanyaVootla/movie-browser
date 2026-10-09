@@ -11,6 +11,7 @@ import {
   REC_ANN_PER_QUERY,
   REC_CACHE_MAX,
   REC_CACHE_TTL_MS,
+  REC_CLUSTER_ROW_MIN,
   REC_FOR_YOU_SIZE,
   REC_MAX_ANCHORS,
   REC_MAX_CLUSTER_QUERIES,
@@ -141,8 +142,14 @@ interface UserContext {
 /** Positive anchors (weighted, with embeddings + titles + genres). */
 async function loadAnchors(
   userId: number,
-  extraEmbeddingKeys: readonly TitleKey[]
-): Promise<{ anchors: RecAnchor[]; embeddings: Map<TitleKey, number[]> }> {
+  extraEmbeddingKeys: readonly TitleKey[],
+  extraInfoKeys: readonly TitleKey[] = []
+): Promise<{
+  anchors: RecAnchor[];
+  embeddings: Map<TitleKey, number[]>;
+  /** Non-adult titles among positives + extraInfoKeys (adult/missing are absent). */
+  safeTitles: Set<TitleKey>;
+}> {
   const signals = await fetchTasteSignals(userId);
   const positives = foldSignals(signals, "full", new Date())
     .titles.filter((t) => t.weight > 0)
@@ -150,7 +157,7 @@ async function loadAnchors(
     .slice(0, REC_MAX_ANCHORS);
   const keys = new Set<TitleKey>([...positives.map((p) => p.key), ...extraEmbeddingKeys]);
   const { movieIds, seriesIds } = splitKeys(keys);
-  const anchorIds = splitKeys(positives.map((p) => p.key));
+  const anchorIds = splitKeys(new Set([...positives.map((p) => p.key), ...extraInfoKeys]));
   const [embeddings, info] = await Promise.all([
     fetchTitleEmbeddings(movieIds, seriesIds),
     fetchAnchorInfo(anchorIds.movieIds, anchorIds.seriesIds),
@@ -169,7 +176,7 @@ async function loadAnchors(
       embedding: embeddings.get(p.key) ?? [],
     });
   }
-  return { anchors, embeddings };
+  return { anchors, embeddings, safeTitles: new Set(info.keys()) };
 }
 
 // ---------------------------------------------------------------------------
@@ -299,9 +306,10 @@ async function computeRecs(userId: number, snapshot: TasteSnapshot | null): Prom
     fetchRecExclusions(userId),
   ]);
   const topClusters = [...clusters].sort((a, b) => b.importance - a.importance).slice(0, REC_MAX_CLUSTER_QUERIES);
-  const { anchors, embeddings } = await loadAnchors(
+  const { anchors, embeddings, safeTitles } = await loadAnchors(
     userId,
-    topClusters.flatMap((c) => [...c.memberKeys, c.medoidKey])
+    topClusters.flatMap((c) => [...c.memberKeys, c.medoidKey]),
+    topClusters.map((c) => c.medoidKey)
   );
   const ctx: UserContext = { snapshot, anchors, exclusions };
 
@@ -316,6 +324,10 @@ async function computeRecs(userId: number, snapshot: TasteSnapshot | null): Prom
   topClusters.forEach((c) => {
     const v = clusterVector(c.memberKeys, c.medoidKey, embeddings);
     if (!v) return;
+    // The medoid is shown as the row anchor ("Because you loved X"): it must be
+    // a non-adult title (fetchAnchorInfo applies notAdult). No safe medoid → the
+    // cluster is skipped entirely (no row, and its vector is not queried).
+    if (!safeTitles.has(c.medoidKey)) return;
     recClusters.push({
       index: recClusters.length,
       importance: c.importance,
@@ -387,7 +399,10 @@ export async function getRecommendationsForUser(userId: number): Promise<RecsDTO
     const snapshot = await getTasteProfile(userId, { scope: "full" });
     const key = `${userId}:${snapshot?.computedAt ?? "none"}:${REC_ALGO_VERSION}`;
     const cached = cacheGet(key);
-    if (cached) return cached;
+    // A cached result can predate a rating/watch made seconds ago (the taste
+    // row recomputes lazily), so always re-filter against fresh exclusions —
+    // one cheap UNION query. Also what backs Cue's "all picks are unwatched".
+    if (cached) return withoutExcluded(cached, await fetchRecExclusions(userId));
     const result = await computeRecs(userId, snapshot);
     cacheSet(key, result);
     dataLogger.debug({
@@ -406,6 +421,19 @@ export async function getRecommendationsForUser(userId: number): Promise<RecsDTO
     });
     return { rows: [], reason: "error", algo: REC_ALGO_VERSION };
   }
+}
+
+/** Drop titles the user has engaged with since the result was computed. */
+export function withoutExcluded(recs: RecsDTO, ex: RecExclusions): RecsDTO {
+  const movies = new Set(ex.movieIds);
+  const series = new Set(ex.seriesIds);
+  const rows = recs.rows
+    .map((r) => ({
+      ...r,
+      items: r.items.filter((it) => !(it.mediaType === "movie" ? movies : series).has(it.id)),
+    }))
+    .filter((r) => r.items.length >= (r.kind === "because" ? REC_CLUSTER_ROW_MIN : 1));
+  return { ...recs, rows };
 }
 
 /** Flat, de-duplicated list (For-you first) — the Cue tool's view. */

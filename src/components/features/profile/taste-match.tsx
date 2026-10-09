@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Star } from "lucide-react";
@@ -84,6 +84,9 @@ export function TasteMatch({ username, displayName }: { username: string; displa
   const { resolved, authenticated, isOwner } = useProfileViewer();
   const { trackAction } = useAnalytics();
   const [match, setMatch] = useState<TasteMatchDTO | null>(null);
+  // One view event per target: trackAction's identity changes when the session
+  // settles, which used to re-run the fetch effect and double-fire the event.
+  const trackedFor = useRef<string | null>(null);
 
   const eligible = resolved && authenticated && !isOwner;
 
@@ -94,13 +97,18 @@ export function TasteMatch({ username, displayName }: { username: string; displa
       .then((m) => {
         if (cancelled) return;
         setMatch(m);
-        if (m) trackAction({ action: "taste_match_view", metadata: { username, score: m.score } });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [eligible, username, trackAction]);
+  }, [eligible, username]);
+
+  useEffect(() => {
+    if (!match || trackedFor.current === username) return;
+    trackedFor.current = username;
+    trackAction({ action: "taste_match_view", metadata: { username, score: match.score } });
+  }, [match, username, trackAction]);
 
   if (!eligible || !match) return null;
 

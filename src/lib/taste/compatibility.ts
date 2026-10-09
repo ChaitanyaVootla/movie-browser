@@ -37,7 +37,9 @@ export interface PublicRating {
 }
 
 /**
- XX * projection: a rating on a title whose only watches are private is private).
+ * Title-level ratings visible in the PUBLIC scope — the same rule as the taste
+ * projection (`isRatingPrivate`): a rating that may come from a private entry
+ * (private-only title, or a private scored watch/NOTE/review) is private.
  */
 export function publicRatingsFromSignals(signals: readonly TitleSignals[]): PublicRating[] {
   const out: PublicRating[] = [];
@@ -218,7 +220,12 @@ export type TasteMatchGate = "allow" | "deny";
 export function canViewTasteMatch(g: TasteMatchGateInput): TasteMatchGate {
   if (g.viewerId === null || g.viewerId === g.targetId) return "deny";
   if (g.hidden) return "deny";
-  if (g.viewerPublic && g.targetPublic && g.targetShowsTaste) return "allow";
+  // The target's privacy choices are absolute: a hidden taste profile or a
+  // private profile is never overridden by a follow edge. (Private profiles
+  // render no body today; revisit with a compare UI that explains the consent.)
+  if (!g.targetShowsTaste || !g.targetPublic) return "deny";
+  if (g.viewerPublic) return "allow";
+  // Private viewer: only with a mutual follow (the target chose to follow them).
   if (g.mutualFollow) return "allow";
   return "deny";
 }

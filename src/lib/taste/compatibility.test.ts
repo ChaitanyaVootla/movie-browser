@@ -170,9 +170,10 @@ describe("canViewTasteMatch", () => {
     ["both public + taste shown", g({}), "allow"],
     ["blocked/muted (even if mutual)", g({ hidden: true, mutualFollow: true }), "deny"],
     ["target hides taste", g({ targetShowsTaste: false }), "deny"],
-    ["target hides taste but mutual follow", g({ targetShowsTaste: false, mutualFollow: true }), "allow"],
+    ["target hides taste — a mutual follow does NOT override it", g({ targetShowsTaste: false, mutualFollow: true }), "deny"],
     ["target private", g({ targetPublic: false }), "deny"],
-    ["target private + mutual", g({ targetPublic: false, mutualFollow: true }), "allow"],
+    ["target private — a mutual follow does NOT override it", g({ targetPublic: false, mutualFollow: true }), "deny"],
+    ["private viewer + mutual, but target hides taste", g({ viewerPublic: false, mutualFollow: true, targetShowsTaste: false }), "deny"],
     ["viewer private", g({ viewerPublic: false }), "deny"],
     ["viewer private + mutual", g({ viewerPublic: false, mutualFollow: true }), "allow"],
   ] as const)("%s → %s", (_name, input, expected) => {
