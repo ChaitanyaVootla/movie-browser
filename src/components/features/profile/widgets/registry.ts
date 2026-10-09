@@ -28,6 +28,12 @@ export const WIDGET_META: Record<WidgetType, WidgetMeta> = {
   "showcase.reviews": { type: "showcase.reviews", category: "showcase", title: "Reviews", defaultSize: { w: 12, h: 3 }, minSize: { w: 6, h: 2 }, mobileSpan: 2, isAvailable: (d) => d.reviews.length > 0 },
   "showcase.discussions": { type: "showcase.discussions", category: "showcase", title: "Discussions", defaultSize: { w: 6, h: 3 }, minSize: { w: 4, h: 2 }, mobileSpan: 2, isAvailable: (d) => d.discussions.length > 0 },
 
+  // Taste profile (public snapshot only; ready = ≥10 public positive titles).
+  "taste.dna": { type: "taste.dna", category: "taste", title: "Taste DNA", defaultSize: { w: 4, h: 3 }, minSize: { w: 3, h: 3 }, mobileSpan: 2, isAvailable: (d) => d.taste?.status === "ready" && d.taste.snapshot.axes.length > 0 },
+  "taste.moods": { type: "taste.moods", category: "taste", title: "Moods & themes", defaultSize: { w: 4, h: 2 }, minSize: { w: 3, h: 2 }, mobileSpan: 2, isAvailable: (d) => d.taste?.status === "ready" && d.taste.snapshot.moods.length > 0 },
+  "taste.people": { type: "taste.people", category: "taste", title: "Your people", defaultSize: { w: 4, h: 3 }, minSize: { w: 3, h: 3 }, mobileSpan: 2, isAvailable: (d) => d.taste?.status === "ready" && (d.taste.snapshot.people.mostWatched.length > 0 || d.taste.snapshot.people.highestRated.length > 0) },
+  "taste.clusters": { type: "taste.clusters", category: "taste", title: "Taste clusters", defaultSize: { w: 6, h: 3 }, minSize: { w: 4, h: 2 }, mobileSpan: 2, isAvailable: (d) => d.taste?.status === "ready" && d.taste.snapshot.clusters.length >= 2 },
+
   "text.note": { type: "text.note", category: "text", title: "Note", defaultSize: { w: 4, h: 1 }, minSize: { w: 3, h: 1 }, mobileSpan: 2, isAvailable: () => true },
 };
 
@@ -46,6 +52,10 @@ const DEFAULT_ORDER: WidgetType[] = [
   "chart.decades",
   "chart.countries",
   "chart.activity",
+  "taste.dna",
+  "taste.moods",
+  "taste.people",
+  "taste.clusters",
   "showcase.lists",
   "showcase.reviews",
   "showcase.discussions",

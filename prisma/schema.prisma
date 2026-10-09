@@ -1023,7 +1023,8 @@ model User {
   watchEvents        WatchEvent[]
   seriesProgress     SeriesProgress[]
   userStats          UserStats?
-  userReviews        UserReview[]
+  tasteProfile       UserTasteProfile?
+  userReviews       UserReview[]
   comments           Comment[]
   reactions          Reaction[]
   ownedLists         List[]
@@ -1316,14 +1317,78 @@ model SeriesProgress {
 // Lazy stats snapshot: watch-event writes set dirty; recompute on read when
 // dirty or >24h. Public profiles/Wrapped render from snapshot only.
 model UserStats {
-  userId     Int      @id @map("user_id")
-  stats      Json
-  computedAt DateTime @map("computed_at")
-  dirty      Boolean  @default(true)
+  userId      Int      @id @map("user_id")
+  stats       Json // FULL snapshot (owner's /stats; includes private watches)
+  // PUBLIC snapshot (profile surfaces): private watch events excluded. Nullable
+  // so db push can add it to the populated table; NULL → recomputed on read.
+  publicStats Json?    @map("public_stats")
+  computedAt  DateTime @map("computed_at")
+  dirty       Boolean  @default(true)
+  // Set to clock_timestamp() by markStatsDirty. A recompute only clears `dirty`
+  // when dirty_at is unchanged since it read the row (lost-dirty race guard).
+  dirtyAt     DateTime? @map("dirty_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_stats")
+}
+
+// Catalog baseline for taste-facet lift, precomputed nightly by the
+// `taste-baseline` PM2 cron (scripts/refresh-taste-baseline.ts). The request
+// path does PK lookups by (type, key) only — NEVER a catalog scan. Empty table
+// (fresh env) → the service falls back to a uniform prior.
+model TasteFacetBaseline {
+  type String // FacetType: genre|keyword|theme|mood|director|cast|country|language|decade
+  key  String
+  n    Int    @default(0)
+
+  @@id([type, key])
+  @@map("taste_facet_baseline")
+}
+
+// Singleton (id = 1): baseline population sizes + catalog quantiles, written by
+// the same cron. computed_at NULL = never refreshed.
+model TasteBaselineMeta {
+  id                  Int       @id @default(1)
+  mode                String    @default("votes") // "votes" | "all"
+  catalogSize         Int       @default(0) @map("catalog_size")
+  enrichedSize        Int       @default(0) @map("enriched_size")
+  popularityQuantiles Float[]   @default([]) @map("popularity_quantiles")
+  yearQuantiles       Float[]   @default([]) @map("year_quantiles")
+  computedAt          DateTime? @map("computed_at")
+  durationMs          Int?      @map("duration_ms")
+
+  @@map("taste_baseline_meta")
+}
+
+// Derived taste profile (spec docs/superpowers/specs/2026-10-09-taste-profile-design.md).
+// Lazy snapshot exactly like user_stats: markStatsDirty / markTasteDirty set
+// dirty; recompute on read when dirty, >24h old, or algo_version changed.
+// NOT audited (derived cache of audited rows). Every column is nullable or
+// defaulted so `db push` never needs --accept-data-loss. Vector columns are
+// written/read with raw SQL (Prisma can't express pgvector).
+model UserTasteProfile {
+  userId         Int                          @id @map("user_id")
+  // FULL-scope Rocchio centroid (owner's private recs; may reflect private watches + watchlist).
+  centroid       Unsupported("vector(1024)")?
+  negCentroid    Unsupported("vector(1024)")? @map("neg_centroid")
+  // PUBLIC-scope centroid — the ONLY vector that may drive anything shown to other users
+  // (compatibility, follow suggestions).
+  publicCentroid Unsupported("vector(1024)")? @map("public_centroid")
+  clusters       Json                         @default("[]") // FULL clusters incl. memberKeys
+  facets         Json                         @default("{}") // FULL lift tables
+  axes           Json                         @default("[]") // FULL axes
+  signalCount    Int                          @default(0) @map("signal_count")
+  positiveCount  Int                          @default(0) @map("positive_count")
+  publicSnapshot Json                         @default("{}") @map("public_snapshot")
+  algoVersion    Int                          @default(0) @map("algo_version")
+  dirty          Boolean                      @default(true)
+  computedAt     DateTime?                    @map("computed_at")
+  updatedAt      DateTime                     @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_taste_profiles")
 }
 
 // =============================================================================

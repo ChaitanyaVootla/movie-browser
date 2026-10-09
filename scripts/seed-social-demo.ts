@@ -817,8 +817,8 @@ interface StatsSummary {
 async function seedUserStats(ids: Record<string, number>): Promise<StatsSummary[]> {
   // Lazy import (mirrors the hydration lazy-import pattern): pulls the shared PG
   // client + the pure stats aggregator only on the path that needs it.
-  const { computeUserStats } = await import("../src/server/db/postgres/social/stats");
-  // computeUserStats reads via the shared `@/server/db/postgres` client (a
+  const { refreshUserStatsSnapshot } = await import("../src/server/db/postgres/social/stats");
+  // refreshUserStatsSnapshot reads via the shared `@/server/db/postgres` client (a
   // SEPARATE connection from this script's `prisma`); our seed writes are
   // already committed, so it sees them. Disconnect it after so the script's
   // event loop can exit cleanly.
@@ -826,24 +826,10 @@ async function seedUserStats(ids: Record<string, number>): Promise<StatsSummary[
 
   const out: StatsSummary[] = [];
   for (const [username, userId] of Object.entries(ids)) {
-    // computeUserStats reads watch_events (joined to movies/series/episodes/
-    // genres/credits) and returns the StatsSnapshot JSON. Imports stay INCLUDED
-    // (matches getUserStatsSnapshot) so import-only diaries aren't zeroed.
-    const snapshot = await computeUserStats(userId);
-    await prisma.userStats.upsert({
-      where: { userId },
-      create: {
-        userId,
-        stats: snapshot as unknown as Prisma.InputJsonValue,
-        computedAt: new Date(),
-        dirty: false,
-      },
-      update: {
-        stats: snapshot as unknown as Prisma.InputJsonValue,
-        computedAt: new Date(),
-        dirty: false,
-      },
-    });
+    // Computes + stores BOTH projections (full for /stats, public for /u/*).
+    // Imports stay INCLUDED (matches getUserStatsSnapshot) so import-only
+    // diaries aren't zeroed. The summary prints the PUBLIC numbers.
+    const { public: snapshot } = await refreshUserStatsSnapshot(userId);
     out.push({
       username,
       moviesWatched: snapshot.moviesWatched,

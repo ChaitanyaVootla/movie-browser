@@ -2,11 +2,18 @@
  * user_stats lazy snapshot: recompute on read when dirty or >24h old.
  * Logged-in /stats may compute live; PUBLIC profiles and Wrapped render from
  * the snapshot ONLY (crawlers hammer them).
+ *
+ * TWO projections are stored (privacy fix, Oct 2026): `stats` = FULL (the
+ * owner's /stats, private watches included) and `public_stats` = PUBLIC
+ * (`is_private = false` rows only) for /u/* and anything another user sees.
+ * Before this, the public profile counted private watches in its films/hours/
+ * genres/countries/people.
  */
-import { Prisma, type WatchedAtPrecision, type WatchEventSource } from "@prisma/client";
+import type { WatchedAtPrecision, WatchEventSource } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
 import {
   computeStats,
+  computeStatsPair,
   StatsSnapshotSchema,
   type StatsEventRow,
   type StatsPersonRow,
@@ -24,6 +31,7 @@ interface MovieEventRaw {
   watched_at: Date | null;
   precision: WatchedAtPrecision;
   is_rewatch: boolean;
+  is_private: boolean;
   source: WatchEventSource;
   genres: string[];
   countries: string[];
@@ -31,7 +39,7 @@ interface MovieEventRaw {
 
 interface SeriesEventRaw extends MovieEventRaw {
   episode_number: number | null;
-  fallback_runtimes: number[];
+  fallback_runtimes: number[] | null;
 }
 
 async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
@@ -39,7 +47,7 @@ async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
     SELECT we.movie_id AS title_id, m.title, m.runtime,
            EXTRACT(YEAR FROM m.release_date)::int AS year,
            we.watched_at, we.watched_at_precision AS precision,
-           we.is_rewatch, we.source,
+           we.is_rewatch, we.is_private, we.source,
            COALESCE(array_agg(DISTINCT g.name) FILTER (WHERE g.name IS NOT NULL), '{}') AS genres,
            COALESCE(array_agg(DISTINCT mc.country_code) FILTER (WHERE mc.country_code IS NOT NULL), '{}') AS countries
     FROM watch_events we
@@ -56,7 +64,7 @@ async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
            e.runtime, we.episode_number,
            EXTRACT(YEAR FROM s.first_air_date)::int AS year,
            we.watched_at, we.watched_at_precision AS precision,
-           we.is_rewatch, we.source,
+           we.is_rewatch, we.is_private, we.source,
            s.episode_run_time AS fallback_runtimes,
            COALESCE(array_agg(DISTINCT g.name) FILTER (WHERE g.name IS NOT NULL), '{}') AS genres,
            COALESCE(array_agg(DISTINCT sc.country_code) FILTER (WHERE sc.country_code IS NOT NULL), '{}') AS countries
@@ -84,6 +92,7 @@ async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
     precision: r.precision,
     isRewatch: r.is_rewatch,
     source: r.source,
+    isPrivate: r.is_private,
   });
   const fromSeries = (r: SeriesEventRaw): StatsEventRow => ({
     kind: r.episode_number !== null ? "episode" : "series",
@@ -91,7 +100,8 @@ async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
     title: r.title,
     // series-level events (granularity unknown) get zero runtime — honest hours.
     runtimeMinutes: r.episode_number !== null ? r.runtime : 0,
-    fallbackRuntimes: r.episode_number !== null ? r.fallback_runtimes : [],
+    // episode_run_time can be NULL (not just {}) on sparse series rows — never crash stats.
+    fallbackRuntimes: r.episode_number !== null ? (r.fallback_runtimes ?? []) : [],
     genres: r.genres,
     countries: r.countries,
     year: r.year,
@@ -99,6 +109,7 @@ async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
     precision: r.precision,
     isRewatch: r.is_rewatch,
     source: r.source,
+    isPrivate: r.is_private,
   });
 
   return [...movieRows.map(fromMovie), ...seriesRows.map(fromSeries)];
@@ -133,51 +144,89 @@ async function fetchPeopleRows(
   }));
 }
 
-/**
- * `excludeImported` drops BACKFILL/IMPORT events for honest, import-free stats
- * (the "honest Wrapped" surface — spec §4.2). The cached snapshot
- * (`getUserStatsSnapshot`) deliberately keeps imports INCLUDED so profile
- * totals aren't 0 for import-only users; the Wrapped surface (phase 2) calls
- * this directly with `{ excludeImported: true }`, year-scoped, rather than
- * reusing the single cached snapshot.
- */
-export async function computeUserStats(
-  userId: number,
-  opts: { excludeImported?: boolean } = {}
-): Promise<StatsSnapshot> {
+export type StatsScope = "full" | "public";
+
+async function fetchStatsInputs(userId: number) {
   const events = await fetchEventRows(userId);
   const movieIds = [...new Set(events.filter((e) => e.kind === "movie").map((e) => e.titleId))];
   const seriesIds = [
     ...new Set(events.filter((e) => e.kind !== "movie").map((e) => e.titleId)),
   ];
   const people = await fetchPeopleRows(movieIds, seriesIds);
-  return computeStats(events, people, opts);
+  return { events, people };
 }
 
 /**
- * Lazy snapshot read: serve stored stats unless dirty or stale (>24h);
- * recompute+store otherwise. This is the ONLY read path public surfaces use.
+ * `excludeImported` drops BACKFILL/IMPORT events for honest, import-free stats
+ * (the "honest Wrapped" surface — spec §4.2). The cached snapshot
+ * (`getUserStatsSnapshot`) deliberately keeps imports INCLUDED so profile
+ * totals aren't 0 for import-only users; the Wrapped surface (phase 2) calls
+ * this directly with `{ excludeImported: true }`, year-scoped, rather than
+ * reusing the single cached snapshot. `scope` defaults to "public" — anything
+ * rendered for someone other than the owner MUST stay public.
  */
-export async function getUserStatsSnapshot(userId: number): Promise<StatsSnapshot> {
+export async function computeUserStats(
+  userId: number,
+  opts: { excludeImported?: boolean; scope?: StatsScope } = {}
+): Promise<StatsSnapshot> {
+  const { events, people } = await fetchStatsInputs(userId);
+  const rows = (opts.scope ?? "public") === "full" ? events : events.filter((e) => e.isPrivate !== true);
+  return computeStats(rows, people, opts);
+}
+
+/**
+ * Recompute BOTH projections from one fetch and store them. Lost-dirty guard
+ * (same idea as writeTasteRow): `dirty` is only cleared when `dirty_at` is
+ * unchanged since we read it — a markStatsDirty that lands while we compute
+ * keeps the row dirty so the next read recomputes again.
+ */
+export async function refreshUserStatsSnapshot(
+  userId: number
+): Promise<{ full: StatsSnapshot; public: StatsSnapshot }> {
+  const before = await prisma.userStats.findUnique({ where: { userId }, select: { dirtyAt: true } });
+  const observed = before?.dirtyAt ?? null;
+  const { events, people } = await fetchStatsInputs(userId);
+  const pair = computeStatsPair(events, people);
+  await writeUserStatsSnapshot(userId, pair, observed);
+  return pair;
+}
+
+/** Store both projections; clears `dirty` only if `dirty_at` still equals `observedDirtyAt`. */
+export async function writeUserStatsSnapshot(
+  userId: number,
+  pair: { full: StatsSnapshot; public: StatsSnapshot },
+  observedDirtyAt: Date | null
+): Promise<void> {
+  const observed = observedDirtyAt;
+  await prisma.$executeRaw`
+    INSERT INTO user_stats (user_id, stats, public_stats, computed_at, dirty)
+    VALUES (${userId}, ${JSON.stringify(pair.full)}::jsonb, ${JSON.stringify(pair.public)}::jsonb, now(), false)
+    ON CONFLICT (user_id) DO UPDATE SET
+      stats = EXCLUDED.stats,
+      public_stats = EXCLUDED.public_stats,
+      computed_at = EXCLUDED.computed_at,
+      dirty = CASE WHEN user_stats.dirty_at IS DISTINCT FROM ${observed}::timestamptz AND user_stats.dirty
+                   THEN true ELSE false END
+  `;
+}
+
+/**
+ * Lazy snapshot read: serve the stored projection unless dirty or stale
+ * (>24h) or missing (pre-split rows have public_stats NULL); recompute+store
+ * both otherwise. This is the ONLY read path profile surfaces use.
+ *   - scope "public" (default): /u/* and every surface another user can see
+ *   - scope "full": the owner's own /stats page
+ */
+export async function getUserStatsSnapshot(
+  userId: number,
+  opts: { scope?: StatsScope } = {}
+): Promise<StatsSnapshot> {
+  const scope = opts.scope ?? "public";
   const row = await prisma.userStats.findUnique({ where: { userId } });
   if (row && !row.dirty && Date.now() - row.computedAt.getTime() < STATS_TTL_MS) {
-    const parsed = StatsSnapshotSchema.safeParse(row.stats);
+    const parsed = StatsSnapshotSchema.safeParse(scope === "full" ? row.stats : row.publicStats);
     if (parsed.success) return parsed.data;
   }
-  const snapshot = await computeUserStats(userId);
-  await prisma.userStats.upsert({
-    where: { userId },
-    create: {
-      userId,
-      stats: snapshot as unknown as Prisma.InputJsonValue,
-      computedAt: new Date(),
-      dirty: false,
-    },
-    update: {
-      stats: snapshot as unknown as Prisma.InputJsonValue,
-      computedAt: new Date(),
-      dirty: false,
-    },
-  });
-  return snapshot;
+  const pair = await refreshUserStatsSnapshot(userId);
+  return scope === "full" ? pair.full : pair.public;
 }

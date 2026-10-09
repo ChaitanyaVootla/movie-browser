@@ -25,6 +25,10 @@ export type WidgetType =
   | "showcase.lists"
   | "showcase.reviews"
   | "showcase.discussions"
+  | "taste.dna"
+  | "taste.moods"
+  | "taste.people"
+  | "taste.clusters"
   | "text.note";
 
 export interface WidgetInstance {
@@ -50,7 +54,7 @@ export interface ProfileLayout {
 /** Everything a widget can read — the cacheable public profile bundle. */
 export type ProfileWidgetData = PublicProfileDTO;
 
-export type WidgetCategory = "stat" | "chart" | "showcase" | "text";
+export type WidgetCategory = "stat" | "chart" | "showcase" | "taste" | "text";
 
 export interface WidgetMeta {
   type: WidgetType;

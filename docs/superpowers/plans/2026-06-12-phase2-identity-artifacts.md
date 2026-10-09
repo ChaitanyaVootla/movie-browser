@@ -25,6 +25,13 @@ user search + taste-based follow suggestions, and the per-platform shareability 
   (accept `listId` anchor), notification writer, Four-Favorites list machinery.
 - Raw-SQL constraints file: `postgres/init/04-ugc-constraints.sql` + hash-gated apply.
 
+> **SUPERSEDED IN PART (2026-10-09):** the `UserTasteVector` model (Task 1) and the
+> taste-vector service (Task 5) were replaced by `user_taste_profiles` +
+> `src/server/services/taste/` — see
+> `docs/superpowers/specs/2026-10-09-taste-profile-design.md`. Task 3
+> (compatibility) and Task 11 (follow suggestions) must use the PUBLIC centroid
+> (`getUserTasteEmbedding(id, { scope: "public" })`), never the full one.
+
 ## Architecture decisions (made in this plan)
 
 1. **OG images are origin-rendered, edge-cached, never per-request for crawlers.**

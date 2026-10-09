@@ -451,6 +451,63 @@ home, browse, person, library and similar rows.
 opens the Vaul quick-info drawer with the same `PreviewBody` + `TitleActions`. A tap
 still navigates. Back dismisses it (`useHistoryDismiss`).
 
+## Taste profile
+
+Four profile widgets (`src/components/features/profile/widgets/taste-*.tsx`) render
+the PUBLIC taste snapshot. They reuse existing tokens only — no new sizes, radii or
+colors.
+
+- **Copy is numbers + neutral templates (Fable rule).** Axis endpoints are dimension
+  labels ("Mainstream" / "Niche"), captions describe titles ("Favourites average the
+  top 26% by popularity"), never the person. No archetypes, no "you are a…".
+- **Taste DNA** — one bipolar track per axis: `h-1.5 rounded-full bg-muted` track, a
+  1px centre tick (`bg-border`), a `bg-brand/40` fill that grows FROM THE CENTRE to the
+  value, and a `size-3 bg-brand ring-2 ring-card` marker. The endpoint nearer the value
+  is `text-foreground`, the other `text-muted-foreground`; caption below in the
+  metadata recipe. Chosen over a radar: legible at 390px and every axis keeps its own
+  caption. Tracks are `role="meter"` with the caption as `aria-valuetext`.
+- **Moods & themes** — AI tags as chips (`rounded-full`, `text-xs font-medium`,
+  `min-h-10` mobile / `md:min-h-8`), label + tabular count. The three strongest lifts
+  use the AI-tag tint (`bg-brand/15 text-brand`), the rest `bg-muted
+  text-muted-foreground`. Tap = evidence: Popover (`w-80`) on desktop, Vaul Drawer +
+  `useHistoryDismiss` on mobile, a 3-column poster grid of the supporting titles.
+- **Your people** — segmented toggle (`rounded-full bg-muted p-1`, active segment
+  `bg-card`, depth by lightness step, no shadow), rows `min-h-12` with a `size-10`
+  round portrait (initials fallback), role line, metric right-aligned (titles count,
+  or a `text-brand` filled star + the shrunk mean on the 5-star scale + rated count).
+- **Taste clusters** — medoid posters (`aspect-[2/3] rounded-lg`), label
+  (`text-sm font-semibold line-clamp-1`) and "N titles like {medoid}". Mobile fills the
+  row (2 or 3 across); `sm:` and up keep the Favorites widget's 4-across poster size.
+- **Owner-only hint** below the grid (dashed `rounded-xl border` card) when the profile
+  is under the 10-title threshold (progress bar) or hidden by the privacy toggle.
+  Visitors see nothing.
+- **Taste match** (profile reserved slot, signed-in non-owner only): one `bg-card
+  border rounded-xl` card. Left column (`md:w-56`): "Your taste match with {first
+  name}" (`text-sm font-semibold`), the score as the one big element
+  (`text-3xl sm:text-4xl font-bold tracking-tight tabular-nums`), the evidence line
+  in the metadata recipe, then one labelled `h-1.5 rounded-full bg-muted` meter per
+  non-null component (`bg-brand` fill, `role="meter"`). Right column: "You both
+  loved" poster row (`aspect-[2/3] rounded-lg`, 72–80px wide) and "You'd argue about"
+  rows (`min-h-12`, title + both scores as `--brand` stars). Copy describes titles and
+  agreement, never the person.
+
+## Recommendations (home)
+
+- Signed-in only, client island under Up Next; guests see nothing (no prompt — the
+  Getting Started strip already covers new accounts).
+- **For you** — `SectionHeading` with a `Sparkles` brand icon, standard poster
+  scroller (`MediaCard`, same card widths as `MovieCarousel`). Each card's subtitle
+  is the explanation in ≤ ~20 characters: `Like {title}` or a facet label ("Korean
+  thrillers") — the card clamps it to one line at 150px.
+- **Because you loved {title}** — up to two rows; the heading's icon slot holds the
+  anchor's own poster thumb (`h-8 w-[22px] rounded-md`) instead of a glyph — the one
+  distinctive touch, it shows WHICH title the row grows from.
+- Cold start (thin history) — the row is titled "Popular in your genres" with one
+  metadata-recipe line under it pointing to the diary.
+- **Taste twins** — `SectionHeading` + one metadata line, horizontal chips: `bg-card
+  border rounded-xl p-3 min-h-12 w-[220px]`, `size-10` round avatar (initials
+  fallback), name + "{NN}% taste match" (number in `text-foreground tabular-nums`).
+
 ## Components
 
 - **Buttons** — shadcn `Button` only. Primary actions use the default (inverted

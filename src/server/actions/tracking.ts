@@ -576,7 +576,8 @@ export async function getTitleDiary(
 export async function getUserStats(): Promise<UserStatsDTO> {
   const userId = await requirePgUserId();
   const [s, seriesCompleted] = await Promise.all([
-    getUserStatsSnapshot(userId),
+    // The owner's own /stats: FULL projection (includes their private watches).
+    getUserStatsSnapshot(userId, { scope: "full" }),
     prisma.seriesProgress.count({ where: { userId, status: "COMPLETED" } }),
   ]);
   const months = Object.keys(s.byMonth).sort().slice(-12);
