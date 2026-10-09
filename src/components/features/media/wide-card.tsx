@@ -7,13 +7,15 @@ import { ExternalLink } from "lucide-react";
 import { cn, isMovieItem, getDisplayTitle, getMediaHrefFromItem } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CardPendingOverlay } from "@/components/features/layout/nav-pending";
-import { useUserStore, selectSeriesProgress, type RecentItem, type ContinueWatchingItem } from "@/stores/user";
+import {
+  useUserStore,
+  selectSeriesProgress,
+  type RecentItem,
+  type ContinueWatchingItem,
+} from "@/stores/user";
 import { CardProgressBar } from "@/components/features/media/social-signals";
 import { useAnalytics } from "@/hooks/use-analytics";
-
-// CDN and TMDB image URLs
-const CDN_BASE = "https://image.themoviebrowser.com";
-const TMDB_BASE = "https://image.tmdb.org/t/p";
+import { getWidePosterSources } from "@/lib/image";
 
 // Watch provider logos (simplified set)
 const PROVIDER_LOGOS: Record<string, string> = {
@@ -54,9 +56,11 @@ export function WideCard({ item, className, showWatchLink = false }: WideCardPro
   const watchProviderName = "watchProviderName" in item ? item.watchProviderName : undefined;
   const providerLogo = watchProviderName ? PROVIDER_LOGOS[watchProviderName] : undefined;
 
-  // Image sources: CDN first, then TMDB fallback
-  const cdnUrl = `${CDN_BASE}/${mediaType}/${item.itemId}/widePoster.webp`;
-  const tmdbUrl = item.backdrop_path ? `${TMDB_BASE}/w780${item.backdrop_path}` : null;
+  // Image sources: CDN widePoster first, then the TMDB backdrop (bases from @/lib/image)
+  const { primary: cdnUrl, fallback: tmdbUrl } = getWidePosterSources(
+    { id: item.itemId, backdrop_path: item.backdrop_path },
+    mediaType
+  );
   const imageSrc = useFallback ? tmdbUrl : cdnUrl;
 
   return (

@@ -34,7 +34,6 @@ export { VideoComments, VideoCommentsPreview } from "./video-comments";
 export { ImageGallery } from "./image-gallery";
 
 // Related content components
-export { RecommendationsSection } from "./recommendations-section";
 export { SimilarSection, SimilarSectionSkeleton } from "./similar-section";
 export { CollectionSection } from "./collection-section";
 
@@ -51,9 +50,6 @@ export { StandoutBadges } from "./standout-badges";
 export { StandoutAspects } from "./standout-aspects";
 export { BestForSection, HeadsUpSection } from "./insight-sections";
 export { DeepDiveSection } from "./deep-dive-section";
-
-// User status badge (watchlist/watched indicator)
-export { UserStatusBadge, useIsWatched } from "./user-status-badge";
 
 // Admin tools
 export { EnrichButton } from "./enrich-button";
