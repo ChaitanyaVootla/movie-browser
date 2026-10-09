@@ -96,12 +96,19 @@ weight `w`:
 | `liked` heart | +2 | none |
 | `score` (1–10) | `clip((score − μ)/2, −2, +2)`; μ = user's mean score if they have ≥5 title-level scores, else 5.5 | yes (rated_at ?? created_at) |
 | thumb (only when no score) | ±1.5 | yes |
-| ≥1 WATCH event, no score and no thumb | +0.5 | yes (latest watch) |
+| engagement: ≥1 WATCH event **or** a score/thumb (counted once) | +0.5 | yes (latest watch, else rated_at) |
 | rewatch | +0.5 per extra viewing, capped +1.5 (movie: WATCH count − 1; series: max(cycle) − 1) | yes |
 | series status COMPLETED / CAUGHT_UP | +0.75 | yes (progress updated_at) |
 | series status DROPPED | −1 | yes |
 | watchlist | +0.3 (FULL scope only) | none |
 
+- **Tuning vs. the brief:** the brief gave the +0.5 to unrated watches only. With
+  a user-mean-centred score that makes every at-mean rating 0 and every
+  slightly-below-mean rating negative, so a consistent high rater (all 8s and
+  9s) collapsed to a handful of positives (caught by `profile.test.ts`). The
+  +0.5 is therefore a base "chose and watched/rated it" term for ANY engaged
+  title: an at-mean score now weighs exactly like an unrated watch, and a score
+  2 points under the mean (−1) is still negative.
 - Decay `exp(−Δt/τ)`, τ = 18 months (547.5 days). Dateless events fall back to
   the row's `created_at`.
 - `kind = 'WATCH'` only; `NOTE` entries never count as watched.
