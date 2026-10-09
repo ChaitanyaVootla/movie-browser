@@ -12,6 +12,14 @@ paths:
   - "scripts/refresh-taste-baseline.ts"
   - "src/server/db/postgres/social/taste-baseline.ts"
   - "src/server/db/postgres/social/progress.ts"
+  - "src/server/db/postgres/social/taste-recs.ts"
+  - "src/server/actions/taste-recs.ts"
+  - "src/components/features/home/for-you-section.tsx"
+  - "src/components/features/home/taste-twins-strip.tsx"
+  - "src/components/features/profile/taste-match.tsx"
+  - "src/server/ai/tools/recommend-for-me.ts"
+  - "src/server/ai/tools/taste-summary.ts"
+  - "scripts/eval-recs.ts"
 ---
 
 # Taste Profile (Oct 2026, branch `feat/taste-profile-core`)
@@ -146,6 +154,67 @@ handle `local_tester` so an E2E session can view its own profile. Recompute is
 - The privacy toggle revalidates `/u/<username>`; the CDN copy can lag ~5 min
   (same as other profile edits — `social-features.md` pre-deploy item 4).
 
+## Recommendations, taste match, Cue (branch `feat/taste-recs`)
+
+Spec: `docs/superpowers/specs/2026-10-09-taste-recommendations-design.md` (formulas,
+fallback table, gate matrix). Plan: `docs/superpowers/plans/2026-10-09-taste-recommendations.md`.
+
+| Layer | Where |
+|---|---|
+| Pure rec math (re-rank, MMR + Steck calibration, explanations, RRF merge) | `src/lib/taste/recommend.ts` (+ `recommend-constants.ts`, `REC_ALGO_VERSION`) |
+| Pure taste match + gate | `src/lib/taste/compatibility.ts` |
+| Client-safe DTOs | `src/lib/taste/recommend-types.ts` |
+| SQL (ANN candidates, exclusions, popular fallback, twins scan) | `src/server/db/postgres/social/taste-recs.ts` |
+| Services | `src/server/services/taste/{recommend,match}.ts` |
+| Actions (POST) | `src/server/actions/taste-recs.ts` — `getHomeRecs`, `getTasteMatch`, `getTasteTwins` |
+| UI | `home/for-you-section.tsx`, `home/taste-twins-strip.tsx`, `profile/taste-match.tsx` (reserved slot) |
+| Cue | `ai/tools/recommend-for-me.ts` (`recommend_for_me`), `ai/tools/taste-summary.ts` (`get_user_profile.taste`) |
+| Eval | `scripts/eval-recs.ts` (read-only, :5436-guarded) |
+
+Rules:
+
+1. **Recs = FULL scope, owner only; match + twins = PUBLIC scope for BOTH sides**
+   (`publicRatingsFromSignals` → `isRatingPrivate`, `getUserTasteEmbedding({scope:"public"})`).
+   Owner recs may explain with a PRIVATE watch ("Like Get Out") — fine, only the owner
+   sees them; never move rec explanations onto a surface someone else can see.
+2. **Catalog ANN only behind `hasVectorIndex(table)`**, in the §19 shape (filters
+   OUTSIDE the MATERIALIZED CTE, `annSessionSql` in the same `$transaction` batch).
+   No index → TMDB `/recommendations` fallback (no distance ordering ever). The dev
+   DB has no index by default: apply `postgres/init/03-vector-indexes.sql` to :5436
+   (tiny tables, instant) or every dev rec is the TMDB fallback (and that needs a
+   `TMDB_API_KEY`).
+3. Every candidate query carries `notAdult()`; TMDB fallback items are filtered on
+   `adult`; facet/cluster labels pass `isAdultKeyword`.
+4. Exclusions = any WATCH/NOTE event, watchlist row, title-level rating row (incl.
+   dislikes and heart-only) and series_progress row (`fetchRecExclusions`).
+5. Cache key `userId:computedAt:REC_ALGO_VERSION` — a taste recompute (every
+   taste-relevant write marks the row dirty) naturally invalidates it. Bump
+   `REC_ALGO_VERSION` on any rec-constant change.
+6. Gate (`canViewTasteMatch`): no session/self → deny; hidden (BLOCK either way or
+   viewer's MUTE, via `getHiddenUserIds`) → deny; viewer public + target public +
+   target `showTaste` → allow; mutual follow → allow. Twins use the same candidate
+   set minus already-followed (so a private viewer gets no twins).
+7. Twins scan `user_taste_profiles` exactly (a few hundred rows). Add a halfvec HNSW
+   index on `public_centroid` (hash-gated raw SQL, §19) at ~50k profiles or when the
+   scan passes ~20ms.
+
+Gotchas:
+
+- **Card subtitles are one line at 150px** (`MovieCard` `line-clamp-1`): "Because you
+  loved Pride & Prejudice" truncated to "Because you loved Prid…" on mobile, losing
+  the anchor. Card copy is `Like <title>`; the long form lives in the row heading.
+- **Min-max normalised relevance makes tiny pools extreme** — with 3 candidates the
+  worst is always rel 0. Tests that exercise MMR need a far-away "anchor" item.
+- **Dev synthetic centroids are NOT Cohere-shaped**: pairwise public-centroid cosines
+  on the seed are −0.17…0.47, so the 0.3–0.9 tasteSim window shows "28% taste
+  match" and twins (min 40%) never appear locally. Calibrate the window on prod data
+  before trusting the twins threshold.
+- Eval on the dev seed (4 users, ~60 embedded titles, K=3): centroid-only beat
+  clusters (nDCG@10 .52 vs .38); calibration/MMR raised diversity and coverage. The
+  sample is synthetic and tiny — re-run `eval-recs.ts` on a restored prod dump
+  (`scripts/sync-local-db.sh`) before changing `REC_CENTROID_TERM` or the cluster
+  count.
+
 See also: `social-features.md` (invariants), `performance.md` §16/§19 (vector index
-recipe if a KNN over centroids is ever needed), `audit-log.md` (why derived tables
-are not audited).
+recipe), `ai-agent.md` (tool list), `audit-log.md` (why derived tables are not
+audited).

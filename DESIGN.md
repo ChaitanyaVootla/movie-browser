@@ -400,6 +400,32 @@ colors.
 - **Owner-only hint** below the grid (dashed `rounded-xl border` card) when the profile
   is under the 10-title threshold (progress bar) or hidden by the privacy toggle.
   Visitors see nothing.
+- **Taste match** (profile reserved slot, signed-in non-owner only): one `bg-card
+  border rounded-xl` card. Left column (`md:w-56`): "Your taste match with {first
+  name}" (`text-sm font-semibold`), the score as the one big element
+  (`text-3xl sm:text-4xl font-bold tracking-tight tabular-nums`), the evidence line
+  in the metadata recipe, then one labelled `h-1.5 rounded-full bg-muted` meter per
+  non-null component (`bg-brand` fill, `role="meter"`). Right column: "You both
+  loved" poster row (`aspect-[2/3] rounded-lg`, 72–80px wide) and "You'd argue about"
+  rows (`min-h-12`, title + both scores as `--brand` stars). Copy describes titles and
+  agreement, never the person.
+
+## Recommendations (home)
+
+- Signed-in only, client island under Up Next; guests see nothing (no prompt — the
+  Getting Started strip already covers new accounts).
+- **For you** — `SectionHeading` with a `Sparkles` brand icon, standard poster
+  scroller (`MediaCard`, same card widths as `MovieCarousel`). Each card's subtitle
+  is the explanation in ≤ ~20 characters: `Like {title}` or a facet label ("Korean
+  thrillers") — the card clamps it to one line at 150px.
+- **Because you loved {title}** — up to two rows; the heading's icon slot holds the
+  anchor's own poster thumb (`h-8 w-[22px] rounded-md`) instead of a glyph — the one
+  distinctive touch, it shows WHICH title the row grows from.
+- Cold start (thin history) — the row is titled "Popular in your genres" with one
+  metadata-recipe line under it pointing to the diary.
+- **Taste twins** — `SectionHeading` + one metadata line, horizontal chips: `bg-card
+  border rounded-xl p-3 min-h-12 w-[220px]`, `size-10` round avatar (initials
+  fallback), name + "{NN}% taste match" (number in `text-foreground tabular-nums`).
 
 ## Components
 
