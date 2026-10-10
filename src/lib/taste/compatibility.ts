@@ -14,6 +14,7 @@
  *   score = round(100 · Σ wᵢsᵢ / Σ wᵢ) over non-null components.
  */
 import { isRatingPrivate } from "./weights";
+import { windowed, type SpaceKind } from "./space";
 import type { TasteMediaType, TitleKey, TitleSignals } from "./types";
 
 export const MATCH_W_SCORE = 0.5;
@@ -24,8 +25,26 @@ export const MATCH_SHRINK_K = 5;
 export const MATCH_MIN_LIKED = 3;
 export const MATCH_LIKED_SCORE = 8;
 export const MATCH_FIGHT_DELTA = 4;
+/** RAW-space window (pre-centering behaviour; used only when no catalog mean exists). */
 export const MATCH_TASTE_COS_LO = 0.3;
 export const MATCH_TASTE_COS_HI = 0.9;
+/**
+ * Centered-space window, derived on the restored prod dump (2026-10-10 spec §7):
+ *   lo = median cosine of two RANDOM 10–30-title catalog sets (null model,
+ *        p50 0.011–0.020) → unrelated tastes read 0%;
+ *   hi = lower quartile of real users' split-half SELF-similarity (p25 0.57;
+ *        median 0.73) → "as alike as you are to yourself" reads 100%.
+ * In raw space the same null model sat at 0.84–0.94, above every real user
+ * pair (p50 0.68), so the old 0.3–0.9 window called random strangers twins.
+ */
+export const MATCH_TASTE_COS_LO_CENTERED = 0.02;
+export const MATCH_TASTE_COS_HI_CENTERED = 0.6;
+
+export function tasteWindow(space: SpaceKind): { lo: number; hi: number } {
+  return space === "raw"
+    ? { lo: MATCH_TASTE_COS_LO, hi: MATCH_TASTE_COS_HI }
+    : { lo: MATCH_TASTE_COS_LO_CENTERED, hi: MATCH_TASTE_COS_HI_CENTERED };
+}
 export const MATCH_LIST_SIZE = 6;
 
 export interface PublicRating {
@@ -103,10 +122,13 @@ export function likedSim(a: ReadonlySet<string>, b: ReadonlySet<string>): number
   return Math.sqrt(inter / Math.min(a.size, b.size));
 }
 
-/** Centroid cosine → 0..1 ("NN% taste match"); null without both vectors. */
-export function tasteSim(cosine: number | null): number | null {
+/**
+ * Centroid cosine → 0..1 ("NN% taste match"); null without both vectors. Both
+ * centroids must live in `space` (compare rows of the same space only).
+ */
+export function tasteSim(cosine: number | null, space: SpaceKind = "raw"): number | null {
   if (cosine === null || !Number.isFinite(cosine)) return null;
-  return clamp01((cosine - MATCH_TASTE_COS_LO) / (MATCH_TASTE_COS_HI - MATCH_TASTE_COS_LO));
+  return windowed(cosine, tasteWindow(space));
 }
 
 export interface SharedTitle {
@@ -130,6 +152,8 @@ export function computeTasteMatch(input: {
   a: readonly PublicRating[];
   b: readonly PublicRating[];
   centroidCosine: number | null;
+  /** Space both centroids live in (default raw = pre-centering window). */
+  space?: SpaceKind;
 }): TasteMatchResult {
   const byKeyB = new Map(input.b.map((r) => [r.key, r]));
   const pairs: Array<{ a: number; b: number }> = [];
@@ -154,7 +178,7 @@ export function computeTasteMatch(input: {
   const components = {
     scoreSim: scoreSim(pairs),
     likedSim: likedSim(likedA, likedB),
-    tasteSim: tasteSim(input.centroidCosine),
+    tasteSim: tasteSim(input.centroidCosine, input.space ?? "raw"),
   };
   const weighted: Array<[number | null, number]> = [
     [components.scoreSim, MATCH_W_SCORE],
