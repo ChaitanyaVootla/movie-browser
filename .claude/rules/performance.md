@@ -592,6 +592,13 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    benchmark (no structure → near-exhaustive graph walk); restore the real
    tables from the nightly S3 dump into a SEPARATE dev DB
    (`pg_restore -t movies -t series -t ratings -t data_sources`, add PKs/indexes).
+   **Oct 10 2026 additions** (restored prod dump, eval container :5437): with
+   `iterative_scan = relaxed_order` an id-exclusion predicate INSIDE the CTE keeps the
+   Index Scan (+Filter, 300 rows, 31 ms cold / 12 ms warm for a 1,405-id exclusion
+   list) — that is now the only allowed in-CTE predicate (`vector-search.ts`). The
+   after-LIMIT TMDB vote floor removes ~85% of embedded movies, so small LIMITs starve
+   (recall of the exact top-160: .37 at k=150, .75 at k=1000). All catalog ANN goes
+   through `annSearch` in `vector-search.ts` — see `taste-profile.md`.
    Build: deferred background deploy step (`scripts/apply-vector-indexes.sh`,
    15 min after deploy, 1 worker, 512MB m_w_m, CONCURRENTLY, hash written only
    when both indexes are `indisvalid`). Local build: series 17s, movies 100s.

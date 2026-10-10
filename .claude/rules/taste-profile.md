@@ -20,6 +20,11 @@ paths:
   - "src/server/ai/tools/recommend-for-me.ts"
   - "src/server/ai/tools/taste-summary.ts"
   - "scripts/eval-recs.ts"
+  - "scripts/eval-taste-latency.ts"
+  - "src/server/db/postgres/vector-search.ts"
+  - "src/server/db/postgres/vector-index.ts"
+  - "src/server/db/postgres/smart-discover.ts"
+  - "src/server/services/taste/for-me.ts"
 ---
 
 # Taste Profile (Oct 2026, branch `feat/taste-profile-core`)
@@ -143,6 +148,12 @@ handle `local_tester` so an E2E session can view its own profile. Recompute is
   `taste_baseline_meta` (all columns nullable/defaulted) and
   `user_stats.public_stats` + `user_stats.dirty_at` (nullable) — no
   NOT-NULL-on-populated risk, no `--accept-data-loss`.
+- `feat/taste-vectors` adds `taste_baseline_meta.embedding_mean vector(1024)` (nullable),
+  `embedding_std float8[]` / `embedding_count int` (defaulted) and
+  `user_taste_profiles.space text NOT NULL DEFAULT 'raw'` — defaulted, so `db push` is safe
+  on a populated table. Until the first `taste-baseline` run stores μ, everything stays in
+  RAW space; the run after deploy flips the space, and every row recomputes lazily on its
+  next read (space mismatch + `TASTE_ALGO_VERSION` 3).
 - Until the first `taste-baseline` run, lifts use the uniform prior and the
   percentile axes are absent. Run it once by hand after the first deploy:
   `FORCE_RUN=1 nice -n 19 npx tsx scripts/refresh-taste-baseline.ts`, then check
@@ -215,15 +226,60 @@ Gotchas:
   the anchor. Card copy is `Like <title>`; the long form lives in the row heading.
 - **Min-max normalised relevance makes tiny pools extreme** — with 3 candidates the
   worst is always rel 0. Tests that exercise MMR need a far-away "anchor" item.
-- **Dev synthetic centroids are NOT Cohere-shaped**: pairwise public-centroid cosines
-  on the seed are −0.17…0.47, so the 0.3–0.9 tasteSim window shows "28% taste
-  match" and twins (min 40%) never appear locally. Calibrate the window on prod data
-  before trusting the twins threshold.
-- Eval on the dev seed (4 users, ~60 embedded titles, K=3): centroid-only beat
-  clusters (nDCG@10 .52 vs .38); calibration/MMR raised diversity and coverage. The
-  sample is synthetic and tiny — re-run `eval-recs.ts` on a restored prod dump
-  (`scripts/sync-local-db.sh`) before changing `REC_CENTROID_TERM` or the cluster
-  count.
+- **Dev synthetic centroids are NOT Cohere-shaped**, and the dev DB has < 500 embeddings so
+  it stays in RAW space. Local match/twins numbers mean nothing; the windows were calibrated
+  on the prod dump (see the Embedding space section).
+- Eval on the dev seed said centroid-only beat clusters. **On real prod data (136 LOO
+  trials) clusters won** (centered hit@10 .162 clusters+MMR+calib vs .110
+  centroid+MMR+calib), so the cluster pipeline stays. Synthetic seeds are not evidence.
+
+## Embedding space + the ONE ANN entry point (branch `feat/taste-vectors`, Oct 10 2026)
+
+Spec + measured numbers: `docs/superpowers/specs/2026-10-10-taste-vector-upgrades.md`.
+
+1. **Never compare raw Cohere cosines across users.** Cohere document vectors share a big
+   common component. On the prod dump, two RANDOM 30-title sets have a raw centroid cosine
+   of 0.94, and real users only 0.68. Every taste vector therefore lives in the
+   mean-centered space: `TasteSpace` from `src/lib/taste/space.ts`, obtained via
+   `getTasteSpace()` (baseline-cache, 1h).
+   - μ is the nightly `taste-baseline` aggregate in `taste_baseline_meta.embedding_mean`.
+   - Anything compared with a user vector must go through the SAME `space.project`: title
+     embeddings before Rocchio/Ward, rec candidates and anchors, the forMe pool, and the
+     other user's centroid.
+   - Rows carry `user_taste_profiles.space`. A row whose space ≠ the current one recomputes
+     on read, and twins/match only compare same-space rows.
+   - No μ (fresh env, < `SPACE_MIN_TITLES` embedded) → `RAW_SPACE` = the pre-centering
+     behaviour.
+   - Whitening is implemented but OFF (`TASTE_SPACE_WHITEN`; within noise on the eval).
+2. **Calibrated windows are per space.** `tasteWindow(space)`: centered 0.02–0.60 (null-model
+   median → self-similarity p25), raw 0.3–0.9. `TWIN_MIN_MATCH = 40` ⇒ centered cosine ≥
+   0.252, above the null p99. Re-derive with `scripts/eval-recs.ts` (calibration block),
+   never by guessing, and bump `TASTE_ALGO_VERSION` / `REC_ALGO_VERSION`.
+3. **`src/server/db/postgres/vector-search.ts` (`annSearch`) is the ONLY catalog ANN entry
+   point.** It is gated on `hasVectorIndex` (null → caller fallback), and runs an unfiltered
+   MATERIALIZED CTE on the halfvec expression with `SET LOCAL ef_search` + iterative scan in
+   one batch.
+   - The only predicate allowed inside the CTE is an id exclusion (non-selective;
+     EXPLAIN-verified index scan + filter).
+   - Callers filter and rank over `candidateSetSql` (an unnest row source), with `notAdult()`
+     in `$queryRawUnsafe` strings only.
+   - Users: `taste-recs.annCandidates`, `smartDiscover` (similarTo + semantic), and through
+     it the Similar module.
+   - Do not hand-roll another `ORDER BY embedding <=>`.
+4. **ANN with centered queries.** Query the RAW index with the centered unit query; the
+   order equals the centered numerator up to the per-title ‖x−μ‖. Merge hits from different
+   queries with `dist + space.meanDot(q)`, over-fetch ×`REC_POOL_OVERFETCH` (2), and re-rank
+   exactly.
+5. **The vote floor after the LIMIT is the real recall limiter**: only ~15% of embedded movies
+   have ≥150 votes. `REC_ANN_PER_QUERY = 1000` (= max ef_search) gives exact-top-160 recall
+   .75 vs .37 at 150. A vote EXISTS *inside* the CTE kept the index plan on the eval DB but is
+   untested on prod statistics — EXPLAIN on prod before moving it in.
+
+Eval data reality (Oct 2026): only 4 prod users have ≥10 positives (122 of 130 have 1–2), so
+use `eval-recs.ts --loo` (leave-one-out trials) and treat <0.04 hit@10 as a tie. The eval
+runs against a SEPARATE container `movie-browser-eval-pg` on :5437 (db `moviebrowser_eval`,
+rows streamed from the S3 dump through an awk row filter, no archive on disk). NEVER restore
+over the shared :5436, and never restart that container (other sessions run on it).
 
 See also: `social-features.md` (invariants), `performance.md` §16/§19 (vector index
 recipe), `ai-agent.md` (tool list), `audit-log.md` (why derived tables are not
