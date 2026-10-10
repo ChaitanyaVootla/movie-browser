@@ -15,7 +15,8 @@
  */
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
-import { BASELINE_MIN_SIZE, BASELINE_MIN_VOTES } from "@/lib/taste/constants";
+import { BASELINE_MIN_SIZE, BASELINE_MIN_VOTES, SPACE_MIN_TITLES } from "@/lib/taste/constants";
+import { vectorLiteral } from "@/server/db/postgres/vector-search";
 import type { FacetType } from "@/lib/taste/types";
 
 const TMDB_SOURCE = Prisma.sql`(SELECT id FROM data_sources WHERE slug = 'tmdb')`;
@@ -99,6 +100,9 @@ export interface BaselineRefreshReport {
   mode: "votes" | "all";
   catalogSize: number;
   enrichedSize: number;
+  /** Embedded titles the mean/std came from (0 = below SPACE_MIN_TITLES → raw space). */
+  embeddingCount: number;
+  embeddingMs: number;
   perType: Record<string, { keys: number; inserted: number; updated: number; deleted: number; ms: number }>;
   quantilesMs: number;
   totalMs: number;
@@ -124,6 +128,42 @@ async function refreshType(tx: Tx, type: FacetType) {
   const keys = await tx.$queryRaw<Array<{ c: number }>>`SELECT count(*)::int AS c FROM tfb_stage`;
   await tx.$executeRaw`DROP TABLE tfb_stage`;
   return { keys: Number(keys[0]?.c ?? 0), inserted, updated, deleted, ms: Date.now() - t0 };
+}
+
+/**
+ * Catalog mean μ and per-dimension std σ of the L2-normalised embeddings over
+ * population B (spec 2026-10-10-taste-vector-upgrades.md §2). One aggregate
+ * pass in Postgres (pgvector `avg` + elementwise `*`); Node only receives the
+ * two 1024-d results. Below SPACE_MIN_TITLES embedded titles (dev DBs) the
+ * columns are cleared → the request path stays in raw space.
+ */
+async function refreshEmbeddingStats(tx: Tx): Promise<number> {
+  const rows = await tx.$queryRaw<Array<{ mean: number[] | null; sq: number[] | null; n: number }>>`
+    WITH e AS (
+      SELECT l2_normalize(m.embedding) AS v FROM movies m JOIN tb_m t ON t.id = m.id WHERE m.embedding IS NOT NULL
+      UNION ALL
+      SELECT l2_normalize(s.embedding) FROM series s JOIN tb_s t ON t.id = s.id WHERE s.embedding IS NOT NULL
+    )
+    SELECT avg(v)::real[] AS mean, avg(v * v)::real[] AS sq, count(*)::int AS n FROM e`;
+  const r = rows[0];
+  const n = Number(r?.n ?? 0);
+  if (!r?.mean || !r.sq || n < SPACE_MIN_TITLES) {
+    await tx.$executeRaw`
+      UPDATE taste_baseline_meta SET embedding_mean = NULL, embedding_std = '{}', embedding_count = ${n} WHERE id = 1`;
+    return 0;
+  }
+  const mean = r.mean.map(Number);
+  const std = embeddingStd(mean, r.sq.map(Number));
+  await tx.$executeRaw`
+    UPDATE taste_baseline_meta
+    SET embedding_mean = ${vectorLiteral(mean)}::vector, embedding_std = ${std}::float8[], embedding_count = ${n}
+    WHERE id = 1`;
+  return n;
+}
+
+/** σ_i = √max(0, E[x_i²] − μ_i²). */
+export function embeddingStd(mean: readonly number[], meanSquares: readonly number[]): number[] {
+  return mean.map((m, i) => Math.sqrt(Math.max(0, (meanSquares[i] ?? 0) - m * m)));
 }
 
 export async function refreshTasteBaseline(): Promise<BaselineRefreshReport> {
@@ -189,7 +229,10 @@ export async function refreshTasteBaseline(): Promise<BaselineRefreshReport> {
         durationMs: totalMs,
       };
       await tx.tasteBaselineMeta.upsert({ where: { id: 1 }, create: { id: 1, ...meta }, update: meta });
-      return { mode, catalogSize, enrichedSize, perType, quantilesMs, totalMs };
+      const e0 = Date.now();
+      const embeddingCount = await refreshEmbeddingStats(tx);
+      const embeddingMs = Date.now() - e0;
+      return { mode, catalogSize, enrichedSize, embeddingCount, embeddingMs, perType, quantilesMs, totalMs: Date.now() - t0 };
     },
     { timeout: 30 * 60 * 1000, maxWait: 30_000 }
   );

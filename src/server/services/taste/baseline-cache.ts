@@ -11,7 +11,14 @@
  * In-process cache: meta for 1h, per-key counts for 1h (bounded map).
  */
 import type { CatalogQuantiles, FacetBaseline, FacetType } from "@/lib/taste/types";
-import { readBaselineCounts, readBaselineMeta, type BaselineMeta } from "@/server/db/postgres/social/taste";
+import {
+  readBaselineCounts,
+  readBaselineMeta,
+  readEmbeddingStats,
+  type BaselineMeta,
+} from "@/server/db/postgres/social/taste";
+import { RAW_SPACE, makeTasteSpace, type TasteSpace } from "@/lib/taste/space";
+import { TASTE_SPACE_WHITEN } from "@/lib/taste/constants";
 
 const TTL_MS = 60 * 60 * 1000;
 const MAX_KEYS = 50_000;
@@ -68,4 +75,35 @@ export async function getBaseline(
 export function resetBaselineCache(): void {
   meta = null;
   counts.clear();
+  spaceCache = null;
+}
+
+// ---------------------------------------------------------------------------
+// Embedding space (spec 2026-10-10-taste-vector-upgrades.md §2)
+// ---------------------------------------------------------------------------
+
+let spaceCache: { value: TasteSpace; at: number } | null = null;
+
+/**
+ * The current embedding space: mean-centered when the nightly cron has stored
+ * a catalog mean, raw otherwise (fresh env). One PK read per hour per process;
+ * a failed read degrades to raw (and is retried after the TTL).
+ */
+export async function getTasteSpace(): Promise<TasteSpace> {
+  const now = Date.now();
+  if (spaceCache && now - spaceCache.at < TTL_MS) return spaceCache.value;
+  let value: TasteSpace = RAW_SPACE;
+  try {
+    const stats = await readEmbeddingStats();
+    if (stats) value = makeTasteSpace({ mean: stats.mean, std: stats.std, whiten: TASTE_SPACE_WHITEN });
+  } catch {
+    value = RAW_SPACE;
+  }
+  spaceCache = { value, at: now };
+  return value;
+}
+
+/** Test hook. */
+export function resetTasteSpaceCache(): void {
+  spaceCache = null;
 }

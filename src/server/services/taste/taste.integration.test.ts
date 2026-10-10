@@ -45,7 +45,7 @@ async function cleanup() {
 
 beforeAll(async () => {
   const url = process.env.DATABASE_URL ?? "";
-  if (!url.includes("5436")) return;
+  if (!/@(localhost|127\.0\.0\.1):(5436|5437)\//.test(url)) return; // dev or the eval container
   try {
     const t = await prisma.$queryRaw<Array<{ ok: boolean }>>`
       SELECT to_regclass('public.user_taste_profiles') IS NOT NULL AS ok`;

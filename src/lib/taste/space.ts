@@ -24,6 +24,14 @@ export interface TasteSpace {
   kind: SpaceKind;
   /** Unit-normalise, subtract μ, (divide by σ), re-normalise. Null for a zero/degenerate vector. */
   project(v: ArrayLike<number>): number[] | null;
+  /**
+   * μ·q for a query q (0 in raw space). A raw-index hit for a unit query q has
+   * raw cosine x·q = 1 − dist; the centered numerator is x·q − μ·q, so
+   * `dist + meanDot(q)` makes distances from DIFFERENT query vectors
+   * comparable in the centered space (exact for centering, approximate under
+   * whitening).
+   */
+  meanDot(q: ArrayLike<number>): number;
 }
 
 /** σ floor so near-constant dimensions cannot blow up under whitening. */
@@ -32,6 +40,7 @@ const STD_FLOOR = 1e-4;
 export const RAW_SPACE: TasteSpace = {
   kind: "raw",
   project: (v) => (v.length ? l2Normalize(v) : null),
+  meanDot: () => 0,
 };
 
 export function makeTasteSpace(opts: {
@@ -56,6 +65,12 @@ export function makeTasteSpace(opts: {
         out[i] = inv ? d * inv[i] : d;
       }
       return l2Normalize(out);
+    },
+    meanDot(q) {
+      if (q.length !== dims) return 0;
+      let s = 0;
+      for (let i = 0; i < dims; i++) s += mean[i] * q[i];
+      return s;
     },
   };
 }

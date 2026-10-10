@@ -8,6 +8,7 @@
  * rows, metadata/embedding queries take an explicit id list (≤ TITLE_CAP).
  * No AI, no embedding generation — stored `embedding` columns only.
  */
+import type { SpaceKind } from "@/lib/taste/space";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
 import { SOURCE_ROW_CAP } from "@/lib/taste/constants";
@@ -551,6 +552,26 @@ export async function readBaselineMeta(): Promise<BaselineMeta | null> {
   return row && row.computedAt ? row : null;
 }
 
+export interface EmbeddingStats {
+  mean: number[];
+  std: number[];
+  count: number;
+}
+
+/**
+ * The catalog embedding mean/std written by the baseline cron (PK lookup).
+ * Null when absent (fresh env / below SPACE_MIN_TITLES) → raw space. Raw SQL:
+ * Prisma can't read pgvector columns.
+ */
+export async function readEmbeddingStats(): Promise<EmbeddingStats | null> {
+  const rows = await prisma.$queryRaw<Array<{ mean: number[] | null; std: number[] | null; n: number }>>`
+    SELECT embedding_mean::real[] AS mean, embedding_std AS std, embedding_count AS n
+    FROM taste_baseline_meta WHERE id = 1 AND embedding_mean IS NOT NULL`;
+  const r = rows[0];
+  if (!r?.mean || r.mean.length === 0) return null;
+  return { mean: r.mean.map(Number), std: (r.std ?? []).map(Number), count: Number(r.n) };
+}
+
 /** Stored catalog counts for specific facet keys of one type (PK index scan). */
 export async function readBaselineCounts(type: FacetValue["type"], keys: string[]): Promise<Map<string, number>> {
   const out = new Map<string, number>();
@@ -578,24 +599,47 @@ export interface TasteRow {
   clusters: unknown;
   signalCount: number;
   positiveCount: number;
+  /** Embedding space the stored vectors live in. */
+  space: SpaceKind;
 }
 
+const asSpace = (v: unknown): SpaceKind => (v === "centered" || v === "whitened" ? v : "raw");
+
+/** Raw SQL: `space` is read without depending on a regenerated Prisma client. */
 export async function readTasteRow(userId: number): Promise<TasteRow | null> {
-  return prisma.userTasteProfile.findUnique({
-    where: { userId },
-    select: {
-      dirty: true,
-      updatedAt: true,
-      computedAt: true,
-      algoVersion: true,
-      publicSnapshot: true,
-      facets: true,
-      axes: true,
-      clusters: true,
-      signalCount: true,
-      positiveCount: true,
-    },
-  });
+  const rows = await prisma.$queryRaw<
+    Array<{
+      dirty: boolean;
+      updated_at: Date;
+      computed_at: Date | null;
+      algo_version: number;
+      public_snapshot: unknown;
+      facets: unknown;
+      axes: unknown;
+      clusters: unknown;
+      signal_count: number;
+      positive_count: number;
+      space: string | null;
+    }>
+  >`
+    SELECT dirty, updated_at, computed_at, algo_version, public_snapshot, facets, axes, clusters,
+           signal_count, positive_count, space
+    FROM user_taste_profiles WHERE user_id = ${userId}`;
+  const r = rows[0];
+  if (!r) return null;
+  return {
+    dirty: r.dirty,
+    updatedAt: r.updated_at,
+    computedAt: r.computed_at,
+    algoVersion: Number(r.algo_version),
+    publicSnapshot: r.public_snapshot,
+    facets: r.facets,
+    axes: r.axes,
+    clusters: r.clusters,
+    signalCount: Number(r.signal_count),
+    positiveCount: Number(r.positive_count),
+    space: asSpace(r.space),
+  };
 }
 
 const vecLiteral = (v: number[] | null): string | null =>
@@ -613,6 +657,7 @@ export interface TasteWrite {
   positiveCount: number;
   algoVersion: number;
   computedAt: Date;
+  space: SpaceKind;
 }
 
 /**
@@ -632,12 +677,12 @@ export async function writeTasteRow(
   await prisma.$executeRaw`
     INSERT INTO user_taste_profiles (
       user_id, centroid, neg_centroid, public_centroid, clusters, facets, axes,
-      signal_count, positive_count, public_snapshot, algo_version, dirty, computed_at, updated_at)
+      signal_count, positive_count, public_snapshot, algo_version, space, dirty, computed_at, updated_at)
     VALUES (
       ${userId}, ${vecLiteral(w.centroid)}::vector, ${vecLiteral(w.negCentroid)}::vector,
       ${vecLiteral(w.publicCentroid)}::vector, ${json(w.clusters)}::jsonb, ${json(w.facets)}::jsonb,
       ${json(w.axes)}::jsonb, ${w.signalCount}, ${w.positiveCount}, ${json(w.publicSnapshot)}::jsonb,
-      ${w.algoVersion}, false, ${w.computedAt}, now())
+      ${w.algoVersion}, ${w.space}, false, ${w.computedAt}, now())
     ON CONFLICT (user_id) DO UPDATE SET
       centroid = EXCLUDED.centroid,
       neg_centroid = EXCLUDED.neg_centroid,
@@ -649,6 +694,7 @@ export async function writeTasteRow(
       positive_count = EXCLUDED.positive_count,
       public_snapshot = EXCLUDED.public_snapshot,
       algo_version = EXCLUDED.algo_version,
+      space = EXCLUDED.space,
       computed_at = EXCLUDED.computed_at,
       dirty = CASE WHEN user_taste_profiles.updated_at > ${observed} AND user_taste_profiles.dirty
                    THEN true ELSE false END,
@@ -658,15 +704,23 @@ export async function writeTasteRow(
 
 export type TasteVectorColumn = "centroid" | "neg_centroid" | "public_centroid";
 
+/** Stored user vectors + the space they were computed in (never compare across spaces). */
+export interface TasteVectors {
+  centroid: number[] | null;
+  negCentroid: number[] | null;
+  publicCentroid: number[] | null;
+  space: SpaceKind;
+}
+
 export async function readTasteVectors(
   userId: number
-): Promise<{ centroid: number[] | null; negCentroid: number[] | null; publicCentroid: number[] | null }> {
+): Promise<TasteVectors> {
   const rows = await prisma.$queryRaw<
-    Array<{ c: number[] | null; n: number[] | null; p: number[] | null }>
+    Array<{ c: number[] | null; n: number[] | null; p: number[] | null; space: string | null }>
   >`
-    SELECT centroid::real[] AS c, neg_centroid::real[] AS n, public_centroid::real[] AS p
+    SELECT centroid::real[] AS c, neg_centroid::real[] AS n, public_centroid::real[] AS p, space
     FROM user_taste_profiles WHERE user_id = ${userId}`;
   const r = rows[0];
   const conv = (v: number[] | null | undefined) => (v ? v.map(Number) : null);
-  return { centroid: conv(r?.c), negCentroid: conv(r?.n), publicCentroid: conv(r?.p) };
+  return { centroid: conv(r?.c), negCentroid: conv(r?.n), publicCentroid: conv(r?.p), space: asSpace(r?.space) };
 }

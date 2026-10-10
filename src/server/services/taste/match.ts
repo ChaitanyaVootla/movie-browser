@@ -29,9 +29,14 @@ import {
   isMutualFollow,
 } from "@/server/db/postgres/social/taste-recs";
 import { dataLogger } from "@/lib/logger";
-import { getUserTasteEmbedding } from "./index";
+import { getTasteVectors } from "./index";
 
-/** Twins below this match are not suggested. */
+/**
+ * Twins below this match are not suggested. In the centered space 40% = cosine
+ * 0.252, above the p99 of the random-title-set null model (0.19–0.22) and at
+ * ≈ the p95 of real user pairs (2026-10-10 spec §7): a twin is a top-5% pair,
+ * never a coincidence. (Raw space put EVERY real pair at 50–88%.)
+ */
 export const TWIN_MIN_MATCH = 40;
 export const TWIN_LIMIT = 6;
 
@@ -66,13 +71,19 @@ export async function getTasteMatchFor(viewerId: number, username: string): Prom
     const [sigA, sigB, vecA, vecB] = await Promise.all([
       fetchTasteSignals(viewerId),
       fetchTasteSignals(target.id),
-      getUserTasteEmbedding(viewerId, { scope: "public" }),
-      getUserTasteEmbedding(target.id, { scope: "public" }),
+      getTasteVectors(viewerId),
+      getTasteVectors(target.id),
     ]);
+    // PUBLIC centroids only, and only when both live in the same embedding
+    // space (never compare a raw centroid with a centered one).
+    const a = vecA.publicCentroid;
+    const b = vecB.publicCentroid;
+    const sameSpace = vecA.space === vecB.space;
     const result = computeTasteMatch({
       a: publicRatingsFromSignals(sigA),
       b: publicRatingsFromSignals(sigB),
-      centroidCosine: vecA && vecB ? cosineSimilarity(vecA, vecB) : null,
+      centroidCosine: a && b && sameSpace ? cosineSimilarity(a, b) : null,
+      space: vecA.space,
     });
     if (result.score === null) return null;
 
@@ -121,15 +132,15 @@ export async function getTasteTwinsFor(viewerId: number): Promise<TasteTwinDTO[]
   try {
     const viewer = await fetchUserById(viewerId);
     if (!viewer || !viewer.isPublic) return [];
-    const vec = await getUserTasteEmbedding(viewerId, { scope: "public" }); // ensures a fresh stored row
-    if (!vec) return [];
+    const vectors = await getTasteVectors(viewerId); // ensures a fresh stored row
+    if (!vectors.publicCentroid) return [];
     const [hidden, following] = await Promise.all([getHiddenUserIds(viewerId), fetchFollowingIds(viewerId)]);
     const rows = await fetchTwinCandidates(viewerId, {
       excludeIds: [viewerId, ...hidden, ...following],
       limit: TWIN_LIMIT * 3,
     });
     return rows
-      .map((r) => ({ r, match: Math.round(100 * (tasteSim(r.cos) ?? 0)) }))
+      .map((r) => ({ r, match: Math.round(100 * (tasteSim(r.cos, vectors.space) ?? 0)) }))
       .filter(({ r, match }) => match >= TWIN_MIN_MATCH && r.username)
       .slice(0, TWIN_LIMIT)
       .map(({ r, match }) => ({

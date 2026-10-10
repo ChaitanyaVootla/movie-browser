@@ -37,7 +37,7 @@ async function main(): Promise<void> {
   try {
     const r = await refreshTasteBaseline();
     console.log(
-      `[taste-baseline] done in ${r.totalMs}ms  mode=${r.mode} catalog=${r.catalogSize} enriched=${r.enrichedSize} quantiles=${r.quantilesMs}ms`
+      `[taste-baseline] done in ${r.totalMs}ms  mode=${r.mode} catalog=${r.catalogSize} enriched=${r.enrichedSize} quantiles=${r.quantilesMs}ms embeddingMean=${r.embeddingCount} titles/${r.embeddingMs}ms`
     );
     for (const [type, s] of Object.entries(r.perType)) {
       console.log(

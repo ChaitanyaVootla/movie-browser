@@ -12,7 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
-const ENABLED = (process.env.DATABASE_URL ?? "").includes("5436");
+const ENABLED = /@(localhost|127\.0\.0\.1):(5436|5437)\//.test(process.env.DATABASE_URL ?? ""); // dev or the eval container
 
 let ready = false;
 let ada = 0;
@@ -46,11 +46,12 @@ afterAll(async () => {
 });
 
 describe("annLimitFor (pure)", () => {
-  it("grows the inner ANN LIMIT with the exclusion count, capped at 1000", async () => {
+  it("clamps the inner ANN LIMIT to 1..1000 (exclusions no longer grow it)", async () => {
     const { annLimitFor, ANN_MAX_LIMIT } = await import("@/server/db/postgres/social/taste-recs");
-    expect(annLimitFor(150, 0)).toBe(150);
-    expect(annLimitFor(150, 400)).toBe(550);
-    expect(annLimitFor(150, 5000)).toBe(ANN_MAX_LIMIT);
+    // Exclusions are skipped inside the iterative HNSW scan now, so they no longer grow the LIMIT.
+    expect(annLimitFor(150)).toBe(150);
+    expect(annLimitFor(5000)).toBe(ANN_MAX_LIMIT);
+    expect(annLimitFor(0)).toBe(1);
   });
 });
 
@@ -118,10 +119,16 @@ describe("taste recs (live dev DB)", () => {
       WHERE t.embedding IS NOT NULL AND t.adult IS NOT TRUE AND NOT (t.id = ANY(${ex.movieIds}::int[]))
         AND EXISTS (SELECT 1 FROM ratings r WHERE r.movie_id = t.id
           AND r.source_id = (SELECT id FROM data_sources WHERE slug = 'tmdb') AND r.vote_count >= 150)`;
+    // The user's own titles are skipped INSIDE the iterative HNSW scan, so the raw scan
+    // returns exactly `base` non-excluded neighbours (a fixed LIMIT used to be eaten by them).
+    const { annSearch } = await import("@/server/db/postgres/vector-search");
+    const raw = await annSearch({ table: "movies", queries: [centroid], k: base, excludeIds: ex.movieIds });
+    expect(raw?.length).toBe(base);
+    expect(raw?.some((h) => ex.movieIds.includes(h.id))).toBe(false);
+    // The vote floor still runs after the LIMIT; survivors are a subset, never an excluded title.
     const hits = await annCandidates("movies", [centroid], { excludeIds: ex.movieIds, minVotes: 150, perQuery: base });
-    // With a fixed LIMIT 5 the user's own titles would fill the nearest 5 and leave ~0;
-    // the exclusion-sized LIMIT still returns up to `base` survivors.
-    expect(hits.length).toBeGreaterThanOrEqual(Math.min(base, Number(eligible[0]?.n ?? 0)));
+    expect(Number(eligible[0]?.n ?? 0)).toBeGreaterThan(0);
+    expect(hits.length).toBeLessThanOrEqual(Math.min(base, Number(eligible[0]?.n ?? 0)));
     expect(hits.some((h) => ex.movieIds.includes(h.id))).toBe(false);
   });
 });

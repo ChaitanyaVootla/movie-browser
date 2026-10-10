@@ -54,6 +54,21 @@ describe("TasteSpace", () => {
     expect(makeTasteSpace({ mean: [1, 0] }).project([2, 0])).toBeNull();
   });
 
+  it("meanDot makes raw-index distances from different queries comparable in centered space", () => {
+    const mean = [0.6, 0.8, 0];
+    const space = makeTasteSpace({ mean });
+    const x = [0.6, 0, 0.8];
+    const q1 = [1, 0, 0];
+    const q2 = [0, 0, 1];
+    for (const q of [q1, q2]) {
+      const dist = 1 - dot(x, q);
+      // centered numerator (x − μ)·q
+      const numer = dot(x, q) - dot(mean, q);
+      expect(1 - (dist + space.meanDot(q))).toBeCloseTo(numer, 12);
+    }
+    expect(RAW_SPACE.meanDot(q1)).toBe(0);
+  });
+
   it("projectAll drops degenerate entries", () => {
     const m = projectAll(makeTasteSpace({ mean: [1, 0] }), new Map([["a", [2, 0]], ["b", [0, 1]]]));
     expect([...m.keys()]).toEqual(["b"]);
