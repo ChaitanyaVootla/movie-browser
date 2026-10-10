@@ -68,7 +68,7 @@ export async function fetchRecExclusions(userId: number): Promise<RecExclusions>
 // ANN candidates
 // ---------------------------------------------------------------------------
 
-/** Hard ceiling on one HNSW scan (matches annSessionSql's ef_search cap). */
+/** Hard ceiling on one HNSW scan (annSearch applies the lower per-table cap, annMaxK). */
 export const ANN_MAX_LIMIT = ANN_MAX_K;
 
 /**

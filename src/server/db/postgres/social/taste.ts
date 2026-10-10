@@ -556,6 +556,8 @@ export interface EmbeddingStats {
   mean: number[];
   std: number[];
   count: number;
+  /** When the cron computed μ (the meta row's computed_at; same transaction). */
+  computedAt: Date | null;
 }
 
 /**
@@ -564,12 +566,19 @@ export interface EmbeddingStats {
  * Prisma can't read pgvector columns.
  */
 export async function readEmbeddingStats(): Promise<EmbeddingStats | null> {
-  const rows = await prisma.$queryRaw<Array<{ mean: number[] | null; std: number[] | null; n: number }>>`
-    SELECT embedding_mean::real[] AS mean, embedding_std AS std, embedding_count AS n
+  const rows = await prisma.$queryRaw<
+    Array<{ mean: number[] | null; std: number[] | null; n: number; at: Date | null }>
+  >`
+    SELECT embedding_mean::real[] AS mean, embedding_std AS std, embedding_count AS n, computed_at AS at
     FROM taste_baseline_meta WHERE id = 1 AND embedding_mean IS NOT NULL`;
   const r = rows[0];
   if (!r?.mean || r.mean.length === 0) return null;
-  return { mean: r.mean.map(Number), std: (r.std ?? []).map(Number), count: Number(r.n) };
+  return {
+    mean: r.mean.map(Number),
+    std: (r.std ?? []).map(Number),
+    count: Number(r.n),
+    computedAt: r.at instanceof Date ? r.at : null,
+  };
 }
 
 /** Stored catalog counts for specific facet keys of one type (PK index scan). */

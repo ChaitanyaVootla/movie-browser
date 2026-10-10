@@ -30,8 +30,8 @@ vi.mock("./index", () => ({
 }));
 vi.mock("@/lib/logger", () => ({ dataLogger: { warn: vi.fn(), debug: vi.fn() } }));
 
-import { annSearch, candidateParams, candidateSetSql, vectorLiteral } from "./vector-search";
-import { resetVectorIndexCache } from "./vector-index";
+import { annMaxK, annSearch, candidateParams, candidateSetSql, vectorLiteral } from "./vector-search";
+import { ANN_MAX_SCAN_TUPLES, annSessionSql, resetVectorIndexCache } from "./vector-index";
 
 beforeEach(() => {
   calls.length = 0;
@@ -51,10 +51,11 @@ describe("annSearch", () => {
   it("one batch transaction: SET LOCAL ef_search = k + iterative scan, then one unfiltered CTE per query", async () => {
     flags.rows = [{ id: 7, dist: 0.25, query: 0 }];
     const hits = await annSearch({ table: "series", queries: [[0.1, 0.2], [0.3, 0.4]], k: 150 });
-    expect(txBatches).toEqual([4]);
+    expect(txBatches).toEqual([5]);
     expect(calls[0]).toBe("SET LOCAL hnsw.ef_search = 150");
     expect(calls[1]).toBe("SET LOCAL hnsw.iterative_scan = relaxed_order");
-    const selects = calls.slice(2).map((s) => s.replace(/\s+/g, " "));
+    expect(calls[2]).toBe(`SET LOCAL hnsw.max_scan_tuples = ${ANN_MAX_SCAN_TUPLES}`);
+    const selects = calls.slice(3).map((s) => s.replace(/\s+/g, " "));
     expect(selects).toHaveLength(2);
     for (const s of selects) {
       expect(s).toMatch(/WITH c AS MATERIALIZED \( SELECT id AS cid, embedding::halfvec\(1024\) <=> '\[.*\]'::halfvec\(1024\) AS dist FROM series ORDER BY embedding::halfvec\(1024\) <=> '\[.*\]'::halfvec\(1024\) LIMIT 150 \)/);
@@ -64,10 +65,26 @@ describe("annSearch", () => {
     expect(hits?.[0]).toEqual({ id: 7, dist: 0.25, query: 0 });
   });
 
-  it("caps k at 1000 (the ef_search ceiling) and floors it at 1", async () => {
+  it("caps k at 1000 for movies (the ef_search ceiling) and floors it at 1", async () => {
     await annSearch({ table: "movies", queries: [[1, 0]], k: 5000 });
     expect(calls[0]).toBe("SET LOCAL hnsw.ef_search = 1000");
     expect(calls.at(-1)).toContain("LIMIT 1000");
+    calls.length = 0;
+    await annSearch({ table: "movies", queries: [[1, 0]], k: 0 });
+    expect(calls.at(-1)).toContain("LIMIT 1");
+  });
+
+  it("caps series at 500: above ~650 the planner seq-scans the smaller series table (EXPLAIN, eval dump)", async () => {
+    expect(annMaxK("series")).toBe(500);
+    expect(annMaxK("movies")).toBe(1000);
+    await annSearch({ table: "series", queries: [[1, 0]], k: 1000 });
+    expect(calls[0]).toBe("SET LOCAL hnsw.ef_search = 500");
+    expect(calls.at(-1)).toContain("LIMIT 500");
+  });
+
+  it("always bounds the iterative walk with an explicit max_scan_tuples (pathological exclusion lists)", () => {
+    expect(ANN_MAX_SCAN_TUPLES).toBe(10_000);
+    expect(annSessionSql(200)).toContain(`SET LOCAL hnsw.max_scan_tuples = ${ANN_MAX_SCAN_TUPLES}`);
   });
 
   it("no queries → [] without SQL", async () => {

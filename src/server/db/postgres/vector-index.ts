@@ -66,13 +66,29 @@ export function annDistanceSql(column: string, vectorLiteral: string): string {
 }
 
 /**
+ * Ceiling on the tuples one iterative HNSW scan may visit. The in-scan id
+ * exclusion (annCteSql) makes the walk continue past excluded rows, so an
+ * enormous exclusion list near the query would otherwise walk up to pgvector's
+ * default (20,000). Sized from EXPLAIN ANALYZE on the restored prod dump
+ * (eval :5437, Oct 10 2026): the heaviest real user (1,405 excluded movies)
+ * removes ~250-1,340 rows at k=1000; even excluding the 30,000 exact nearest
+ * movies, 10,000 still returned the full 1,000 rows (35-90ms vs 65ms+ at the
+ * default). ≈7× the heaviest real user's exclusions.
+ */
+export const ANN_MAX_SCAN_TUPLES = 10_000;
+
+/**
  * Session settings for an ANN query, applied with SET LOCAL inside the same
  * transaction. ef_search = the candidate count, so one HNSW pass returns them
  * all (measured on the restored prod dump, warm: 200 candidates ~8ms, 400
- * ~13-20ms; cold first hit 15-60ms). The iterative scan is a safety net in case
- * the graph yields fewer than ef_search live tuples (NULL/dead rows).
+ * ~13-20ms, movies 1000 ~18-28ms; cold first hit 15-80ms). The iterative scan
+ * keeps walking past excluded/NULL/dead rows, bounded by ANN_MAX_SCAN_TUPLES.
  */
 export function annSessionSql(candidates: number): string[] {
   const ef = Math.max(40, Math.min(1000, Math.floor(candidates)));
-  return [`SET LOCAL hnsw.ef_search = ${ef}`, "SET LOCAL hnsw.iterative_scan = relaxed_order"];
+  return [
+    `SET LOCAL hnsw.ef_search = ${ef}`,
+    "SET LOCAL hnsw.iterative_scan = relaxed_order",
+    `SET LOCAL hnsw.max_scan_tuples = ${ANN_MAX_SCAN_TUPLES}`,
+  ];
 }

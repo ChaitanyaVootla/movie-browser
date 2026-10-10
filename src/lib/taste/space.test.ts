@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RAW_SPACE, makeTasteSpace, percentile, projectAll, windowed } from "./space";
+import { RAW_SPACE, makeTasteSpace, percentile, projectAll, resolveStoredSpace, windowed } from "./space";
 import { cosineSimilarity, dot, norm } from "./vector";
 
 describe("TasteSpace", () => {
@@ -89,5 +89,28 @@ describe("calibration helpers", () => {
     expect(windowed(0.4, { lo: 0.2, hi: 0.6 })).toBeCloseTo(0.5);
     expect(windowed(0.9, { lo: 0.2, hi: 0.6 })).toBe(1);
     expect(windowed(0.4, { lo: 0.6, hi: 0.6 })).toBe(0);
+  });
+});
+
+describe("resolveStoredSpace", () => {
+  const centered = makeTasteSpace({ mean: [0.5, 0.5, 0] });
+  const whitened = makeTasteSpace({ mean: [0.5, 0.5, 0], std: [1, 1, 1], whiten: true });
+
+  it("same kind → the current space", () => {
+    expect(resolveStoredSpace("centered", centered)).toBe(centered);
+    expect(resolveStoredSpace("whitened", whitened)).toBe(whitened);
+    expect(resolveStoredSpace("raw", RAW_SPACE)).toBe(RAW_SPACE);
+  });
+
+  it("a stored raw vector can always be compared in raw space", () => {
+    expect(resolveStoredSpace("raw", centered)).toBe(RAW_SPACE);
+    expect(resolveStoredSpace("raw", whitened)).toBe(RAW_SPACE);
+  });
+
+  it("never pairs a centered/whitened stored vector with another space", () => {
+    expect(resolveStoredSpace("centered", RAW_SPACE)).toBeNull();
+    expect(resolveStoredSpace("whitened", RAW_SPACE)).toBeNull();
+    expect(resolveStoredSpace("centered", whitened)).toBeNull();
+    expect(resolveStoredSpace("whitened", centered)).toBeNull();
   });
 });

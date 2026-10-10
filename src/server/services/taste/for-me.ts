@@ -10,7 +10,7 @@
  * `getForMeExclusions` before retrieval. Never throws.
  */
 import { blendQueryTaste, FOR_ME_QUERY_WEIGHT } from "@/lib/taste/rerank";
-import { RAW_SPACE } from "@/lib/taste/space";
+import { resolveStoredSpace } from "@/lib/taste/space";
 import { dot, l2Normalize } from "@/lib/taste/vector";
 import { titleKey, type TasteMediaType } from "@/lib/taste/types";
 import { fetchTitleEmbeddings } from "@/server/db/postgres/social/taste";
@@ -25,7 +25,14 @@ export async function getForMeExclusions(userId: number, mediaType: TasteMediaTy
   try {
     const ex = await fetchRecExclusions(userId);
     return mediaType === "movie" ? ex.movieIds : ex.seriesIds;
-  } catch {
+  } catch (error: unknown) {
+    // Degrades to "no exclusions" (the outer smartDiscover filters still run);
+    // log it — a silent [] would surface already-watched titles as "for you".
+    dataLogger.warn({
+      action: "taste.for_me_exclusions_failed",
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return [];
   }
 }
@@ -46,7 +53,10 @@ export async function personalizeResults<T extends { id: number; semanticScore?:
     const [vectors, current] = await Promise.all([getTasteVectors(userId), getTasteSpace()]);
     const centroid = vectors.centroid ? l2Normalize(vectors.centroid) : null;
     if (!centroid || items.length === 0) return keep("no_profile");
-    const space = vectors.space === current.kind ? current : RAW_SPACE;
+    // Candidates must be projected into the space the centroid was built in;
+    // a centered centroid with no matching space available is not comparable.
+    const space = resolveStoredSpace(vectors.space, current);
+    if (!space) return keep("no_profile");
     const ids = items.map((i) => i.id);
     const emb = await fetchTitleEmbeddings(mediaType === "movie" ? ids : [], mediaType === "series" ? ids : []);
     const blended = blendQueryTaste(

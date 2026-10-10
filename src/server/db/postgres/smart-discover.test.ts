@@ -13,7 +13,7 @@ const { rawCalls, queryRawUnsafe, executeRawUnsafe, flags } = vi.hoisted(() => {
   return {
     rawCalls: calls,
     flags,
-    queryRawUnsafe: vi.fn(async (sql: string) => {
+    queryRawUnsafe: vi.fn(async (sql: string, ..._params: unknown[]) => {
       // The HNSW-index existence probe (vector-index.ts).
       if (sql.includes("pg_index")) return [{ valid: flags.indexValid }];
       calls.push(sql);
@@ -98,9 +98,10 @@ describe("smartDiscover vector path", () => {
       .map((s) => s.replace(/\s+/g, " "));
     expect(norm).toHaveLength(2);
     const [ann, sql] = norm;
-    // Candidate CTE orders by EXACTLY the indexed expression and carries no filters.
+    // Candidate CTE orders by EXACTLY the indexed expression and carries no
+    // filters except the id exclusion (here: the similar-to source itself).
     expect(ann).toMatch(
-      /WITH c AS MATERIALIZED \( SELECT id AS cid, embedding::halfvec\(1024\) <=> '\[0\.1000000,0\.2000000\]'::halfvec\(1024\) AS dist FROM movies ORDER BY embedding::halfvec\(1024\) <=> '\[0\.1000000,0\.2000000\]'::halfvec\(1024\) LIMIT 200 \)/
+      /WITH c AS MATERIALIZED \( SELECT id AS cid, embedding::halfvec\(1024\) <=> '\[0\.1000000,0\.2000000\]'::halfvec\(1024\) AS dist FROM movies WHERE NOT \(id = ANY\(\$1::int\[\]\)\) ORDER BY embedding::halfvec\(1024\) <=> '\[0\.1000000,0\.2000000\]'::halfvec\(1024\) LIMIT 200 \)/
     );
     expect(ann).not.toContain("adult");
     expect(ann).not.toContain("ratings");
@@ -113,5 +114,31 @@ describe("smartDiscover vector path", () => {
     // SET LOCAL ran in the same transaction as the ANN statement.
     expect(rawCalls).toContain("SET LOCAL hnsw.ef_search = 200");
     expect(rawCalls).toContain("SET LOCAL hnsw.iterative_scan = relaxed_order");
+  });
+
+  it("passes the caller's id exclusions INTO the ANN scan (forMe / hideWatched), keeping the outer filter", async () => {
+    flags.indexValid = true;
+    await smartDiscover({
+      mediaType: "movie",
+      semanticQuery: "dark thriller",
+      excludeIds: [11, 12],
+      watchedIds: [13],
+      dislikedIds: [14],
+      watchlistIds: [15],
+    });
+    const annCall = queryRawUnsafe.mock.calls.find(([sql]) => String(sql).includes("MATERIALIZED"));
+    expect(annCall).toBeDefined();
+    expect(String(annCall?.[0])).toContain("WHERE NOT (id = ANY($1::int[]))");
+    expect([...((annCall?.[1] ?? []) as number[])].sort((a, b) => a - b)).toEqual([11, 12, 13, 14, 15]);
+    // Backstop: the outer query still excludes them.
+    const outer = rawCalls.find((s) => s.includes("JOIN movies m ON m.id = c.cid"));
+    expect(outer).toContain("m.id != ALL(");
+  });
+
+  it("fromWatchlist (INCLUDE mode) never excludes the watchlist inside the scan", async () => {
+    flags.indexValid = true;
+    await smartDiscover({ mediaType: "movie", semanticQuery: "cosy", watchlistIds: [15], fromWatchlist: true });
+    const annCall = queryRawUnsafe.mock.calls.find(([sql]) => String(sql).includes("MATERIALIZED"));
+    expect(String(annCall?.[0])).not.toContain("NOT (id = ANY");
   });
 });

@@ -21,8 +21,7 @@ import {
 } from "@/lib/taste/profile";
 import type { TasteScope } from "@/lib/taste/types";
 import { readTasteRow, readTasteVectors, type TasteRow, type TasteVectors } from "@/server/db/postgres/social/taste";
-import type { SpaceKind } from "@/lib/taste/space";
-import { getTasteSpace } from "./baseline-cache";
+import { getTasteSpace, getTasteSpaceState, type TasteSpaceState } from "./baseline-cache";
 import { markTasteDirty } from "@/server/db/postgres/social/taste-dirty";
 import { dataLogger } from "@/lib/logger";
 import type { ProfileTasteDTO } from "@/types/social";
@@ -31,7 +30,7 @@ import { z } from "zod";
 import pLimit from "p-limit";
 
 export { markTasteDirty };
-export { getTasteSpace };
+export { getTasteSpace, getTasteSpaceState };
 export type { TasteVectors };
 export { cosineSimilarity, l2Normalize } from "@/lib/taste/vector";
 export type { TasteSnapshot, TasteCluster } from "@/lib/taste/profile";
@@ -51,17 +50,25 @@ const limit = pLimit(RECOMPUTE_CONCURRENCY);
 const inflight = new Map<number, Promise<TasteRow | null>>();
 const backoff = new Map<number, { until: number; delay: number }>();
 
-function isFresh(row: TasteRow | null, space: SpaceKind): boolean {
-  return (
-    row !== null &&
-    !row.dirty &&
-    row.algoVersion === TASTE_ALGO_VERSION &&
-    // A row built in another embedding space (e.g. raw before the cron first
-    // stored μ) recomputes: vectors of different spaces must never be compared.
-    row.space === space &&
-    row.computedAt !== null &&
-    Date.now() - row.computedAt.getTime() < TASTE_TTL_MS
-  );
+/** Exported for tests. */
+export function isFresh(row: TasteRow | null, space: TasteSpaceState, now = Date.now()): boolean {
+  if (
+    row === null ||
+    row.dirty ||
+    row.algoVersion !== TASTE_ALGO_VERSION ||
+    row.computedAt === null ||
+    now - row.computedAt.getTime() >= TASTE_TTL_MS
+  ) {
+    return false;
+  }
+  // Unknown space (read failed, nothing cached): keep serving the row as-is —
+  // recomputing would build it in a guessed space (and compute refuses anyway).
+  if (!space.known) return true;
+  // A row built in another embedding space (e.g. raw before the cron first
+  // stored μ) recomputes: vectors of different spaces must never be compared.
+  if (row.space !== space.space.kind) return false;
+  // …and so does one built against an OLDER μ (the nightly cron recomputed it).
+  return space.meanAt === null || row.computedAt.getTime() >= space.meanAt.getTime();
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
@@ -121,8 +128,8 @@ function startRecompute(userId: number, stale: TasteRow | null): Promise<TasteRo
  * `pending` = a recompute is still running for a row that had nothing to serve.
  */
 async function ensureFresh(userId: number): Promise<{ row: TasteRow | null; pending: boolean }> {
-  const [row, space] = await Promise.all([readTasteRow(userId), getTasteSpace()]);
-  if (row && isFresh(row, space.kind)) return { row, pending: false };
+  const [row, space] = await Promise.all([readTasteRow(userId), getTasteSpaceState()]);
+  if (row && isFresh(row, space)) return { row, pending: false };
   const b = backoff.get(userId);
   if (b && Date.now() < b.until) return { row, pending: false };
   const p = startRecompute(userId, row);
@@ -190,19 +197,6 @@ export async function getTasteClusters(userId: number): Promise<TasteCluster[]> 
 export async function getTasteVectors(userId: number): Promise<TasteVectors> {
   await ensureFresh(userId);
   return readTasteVectors(userId);
-}
-
-/**
- * The user's taste embedding (phase-3 plan name). Default scope "full" = the
- * owner's private recs vector; pass scope "public" for anything another user
- * sees (compatibility, follow suggestions).
- */
-export async function getUserTasteEmbedding(
-  userId: number,
-  opts: { scope?: TasteScope } = {}
-): Promise<number[] | null> {
-  const v = await getTasteVectors(userId);
-  return (opts.scope ?? "full") === "public" ? v.publicCentroid : v.centroid;
 }
 
 /**

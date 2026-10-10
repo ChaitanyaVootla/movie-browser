@@ -3,7 +3,7 @@
  * docs/superpowers/specs/2026-10-09-taste-recommendations-design.md §3).
  * Bump REC_ALGO_VERSION on any change: it is part of the in-process cache key.
  */
-export const REC_ALGO_VERSION = 2; // v2: centered taste space, exact re-rank of an over-fetched ANN pool
+export const REC_ALGO_VERSION = 3; // v3: series ANN capped at k=500 (planner seq-scan crossover); v2: centered taste space, exact re-rank of an over-fetched ANN pool
 
 /** Query vectors: top clusters by importance (plus one centroid query). */
 export const REC_MAX_CLUSTER_QUERIES = 3;
@@ -15,7 +15,8 @@ export const REC_MAX_CLUSTER_QUERIES = 3;
  * (2026-10-10 spec §7): share of the exact top-160 retrieved = .37 at 150,
  * .59 at 400, .75 at 1000 (with ×2 over-fetch); ANN cost for 4 queries on
  * movies 30 / 70 / 164 ms. Recs are cached per taste version and computed on a
- * POST, so the 1000 ceiling (= max ef_search) is affordable.
+ * POST, so the 1000 ceiling (= max ef_search) is affordable. `annSearch` caps
+ * series at 500 (annMaxK: the smaller table seq-scans above ~650).
  */
 export const REC_ANN_PER_QUERY = 1000;
 /** Candidates kept (best per-query distance) for exact re-ranking. */

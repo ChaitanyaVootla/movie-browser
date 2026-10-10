@@ -81,6 +81,23 @@ describe("smart_discover forMe", () => {
     expect(out.movies.map((m: { id: number }) => m.id)).toEqual([2, 1]);
   });
 
+  it("totalResults reports the final count, not the widened pool", async () => {
+    smartDiscover.mockResolvedValue({
+      results: Array.from({ length: 20 }, (_, i) => result(i + 1, 0.5 - i / 100)),
+      totalFound: 20,
+      stats: {},
+    });
+    personalizeResults.mockImplementation(async (_u: number, _m: string, items: unknown[], n: number) => ({
+      items: items.slice(0, n),
+      status: "applied",
+    }));
+    const out = JSON.parse(
+      await smartDiscoverTool.invoke({ semanticQuery: "dark thriller", forMe: true, limit: 5 }, cfg("7"))
+    );
+    expect(out.resultsReturned).toBe(5);
+    expect(out.totalResults).toBe(5);
+  });
+
   it("pool is capped at 60", async () => {
     await smartDiscoverTool.invoke({ similarTo: 27205, forMe: true, limit: 20 }, cfg("7"));
     expect(smartDiscover.mock.calls[0][0].limit).toBe(60);
