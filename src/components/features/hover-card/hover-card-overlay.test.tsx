@@ -36,6 +36,7 @@ vi.mock("@/hooks/use-analytics", () => ({
 import { HoverCardOverlay } from "./hover-card-overlay";
 import { usePreviewStore } from "./preview-store";
 import { preloadPreviewBody } from "./lazy-preview-body";
+import { evictHoverCardData } from "./hover-data-cache";
 
 const ITEM = {
   id: 603,
@@ -155,6 +156,42 @@ describe("HoverCardOverlay", () => {
     expect(screen.getByRole("link", { name: /Keanu Reeves/ })).toBeInTheDocument();
     expect(panel()).toHaveAttribute("role", "dialog");
     expect(panel()).toHaveAttribute("aria-modal", "false");
+  });
+
+  it("while loading, reserves space only ABOVE the actions (no empty block below them)", async () => {
+    evictHoverCardData(603, "movie"); // an earlier test cached it
+    let resolve: (d: HoverCardData) => void = () => {};
+    getHoverCardData.mockReturnValue(new Promise<HoverCardData>((r) => (resolve = r)));
+    render(<HoverCardOverlay />);
+    openPreview();
+    const actions = await waitFor(() => {
+      const el = panel()?.querySelector("[data-title-actions]");
+      if (!el) throw new Error("no actions yet");
+      return el;
+    });
+    const skeleton = panel()?.querySelector("[data-preview-skeleton]");
+    expect(skeleton).not.toBeNull();
+    // DOCUMENT_POSITION_FOLLOWING: the actions come after the skeleton.
+    expect(skeleton?.compareDocumentPosition(actions) ?? 0).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    // The actions' row is the last row: nothing is held open for ratings/cast.
+    const actionsRow = actions.closest("[data-preview-state] > div:last-child > div");
+    expect(actionsRow?.nextElementSibling ?? null).toBeNull();
+
+    await act(async () => resolve(DATA));
+    expect(await screen.findByText(DATA.overview)).toBeInTheDocument();
+    expect(panel()?.querySelector("[data-preview-skeleton]")).toBeNull();
+  });
+
+  it("does not underline the title on hover until the pointer moves (it opens under the cursor)", async () => {
+    getHoverCardData.mockResolvedValue(DATA);
+    render(<HoverCardOverlay />);
+    openPreview();
+    await screen.findByText(DATA.overview);
+    const heading = screen.getByRole("heading", { name: "The Matrix" });
+    expect(heading.className).not.toContain("group-hover/art:underline");
+    expect(heading.className).toContain("group-focus-visible/art:underline");
+    fireEvent.pointerMove(panel() as HTMLElement, { movementX: 3, movementY: 1 });
+    await waitFor(() => expect(heading.className).toContain("group-hover/art:underline"));
   });
 
   it("mounts the preview and its action row exactly once (also after re-opening)", async () => {

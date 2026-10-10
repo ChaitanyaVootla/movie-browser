@@ -610,6 +610,14 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    `document.getAnimations()` at a `currentTime`; headless screenshot latency outlasts
    a 260ms animation. Verify with a page sweep that no element is
    stuck at its `initial` opacity after load.
+   **The follow-on (Oct 10 2026): an entrance stagger on LATE rows is an empty block.**
+   With the fix above, late rows still kept the stagger delay (80ms + 40ms × index,
+   so 200-300ms for ratings/cast) while the panel had already jumped to full height:
+   ~160px of black under the actions in every cold-data screenshot. Rows mounting
+   after open now fade with delay 0, and the panel's growth is FLIPped on clip-path
+   (`growPanel`, applied in the ResizeObserver callback so no frame paints the new
+   height unclipped). Reproduce cold data by delaying `next-action` POSTs in
+   `page.route` (~1.2s): a warm PG answers in milliseconds and hides it.
 
 ## Testing a fix
 

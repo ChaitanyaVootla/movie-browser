@@ -5,6 +5,8 @@ const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
 export const MORPH_DURATION_MS = 260;
 const GHOST_DURATION_MS = 320;
 const FADE_DURATION_MS = 120;
+/** Height growth after open (details streaming in): the clip follows the content. */
+export const GROW_DURATION_MS = 200;
 
 interface MorphInput {
   panel: HTMLElement | null;
@@ -31,15 +33,20 @@ interface MorphInput {
  * It is called from a layout effect, so the first keyframe is in place before
  * the first paint.
  */
-export function morphIn({ panel, ghost, art, placement, reduceMotion }: MorphInput): void {
-  if (!panel || typeof panel.animate !== "function") return;
+export function morphIn({
+  panel,
+  ghost,
+  art,
+  placement,
+  reduceMotion,
+}: MorphInput): Animation | null {
+  if (!panel || typeof panel.animate !== "function") return null;
 
   if (reduceMotion) {
-    panel.animate([{ opacity: 0 }, { opacity: 1 }], {
+    return panel.animate([{ opacity: 0 }, { opacity: 1 }], {
       duration: FADE_DURATION_MS,
       easing: "ease-out",
     });
-    return;
   }
 
   const w = placement.width;
@@ -50,7 +57,7 @@ export function morphIn({ panel, ghost, art, placement, reduceMotion }: MorphInp
   const right = Math.max(0, w - (c.left + c.width));
   const bottom = Math.max(0, h - (c.top + c.height));
 
-  panel.animate(
+  const clip = panel.animate(
     [
       { clipPath: `inset(${top}px ${right}px ${bottom}px ${left}px round 8px)` },
       { clipPath: "inset(0px 0px 0px 0px round 12px)" },
@@ -58,7 +65,7 @@ export function morphIn({ panel, ghost, art, placement, reduceMotion }: MorphInp
     { duration: MORPH_DURATION_MS, easing: EASE_OUT }
   );
 
-  if (!ghost || !art) return;
+  if (!ghost || !art) return clip;
   const p = panel.getBoundingClientRect();
   const a = art.getBoundingClientRect();
   const from = {
@@ -87,5 +94,52 @@ export function morphIn({ panel, ghost, art, placement, reduceMotion }: MorphInp
       { opacity: 0, offset: 1 },
     ],
     { duration: GHOST_DURATION_MS, easing: "linear", fill: "both" }
+  );
+  return clip;
+}
+
+/** Vertical extent of the panel on screen (px). */
+export interface VerticalBox {
+  top: number;
+  bottom: number;
+}
+
+/**
+ * Clip insets that make the panel's NEW box look exactly like its OLD box, or
+ * null when it did not grow. Only growth animates. A shrink snaps: there is
+ * nothing to reveal and the content has already re-flowed.
+ */
+export function growthInsets(
+  prev: VerticalBox,
+  next: VerticalBox
+): { top: number; bottom: number } | null {
+  const top = Math.max(0, Math.round(prev.top - next.top));
+  const bottom = Math.max(0, Math.round(next.bottom - prev.bottom));
+  return top > 0 || bottom > 0 ? { top, bottom } : null;
+}
+
+/**
+ * Height growth after the panel is open (details arriving). The panel used to
+ * jump to its full height at once while the new rows were still at opacity 0,
+ * which read as an empty black block under the actions. Now the clip opens from
+ * the old box to the new one, so the edge travels with the rows as they fade in.
+ * FLIP on clip-path: no layout animation and no framer `layout` feature
+ * (performance.md item 20). Call it before paint (ResizeObserver callback).
+ */
+export function growPanel(
+  panel: HTMLElement | null,
+  prev: VerticalBox,
+  next: VerticalBox,
+  reduceMotion: boolean
+): void {
+  if (!panel || reduceMotion || typeof panel.animate !== "function") return;
+  const inset = growthInsets(prev, next);
+  if (!inset) return;
+  panel.animate(
+    [
+      { clipPath: `inset(${inset.top}px 0px ${inset.bottom}px 0px round 12px)` },
+      { clipPath: "inset(0px 0px 0px 0px round 12px)" },
+    ],
+    { duration: GROW_DURATION_MS, easing: EASE_OUT }
   );
 }

@@ -44,9 +44,17 @@ interface PreviewBodyProps {
   artOverlay?: ReactNode;
   /** Stagger the body in (off for reduced motion). */
   stagger?: boolean;
+  /**
+   * Underline the title on art hover. The hover preview opens under the resting
+   * cursor, so it passes `false` until the pointer actually moves (otherwise
+   * every preview opened underlined). Keyboard focus always underlines.
+   */
+  hoverAffordance?: boolean;
 }
 
 const ROW_HIDDEN = { opacity: 0, y: 4 };
+/** Rows arriving after open: fade only (the panel's clip is already growing). */
+const ROW_LATE_HIDDEN = { opacity: 0, y: 0 };
 const ROW_SHOWN = { opacity: 1, y: 0 };
 const ROW_TRANSITION = { duration: 0.18, ease: [0.23, 1, 0.32, 1] as const };
 const STAGGER_BASE_S = 0.08;
@@ -74,6 +82,7 @@ export function PreviewBody({
   artRef,
   artOverlay,
   stagger = true,
+  hoverAffordance = true,
 }: PreviewBodyProps) {
   const isMovie = "title" in item;
   const mediaType = isMovie ? "movie" : "series";
@@ -146,6 +155,12 @@ export function PreviewBody({
         </div>
       ),
     });
+  } else {
+    // Loading: placeholders for meta + overview ONLY, sized to match them, so
+    // the actions don't move when details land. Nothing is reserved below the
+    // actions: ratings / where-to-watch / cast are optional, and an empty
+    // reserved block there read as a broken panel. The panel grows to fit them.
+    rows.push({ key: "skeleton", node: <PreviewDetailsSkeleton variant={variant} /> });
   }
   rows.push({
     key: "actions",
@@ -169,9 +184,12 @@ export function PreviewBody({
         node: <PreviewProviders data={data} mediaType={mediaType} variant={variant} />,
       });
     if (data.cast.length > 0) rows.push({ key: "cast", node: <PreviewCast cast={data.cast} /> });
-  } else if (state.status === "loading") {
-    rows.push({ key: "skeleton", node: <PreviewDetailsSkeleton /> });
   }
+
+  // Rows present at open get the entrance stagger. Rows that mount LATER
+  // (details arriving) fade in at once: a 200-300ms stagger delay on them left
+  // them invisible while the panel had already grown, i.e. an empty block.
+  const [openingKeys] = useState(() => new Set(rows.map((r) => r.key)));
 
   return (
     <div className="flex flex-col" data-preview-state={state.status}>
@@ -202,18 +220,36 @@ export function PreviewBody({
             className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent"
             aria-hidden
           />
+          {/* Drawer: the chips share a row with the drawer's 40px close button
+              (top-right, mobile-quick-info-drawer.tsx), so they drop to its
+              centre line and the vote chip sits to its left instead of under it. */}
           {badges.length > 0 && (
-            <MediaBadges badges={badges} showIcons className="absolute left-3 top-3" />
+            <MediaBadges
+              badges={badges}
+              showIcons
+              className={cn(
+                "absolute left-3",
+                variant === "drawer"
+                  ? "top-4 max-w-[calc(100%-8rem)]"
+                  : "top-3 max-w-[calc(100%-4.5rem)]"
+              )}
+            />
           )}
           {item.vote_average > 0 && (
-            <span className="absolute right-3 top-3 rounded-full bg-black/70 px-2 py-0.5 text-xs font-semibold tabular-nums text-white">
+            <span
+              className={cn(
+                "absolute rounded-full bg-black/70 px-2 py-0.5 text-xs font-semibold tabular-nums text-white",
+                variant === "drawer" ? "right-[3.75rem] top-4" : "right-3 top-3"
+              )}
+            >
               {item.vote_average.toFixed(1)}
             </span>
           )}
           <h3
             id={titleId}
             className={cn(
-              "absolute inset-x-3 bottom-3 line-clamp-2 font-semibold text-white drop-shadow-md group-hover/art:underline group-focus-visible/art:underline",
+              "absolute inset-x-3 bottom-3 line-clamp-2 font-semibold text-white drop-shadow-md group-focus-visible/art:underline",
+              hoverAffordance && "group-hover/art:underline",
               variant === "drawer" ? "text-xl" : "text-lg"
             )}
           >
@@ -232,16 +268,22 @@ export function PreviewBody({
           for children that mount AFTER the parent animated (details arriving
           late), and those rows stayed stuck at opacity 0. */}
       <div className={cn("flex flex-col gap-3", variant === "drawer" ? "p-4" : "p-3.5")}>
-        {rows.map((row, i) => (
-          <m.div
-            key={row.key}
-            initial={stagger ? ROW_HIDDEN : false}
-            animate={ROW_SHOWN}
-            transition={{ ...ROW_TRANSITION, delay: STAGGER_BASE_S + i * STAGGER_STEP_S }}
-          >
-            {row.node}
-          </m.div>
-        ))}
+        {rows.map((row, i) => {
+          const late = !openingKeys.has(row.key);
+          return (
+            <m.div
+              key={row.key}
+              initial={stagger ? (late ? ROW_LATE_HIDDEN : ROW_HIDDEN) : false}
+              animate={ROW_SHOWN}
+              transition={{
+                ...ROW_TRANSITION,
+                delay: late ? 0 : STAGGER_BASE_S + i * STAGGER_STEP_S,
+              }}
+            >
+              {row.node}
+            </m.div>
+          );
+        })}
       </div>
     </div>
   );

@@ -189,30 +189,30 @@ export function PreviewCast({ cast }: { cast: HoverCardData["cast"] }) {
   );
 }
 
-/** Skeleton for the data-dependent rows (art, title and actions render from the list item). */
-export function PreviewDetailsSkeleton() {
+/**
+ * Placeholder for the meta + overview rows while details load. It sits ABOVE the
+ * actions and matches their real heights (meta = one text-xs line; overview =
+ * 3 lines of text-sm leading-relaxed, 4 in the drawer; gap-3 between, as in the
+ * row list), so the actions don't jump when details land. Nothing is reserved
+ * for ratings / where-to-watch / cast: those are optional, and the panel grows
+ * to fit them (preview-morph.ts growPanel).
+ */
+export function PreviewDetailsSkeleton({ variant }: { variant: PreviewVariant }) {
+  const lines =
+    variant === "drawer"
+      ? ["w-full", "w-11/12", "w-full", "w-2/3"]
+      : ["w-full", "w-11/12", "w-2/3"];
   return (
-    <div className="space-y-3" aria-hidden data-preview-skeleton>
-      <div className="flex gap-3">
+    <div className="flex flex-col gap-3" aria-hidden data-preview-skeleton>
+      <div className="flex h-4 items-center gap-3">
         <div className="h-3 w-10 animate-pulse rounded bg-muted" />
         <div className="h-3 w-14 animate-pulse rounded bg-muted" />
         <div className="h-3 w-16 animate-pulse rounded bg-muted" />
       </div>
-      <div className="space-y-1.5">
-        <div className="h-3 w-full animate-pulse rounded bg-muted" />
-        <div className="h-3 w-11/12 animate-pulse rounded bg-muted" />
-        <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
-      </div>
-      <div className="flex gap-2">
-        <div className="h-10 w-10 animate-pulse rounded-md bg-muted" />
-        <div className="h-10 w-10 animate-pulse rounded-md bg-muted" />
-        <div className="h-10 w-10 animate-pulse rounded-md bg-muted" />
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {[0, 1].map((i) => (
-          <div key={i} className="flex items-center gap-2">
-            <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-            <div className="h-3 w-20 animate-pulse rounded bg-muted" />
+      <div className="text-sm">
+        {lines.map((w, i) => (
+          <div key={i} className="flex h-[1.625em] items-center">
+            <div className={cn("h-3 animate-pulse rounded bg-muted", w)} />
           </div>
         ))}
       </div>
