@@ -13,6 +13,7 @@ import {
 import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { useQuickInfoStore } from "./quick-info-store";
 import { usePreviewData } from "./use-preview-data";
+import { useGhostClickGuard } from "./use-ghost-click-guard";
 import { LazyPreviewBody as PreviewBody, PreviewChunkBoundary } from "./lazy-preview-body";
 
 /**
@@ -33,6 +34,9 @@ export function MobileQuickInfoDrawer() {
   const { state, retry } = usePreviewData(item ? item.id : null, isMovie ? "movie" : "series");
 
   useHistoryDismiss(isOpen, close);
+  // The drawer opens under the long-press finger; its release must not "tap"
+  // the art link and navigate away.
+  const ghostClickGuard = useGhostClickGuard(isOpen);
 
   // Close once a navigation started inside the drawer completes. Deferred a
   // tick so the destination paints before the drawer slides away.
@@ -51,7 +55,7 @@ export function MobileQuickInfoDrawer() {
 
   return (
     <Drawer open={isOpen} onOpenChange={(open) => !open && close()}>
-      <DrawerContent className="max-h-[90dvh] border-border bg-popover">
+      <DrawerContent className="max-h-[90dvh] border-border bg-popover" {...ghostClickGuard}>
         <DrawerHeader className="sr-only">
           <DrawerTitle>{title || "Quick info"}</DrawerTitle>
         </DrawerHeader>
