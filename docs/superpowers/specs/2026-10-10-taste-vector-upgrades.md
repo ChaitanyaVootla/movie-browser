@@ -244,3 +244,79 @@ meaningful share of the catalog, i.e. tens of thousands of positives from ≥1,0
 users. At the current rate that is decades away, so it only becomes realistic through
 CSV-import adoption (Letterboxd/Trakt) or a large growth step. Re-measure with
 `eval-recs.ts`, whose last line is the co-occurrence count.
+
+## 9. Review fixes (2026-10-10, second pass)
+
+**Space consistency.**
+- `getTasteSpaceState()` (`baseline-cache.ts`) returns `{ space, meanAt, known }`. A failed
+  μ read keeps the last good space and retries after `SPACE_RETRY_MS` (60 s), logged as
+  `taste.space_read_failed`. The first version cached RAW for an hour after one transient
+  error; `isFresh` then marked every centered row stale and recomputed it in raw, and an
+  hour later back again.
+- With no good value yet, `known: false`. `isFresh` then skips the space checks, so the
+  row is served as-is. The recompute reads the space with `{ fresh: true }` (bypassing
+  the cache) and throws on `known: false`, so a row is never written in a guessed space.
+- `isFresh` also treats a row as stale when `computedAt < meanAt`
+  (`taste_baseline_meta.computed_at`, same transaction as μ). Rows built against an older
+  μ therefore refresh after the nightly cron. Residual: a recompute that runs during the
+  seconds between the cron's `computed_at` stamp and its commit reads the old μ but
+  carries a newer timestamp. μ drift between nights is small, and the next 24 h TTL
+  clears it.
+- `resolveStoredSpace(stored, current)` (`src/lib/taste/space.ts`): same kind → current;
+  stored raw → RAW_SPACE; anything else → null.
+  - Recs on null: no vector ranking at all. They take the distance-free TMDB fallback
+    (→ cold start), and the result is not cached.
+  - forMe on null: `no_profile`.
+  - Previously both projected candidates in RAW and dotted them with a centered centroid.
+
+**forMe exclusions inside the scan.** `smartDiscover` now passes `annExclusions(...)` as
+`annSearch({ excludeIds })`, the union of explicit `excludeIds`, hideWatched/Disliked/
+Watchlist ids (not in fromWatchlist INCLUDE mode) and the similar-to source. The outer
+WHERE keeps them as a backstop. Before this, a heavy user's own titles (the nearest
+neighbours of any query they'd like) took slots in the k-limited pool and were only
+dropped afterwards.
+
+**Recs in-flight dedupe.** Concurrent cache misses for one key share one `computeRecs`
+promise. Without it, each miss ran up to 8 HNSW scans at ef_search 1000.
+
+**EXPLAIN at ef_search = k = 1000 (eval :5437, 120,676 embedded movies / 24,438 series).**
+- Query: the heaviest real user's stored centered centroid (user 1).
+- Exclusions: that user's real exclusion lists (1,405 movies, 98 series).
+- Shape: the production `annCteSql`, inside `BEGIN; SET LOCAL ef_search / iterative_scan
+  / max_scan_tuples`.
+
+| table | k | plan | rows removed by filter | cold (container start) | warm |
+|---|---|---|---|---|---|
+| movies | 1000 | Index Scan `idx_movies_embedding_hnsw_hv` | 248–254 | 4,871 ms (first ever: 19.5k buffers read) · 82 ms (after restart, OS cache warm) | 18–28 ms |
+| series | 1000 | **Gather Merge → Parallel Seq Scan + top-N heapsort** | — | 318 ms | 35–38 ms |
+| series | 800 / 750 / 700 | Parallel Seq Scan | — | | 35–37 ms |
+| series | 650 / 600 | Index Scan `idx_series_embedding_hnsw_hv` | 98 | | 13–19 ms |
+| series | **500 (shipped cap)** | Index Scan | 42–98 | 25 ms | 11–12 ms |
+| series | 400 / 300 / 200 | Index Scan | | | 10 / 8 / 6 ms |
+
+Series flips to a seq scan between k=650 and 700, because the table is ~5× smaller.
+`annMaxK("series") = 500` keeps a margin. Prod's series table is larger, so its crossover
+should sit higher, but re-check with EXPLAIN on prod before raising the cap. About 18%
+of embedded series pass the 75-vote rec floor, which leaves ~90 eligible candidates per
+query. Movies keep the index at 1000, and their crossover scales with table size.
+`REC_ALGO_VERSION` 2→3.
+
+**`hnsw.max_scan_tuples`.** Now an explicit `SET LOCAL hnsw.max_scan_tuples = 10000`
+(`ANN_MAX_SCAN_TUPLES`; pgvector's default is 20,000). Pathological lists exclude the N
+EXACT nearest titles to the query, the worst case for an in-scan exclusion:
+
+| table, k | excluded | max_scan_tuples | rows returned | removed | time |
+|---|---|---|---|---|---|
+| movies, 1000 | 1,405 (real) | 10,000 | 1000 | 1,247 | 103 ms* |
+| movies, 1000 | 5,000 | 20,000 / 10,000 / 5,000 | 1000 | 4,207 / 3,547 / 3,547 | 103 / 22 / 26 ms |
+| movies, 1000 | 15,000 | 20,000 | 1000 | 9,926 | 61 ms |
+| movies, 1000 | 30,000 | 20,000 / 10,000 / 5,000 | 1000 | 14,934 / 10,028 / 10,028 | 66 / 36–90 / 38 ms |
+| series, 500 | 5,000 / 15,000 | 10,000 | 500 | 4,612 / 9,802 | 80 / 27 ms |
+| series, 500 | 15,000 | 20,000 | 500 | 14,587 | 98 ms |
+
+\* Times in this table include cache eviction from the setup query (an exact seq-scan
+ordering), so they are noisy. The clean production-shape numbers are in the table above.
+
+At 10,000 the walk stops at about 10k removed rows, roughly 7× the heaviest real user,
+and still returned full results in every case measured. The value is a cap on the worst
+case, not a recall trade-off at today's list sizes.
