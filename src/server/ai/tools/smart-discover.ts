@@ -31,6 +31,7 @@ import {
 import { MOVIE_GENRES, TV_GENRES } from "@/lib/constants";
 import { getUserExclusions } from "@/server/db/user-data";
 import { getUserIdFromConfig, getRegionFromConfig } from "../utils";
+import { getForMeExclusions, personalizeResults } from "@/server/services/taste/for-me";
 import { aiToolLogger } from "@/lib/logger";
 
 // =============================================================================
@@ -39,6 +40,9 @@ import { aiToolLogger } from "@/lib/logger";
 
 const DEFAULT_LIMIT = 8;
 const MAX_LIMIT = 20;
+/** forMe re-ranks a wider query pool: limit × factor, capped. */
+const FOR_ME_POOL_FACTOR = 4;
+const FOR_ME_POOL_MAX = 60;
 
 // Quality presets
 const QUALITY_PRESETS: Record<string, { minRating: number; minVotes: number }> = {
@@ -136,6 +140,14 @@ const smartDiscoverSchema = z.object({
     .describe(
       "ONLY return items from user's watchlist (with full details). " +
         "Use for 'my watchlist', 'what's in my list'. Filters still apply."
+    ),
+  forMe: z
+    .boolean()
+    .default(false)
+    .describe(
+      "Signed-in only. With semanticQuery or similarTo: rank the matches by the query AND the user's taste " +
+        "profile, and drop anything they've watched, saved or rated. Use for 'a dark thriller I'd like', " +
+        "'something for me like X'. Ignored for guests and for filter-only queries."
     ),
 
   // ===== Genre Filters =====
@@ -239,7 +251,11 @@ SEMANTIC QUERY TIPS:
 QUALITY PRESETS: 'decent' (6+), 'good' (7+), 'great' (7.5+), 'masterpiece' (8+)
 DATE SHORTCUTS: 'recent' (2yr), 'new' (6mo), 'classic' (pre-1980)
 USER FILTERS: hideWatched, hideDisliked (default: on), hideInWatchlist
-WATCHLIST: fromWatchlist=true → show user's saved items (with full details, filters apply)`;
+WATCHLIST: fromWatchlist=true → show user's saved items (with full details, filters apply)
+FOR ME (signed-in): forMe=true + semanticQuery/similarTo → query matches re-ranked by THEIR taste
+  (0.65 query + 0.35 taste), already-seen/saved/rated titles removed.
+  Use when: "a dark thriller I'd like", "something like Inception that I'd enjoy".
+  Don't use when: guest, filter-only lists, or "my watchlist" (fromWatchlist).`;
 
 export const smartDiscoverTool = tool(
   async (input: SmartDiscoverInput, config?: RunnableConfig) => {
@@ -455,8 +471,26 @@ export const smartDiscoverTool = tool(
         });
       }
 
+      // ===== Taste-aware ("for me") =====
+      // Signed-in + a query/similar-to only: widen the pool, drop everything the
+      // user engaged with, re-rank by query × centered taste (services/taste/for-me).
+      const forMe = Boolean(input.forMe && userId && !input.fromWatchlist && (input.semanticQuery || input.similarTo));
+      if (forMe && userId) {
+        const engaged = await getForMeExclusions(userId, mediaType);
+        if (engaged.length) filters.excludeIds = [...(filters.excludeIds ?? []), ...engaged];
+        filters.limit = Math.min(FOR_ME_POOL_MAX, limit * FOR_ME_POOL_FACTOR);
+      }
+
       // ===== Execute Smart Discover =====
-      const { results, totalFound, stats } = await smartDiscover(filters);
+      const discovered = await smartDiscover(filters);
+      const { totalFound } = discovered;
+      let results = discovered.results;
+      let forMeStatus: string | null = null;
+      if (forMe && userId) {
+        const personalized = await personalizeResults(userId, mediaType, results, limit);
+        results = personalized.items;
+        forMeStatus = personalized.status;
+      }
 
       // ===== Build Response =====
       const response: Record<string, unknown> = {
@@ -470,6 +504,9 @@ export const smartDiscoverTool = tool(
       }
       if (input.similarTo) {
         response.similarTo = input.similarTo;
+      }
+      if (forMeStatus) {
+        response.forMe = forMeStatus; // "applied" | "no_profile" (query order kept) | "error"
       }
       if (resolutions.length) {
         response.resolved = resolutions;
@@ -500,6 +537,7 @@ export const smartDiscoverTool = tool(
         mediaType,
         hasSemanticQuery: !!input.semanticQuery,
         hasSimilarTo: !!input.similarTo,
+        forMe: forMeStatus,
         resultCount: results.length,
         durationMs,
       });
