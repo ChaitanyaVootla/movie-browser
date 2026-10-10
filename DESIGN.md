@@ -428,7 +428,13 @@ home, browse, person, library and similar rows.
   and dialogs opened from it portal later, so they stack above it.
 - Motion: a ~260ms ease-out grow-out. The clip opens from the card's rect, and a ghost
   of the card's own artwork moves into the art region and fades out. Body rows rise in
-  4px with a 40ms stagger. `prefers-reduced-motion`: a 120ms fade only.
+  4px with a 40ms stagger. Rows that arrive after it opened (details loading late)
+  fade in at once, with no stagger delay, while the panel's clip grows from its old
+  box to the new one over 200ms (`growPanel`). The panel never shows its new height
+  with the rows still invisible. `prefers-reduced-motion`: a 120ms fade only.
+- Title: underlined on keyboard focus of the art link. Hover underlines only after the
+  pointer has moved inside the preview, because the preview opens under the resting
+  cursor and would otherwise always open underlined.
 - Content order:
   - art (backdrop, title, vote chip, badges, progress hairline). This is the only link.
   - meta (year, runtime/seasons, two genres)
@@ -438,8 +444,10 @@ home, browse, person, library and similar rows.
   - where to watch (logo links)
   - cast
 - States:
-  - Loading: art, title and actions render from the list item, and the rest is a
-    skeleton.
+  - Loading: art, title and actions render from the list item. A skeleton stands in
+    for meta + overview ABOVE the actions, at their real heights, so the actions don't
+    move when details land. Nothing is reserved below the actions: ratings, where to
+    watch and cast are optional, and the panel grows to fit them.
   - Failure: "Couldn't load the details for this title." with **Retry** and
     **View details**. Never an endless skeleton.
 - Dismissal:
@@ -449,7 +457,10 @@ home, browse, person, library and similar rows.
 
 **Mobile / touch**: a long-press (500ms, 10px slop) on any touch pointer, at any width,
 opens the Vaul quick-info drawer with the same `PreviewBody` + `TitleActions`. A tap
-still navigates. Back dismisses it (`useHistoryDismiss`).
+still navigates. Back dismisses it (`useHistoryDismiss`). Its 40px close button sits
+top-right over the art, so in the `drawer` variant the badges and vote chip drop to
+`top-4` (the button's centre line) and the vote chip moves to `right-[3.75rem]`, to the
+button's left. Never under it.
 
 ## Components
 
