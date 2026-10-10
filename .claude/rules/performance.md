@@ -82,6 +82,7 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
 - The search dialog's "Search all for X" is an **always-present `cmdk-item`** — don't treat `items>=1` as "results loaded"; wait for a `[cmdk-group-heading]` (Movies/Series/Results).
 - Results from a **previous query persist** while a new one loads → open a fresh dialog per query, or you'll measure stale state.
 - Per-keystroke typing fires many debounced actions that queue; use `fill()` for a single clean action when measuring server time.
+- **A hydration warning seen within ~60s of a dev recompile/HMR (file edit, `git checkout` under the running server, `pm2 restart`) is NOT evidence of a bug** (Oct 10 2026). The `/u/cinephile_ada` taste-chip `aria-controls` "mismatch" reproduced 1/54 loads ONLY while editing a Providers file under `next dev`, 0/50+ in steady dev, and 0/70 under `next start` (checked by opening the Popover and comparing the trigger's `aria-controls` to the content `id`, because React prod never logs attribute mismatches). Re-test on a quiet dev server, then a prod build, before debugging.
 
 ## High-impact fixes (in rough ROI order)
 
