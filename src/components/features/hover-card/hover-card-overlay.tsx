@@ -9,7 +9,7 @@ import { computePreviewPlacement, type Placement, type Rect } from "./geometry";
 import { InPreviewScope, usePreviewStore, type PreviewTarget } from "./preview-store";
 import { usePreviewData } from "./use-preview-data";
 import { usePressDragDismiss } from "./use-press-drag-dismiss";
-import { morphIn } from "./preview-morph";
+import { growPanel, morphIn, type VerticalBox } from "./preview-morph";
 import { nextTabbableAfter, tabEdge } from "./preview-focus";
 import { LazyPreviewBody as PreviewBody, PreviewChunkBoundary } from "./lazy-preview-body";
 
@@ -87,8 +87,15 @@ function PreviewPanel({ target }: { target: PreviewTarget }) {
   const ghostRef = useRef<HTMLDivElement>(null);
   const cardRect = useRef<Rect | null>(null);
   const morphed = useRef(false);
+  const morphAnim = useRef<Animation | null>(null);
+  /** The panel's on-screen box once shown (null while hidden): growth is FLIPped from it. */
+  const shownBox = useRef<VerticalBox | null>(null);
   const [placement, setPlacement] = useState<Placement | null>(null);
   const [navPending, setNavPending] = useState(false);
+  // The preview opens UNDER the resting cursor (it grows out of the card), so a
+  // plain :hover affordance on the art link was on at every open and read as a
+  // stuck underline. Hover styling arms on the first real pointer movement.
+  const [pointerMoved, setPointerMoved] = useState(false);
   const { state, retry } = usePreviewData(item.id, isMovie ? "movie" : "series");
 
   const store = usePreviewStore.getState;
@@ -111,6 +118,25 @@ function PreviewPanel({ target }: { target: PreviewTarget }) {
       edge: EDGE,
       minTop: window.innerWidth >= 768 ? NAVBAR_CLEARANCE : EDGE,
     });
+    // Already open and the content changed height (details arriving): apply the
+    // new box NOW, before paint, and open the clip from the old box to the new
+    // one. Waiting for React's commit painted a frame where the panel was at its
+    // full height while the new rows were still invisible: the empty block.
+    const panel = panelRef.current;
+    const prevBox = shownBox.current;
+    if (panel && prevBox) {
+      panel.style.left = `${next.left}px`;
+      panel.style.top = `${next.top}px`;
+      panel.style.width = `${next.width}px`;
+      panel.style.maxHeight = next.maxHeight == null ? "" : `${next.maxHeight}px`;
+      const r = panel.getBoundingClientRect();
+      const nextBox = { top: r.top, bottom: r.bottom };
+      // During the entrance morph its own clip is opening to the full panel.
+      if (morphAnim.current?.playState !== "running") {
+        growPanel(panel, prevBox, nextBox, reduceMotion);
+      }
+      shownBox.current = nextBox;
+    }
     setPlacement((prev) =>
       prev &&
       prev.left === next.left &&
@@ -120,7 +146,7 @@ function PreviewPanel({ target }: { target: PreviewTarget }) {
         ? prev
         : next
     );
-  }, [anchor]);
+  }, [anchor, reduceMotion]);
 
   useLayoutEffect(() => {
     place();
@@ -135,13 +161,18 @@ function PreviewPanel({ target }: { target: PreviewTarget }) {
   useLayoutEffect(() => {
     if (!placement || morphed.current) return;
     morphed.current = true;
-    morphIn({
-      panel: panelRef.current,
+    const panel = panelRef.current;
+    morphAnim.current = morphIn({
+      panel,
       ghost: ghostRef.current,
       art: artRef.current,
       placement,
       reduceMotion,
     });
+    if (panel) {
+      const r = panel.getBoundingClientRect();
+      shownBox.current = { top: r.top, bottom: r.bottom };
+    }
   }, [placement, reduceMotion]);
 
   // --- focus: keyboard ArrowDown moves focus inside --------------------------
@@ -261,6 +292,9 @@ function PreviewPanel({ target }: { target: PreviewTarget }) {
       }}
       className="z-50 overflow-y-auto overscroll-contain rounded-xl border border-border bg-popover text-popover-foreground shadow-lg scrollbar-hide"
       onPointerEnter={() => store().setPointerInside(true)}
+      onPointerMoveCapture={(e) => {
+        if (!pointerMoved && (e.movementX !== 0 || e.movementY !== 0)) setPointerMoved(true);
+      }}
       onPointerLeave={(e) => {
         if (e.pointerType === "touch") return;
         store().setPointerInside(false);
@@ -300,6 +334,7 @@ function PreviewPanel({ target }: { target: PreviewTarget }) {
               artRef={artRef}
               onNavPendingChange={setNavPending}
               stagger={!reduceMotion}
+              hoverAffordance={pointerMoved}
             />
           </PreviewChunkBoundary>
         </InPreviewScope>

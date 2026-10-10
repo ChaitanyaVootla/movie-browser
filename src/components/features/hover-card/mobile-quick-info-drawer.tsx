@@ -55,10 +55,13 @@ export function MobileQuickInfoDrawer() {
         <DrawerHeader className="sr-only">
           <DrawerTitle>{title || "Quick info"}</DrawerTitle>
         </DrawerHeader>
+        {/* Centred on the art's chip row: the art starts 24px down (Vaul handle),
+            its chips sit at top-4 (≈50px centre line), and PreviewBody keeps the
+            vote chip clear of this button in the drawer variant. */}
         <DrawerClose asChild>
           <button
             type="button"
-            className="absolute right-3 top-5 z-30 grid h-10 w-10 place-items-center rounded-full bg-black/60 text-white/80 transition-colors hover:bg-black/80"
+            className="absolute right-3 top-7.5 z-30 grid h-10 w-10 place-items-center rounded-full bg-black/60 text-white/80 transition-colors hover:bg-black/80"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
