@@ -14,7 +14,8 @@ import {
   writeTasteRow,
 } from "@/server/db/postgres/social/taste";
 import { dataLogger } from "@/lib/logger";
-import { getBaseline } from "./baseline-cache";
+import { projectAll } from "@/lib/taste/space";
+import { getBaseline, getTasteSpace } from "./baseline-cache";
 
 export interface ComputedTaste {
   full: TasteComputeResult;
@@ -53,10 +54,14 @@ export async function computeAndStoreTaste(
     for (const t of foldSignals(signals, scope, now).titles) keys.add(t.key);
   }
   const { movieIds, seriesIds } = splitIds(keys);
-  const [embeddings, { meta, people }] = await Promise.all([
+  const [rawEmbeddings, { meta, people }, space] = await Promise.all([
     fetchTitleEmbeddings(movieIds, seriesIds),
     fetchTitleMeta(movieIds, seriesIds),
+    getTasteSpace(),
   ]);
+  // Every vector (centroids, clusters, medoids) is built in the current space —
+  // mean-centered once the cron has stored μ (spec 2026-10-10 §2).
+  const embeddings = projectAll(space, rawEmbeddings);
 
   const needed = new Map<FacetType, Set<string>>();
   for (const m of meta.values()) {
@@ -86,6 +91,7 @@ export async function computeAndStoreTaste(
       positiveCount: full.snapshot.positiveCount,
       algoVersion: TASTE_ALGO_VERSION,
       computedAt: now,
+      space: space.kind,
     },
     observedUpdatedAt
   );

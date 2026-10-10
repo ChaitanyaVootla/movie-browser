@@ -2,17 +2,23 @@
  * SQL for taste recommendations + taste match (spec
  * docs/superpowers/specs/2026-10-09-taste-recommendations-design.md §3.3, §4.3).
  *
- * Catalog vector search follows performance.md §19 EXACTLY: the nearest N by
- * `embedding::halfvec(1024) <=> q::halfvec(1024)` inside a MATERIALIZED CTE with
- * no filters (so the HNSW expression index drives it), filters + exclusions
- * outside, and `SET LOCAL hnsw.ef_search` in the same batch transaction.
- * Callers MUST check `hasVectorIndex()` first — without the index this would be
- * a full distance scan. Every catalog query carries `notAdult()`.
+ * Catalog vector search goes through the shared ANN primitive
+ * (`vector-search.ts` → performance.md §19 shape); this file only adds the
+ * filter stage (adult, exclusions, vote floor) over its candidate set. Every
+ * catalog query carries `notAdult()`.
  */
 import { prisma } from "@/server/db/postgres";
 import { notAdult } from "@/server/db/postgres/adult-filter";
 import { TMDB_SOURCE_ID_SQL } from "@/server/db/postgres/smart-discover";
-import { annDistanceSql, annSessionSql, type VectorTable } from "@/server/db/postgres/vector-index";
+import {
+  ANN_MAX_K,
+  annSearch,
+  candidateParams,
+  candidateSetSql,
+  vectorLiteral,
+  type AnnHit,
+  type VectorTable,
+} from "@/server/db/postgres/vector-search";
 import { titleKey, type TasteMediaType } from "@/lib/taste/types";
 import { TASTE_ALGO_VERSION } from "@/lib/taste/constants";
 import type { RecCandidate } from "@/lib/taste/recommend";
@@ -25,10 +31,8 @@ function cols(table: VectorTable) {
     : { title: "name", date: "first_air_date", genreJoin: "series_genres", fk: "series_id" };
 }
 
-/** pgvector text literal from numbers only (never user text). */
-export function vectorLiteral(v: readonly number[]): string {
-  return `[${v.map((x) => (Number.isFinite(x) ? x.toFixed(7) : "0")).join(",")}]`;
-}
+export { vectorLiteral };
+export type { AnnHit };
 
 // ---------------------------------------------------------------------------
 // Exclusions
@@ -64,30 +68,25 @@ export async function fetchRecExclusions(userId: number): Promise<RecExclusions>
 // ANN candidates
 // ---------------------------------------------------------------------------
 
-export interface AnnHit {
-  id: number;
-  dist: number;
-  query: number;
-}
-
 /** Hard ceiling on one HNSW scan (matches annSessionSql's ef_search cap). */
-export const ANN_MAX_LIMIT = 1000;
+export const ANN_MAX_LIMIT = ANN_MAX_K;
 
 /**
- * Inner ANN LIMIT for a user. Exclusions and the vote floor run AFTER the
- * LIMIT, and the nearest neighbours of a user's own centroid/cluster vectors
- * are mostly titles they already engaged with — so a fixed 150 starved heavy
- * users (a 500-title diary could filter the whole candidate set away). Grow
- * the scan by the exclusion count, capped.
+ * Inner ANN LIMIT for a user. Exclusions now run INSIDE the scan (iterative
+ * HNSW scan skips them, see `annCteSql`), so they no longer eat the LIMIT; the
+ * remaining after-LIMIT filter is the vote floor (≈15% of embedded movies pass
+ * 150 votes on prod data), which `base` must already account for. Kept as a
+ * function for the cap.
  */
-export function annLimitFor(base: number, excludedCount: number): number {
-  return Math.min(ANN_MAX_LIMIT, Math.floor(base) + Math.max(0, excludedCount));
+export function annLimitFor(base: number): number {
+  return Math.min(ANN_MAX_LIMIT, Math.max(1, Math.floor(base)));
 }
 
 /**
- * Nearest neighbours for several query vectors in ONE batch transaction
- * (ef_search = the same inner LIMIT, applied to every SELECT in it). Filters
- * run on the materialised candidates only. Returns surviving hits per query.
+ * Nearest neighbours for several query vectors via the shared ANN primitive
+ * (`annSearch`, one batch transaction), then ONE filter statement over the
+ * merged candidate set (adult, embedding present, exclusions, vote floor).
+ * Returns the surviving hits per query. Empty without a valid index.
  */
 export async function annCandidates(
   table: VectorTable,
@@ -96,38 +95,26 @@ export async function annCandidates(
 ): Promise<AnnHit[]> {
   if (queries.length === 0) return [];
   const c = cols(table);
-  const limit = annLimitFor(opts.perQuery, opts.excludeIds.length);
-  const session = annSessionSql(limit);
-  const selects = queries.map((q, qi) => {
-    const lit = vectorLiteral(q);
-    const sql = `
-      WITH c AS MATERIALIZED (
-        SELECT id AS cid, ${annDistanceSql("embedding", lit)} AS dist
-        FROM ${table}
-        ORDER BY ${annDistanceSql("embedding", lit)}
-        LIMIT ${limit}
-      )
-      SELECT c.cid AS id, c.dist::float8 AS dist, ${qi}::int AS query
-      FROM c JOIN ${table} t ON t.id = c.cid
-      WHERE ${notAdult("t")}
-        AND t.embedding IS NOT NULL
-        AND NOT (t.id = ANY($1::int[]))
-        AND EXISTS (
-          SELECT 1 FROM ratings r
-          WHERE r.${c.fk} = t.id AND r.source_id = ${TMDB_SOURCE_ID_SQL} AND r.vote_count >= $2
-        )
-      ORDER BY c.dist`;
-    return prisma.$queryRawUnsafe<AnnHit[]>(sql, [...opts.excludeIds], opts.minVotes);
-  });
-  const results = await prisma.$transaction([
-    ...session.map((s) => prisma.$executeRawUnsafe(s)),
-    ...selects,
-  ]);
-  return (results.slice(session.length) as AnnHit[][]).flat().map((h) => ({
-    id: Number(h.id),
-    dist: Number(h.dist),
-    query: Number(h.query),
-  }));
+  const hits = await annSearch({ table, queries, k: annLimitFor(opts.perQuery), excludeIds: opts.excludeIds });
+  if (!hits || hits.length === 0) return [];
+  const { ids, dists } = candidateParams(hits);
+  const survivors = await prisma.$queryRawUnsafe<Array<{ id: number }>>(
+    `SELECT c.cid AS id
+     FROM ${candidateSetSql(1, 2)} JOIN ${table} t ON t.id = c.cid
+     WHERE ${notAdult("t")}
+       AND t.embedding IS NOT NULL
+       AND NOT (t.id = ANY($3::int[]))
+       AND EXISTS (
+         SELECT 1 FROM ratings r
+         WHERE r.${c.fk} = t.id AND r.source_id = ${TMDB_SOURCE_ID_SQL} AND r.vote_count >= $4
+       )`,
+    ids,
+    dists,
+    [...opts.excludeIds],
+    opts.minVotes
+  );
+  const keep = new Set(survivors.map((r) => Number(r.id)));
+  return hits.filter((h) => keep.has(h.id));
 }
 
 // ---------------------------------------------------------------------------
@@ -337,6 +324,8 @@ export async function fetchTwinCandidates(
       -- watch the user has since made private, and an old algo version was
       -- computed by different rules. They rejoin after their next recompute.
       AND NOT t.dirty AND t.algo_version = ${TASTE_ALGO_VERSION}
+      -- Cosines are only meaningful between vectors of the same embedding space.
+      AND t.space = v.space
     JOIN users u ON u.id = t.user_id
     WHERE v.user_id = ${viewerId}
       AND v.public_centroid IS NOT NULL

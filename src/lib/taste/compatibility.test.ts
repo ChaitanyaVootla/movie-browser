@@ -82,6 +82,17 @@ describe("tasteSim", () => {
     expect(tasteSim(0.6)).toBeCloseTo(0.5, 9);
     expect(tasteSim(0.99)).toBe(1);
   });
+  it("centered space uses the null-model / self-similarity window (0.02 → 0, 0.6 → 1)", () => {
+    expect(tasteSim(0.02, "centered")).toBe(0);
+    expect(tasteSim(-0.1, "centered")).toBe(0);
+    expect(tasteSim(0.31, "centered")).toBeCloseTo(0.5, 9);
+    expect(tasteSim(0.6, "centered")).toBe(1);
+    expect(tasteSim(0.31, "whitened")).toBeCloseTo(0.5, 9);
+    // A raw-space "random strangers" cosine (null model ~0.94) would read 100% in the raw
+    // window; an unrelated centered pair (null p99 ≈ 0.22) stays below the 40% twin floor.
+    expect(tasteSim(0.94, "raw")).toBe(1);
+    expect(Math.round(100 * (tasteSim(0.22, "centered") ?? 0))).toBeLessThan(40);
+  });
 });
 
 describe("computeTasteMatch", () => {

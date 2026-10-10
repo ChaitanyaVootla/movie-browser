@@ -18,6 +18,7 @@ import {
   REC_MIN_VOTES_MOVIE,
   REC_MIN_VOTES_SERIES,
   REC_POOL,
+  REC_POOL_OVERFETCH,
 } from "@/lib/taste/recommend-constants";
 import {
   buildRecRows,
@@ -25,6 +26,7 @@ import {
   facetLabel,
   genreDistribution,
   mergeRankedLists,
+  rawRelevance,
   scoreCandidates,
   type LiftedFacets,
   type RecAnchor,
@@ -35,6 +37,7 @@ import {
 import type { RecItemDTO, RecReason, RecRowDTO, RecSource, RecsDTO } from "@/lib/taste/recommend-types";
 import { MIN_POSITIVES_FOR_CENTROID } from "@/lib/taste/constants";
 import { l2Normalize, weightedMean } from "@/lib/taste/vector";
+import { RAW_SPACE, projectAll, type TasteSpace } from "@/lib/taste/space";
 import { foldSignals } from "@/lib/taste/weights";
 import type { TasteMediaType, TitleKey } from "@/lib/taste/types";
 import { fetchTasteSignals, fetchTitleEmbeddings, isAdultKeyword } from "@/server/db/postgres/social/taste";
@@ -49,7 +52,7 @@ import {
 import { hasVectorIndex, type VectorTable } from "@/server/db/postgres/vector-index";
 import { getRecommendations as getTmdbRecommendations } from "@/server/services/tmdb";
 import { dataLogger } from "@/lib/logger";
-import { getTasteClusters, getTasteProfile, getTasteVectors, type TasteSnapshot } from "./index";
+import { getTasteClusters, getTasteProfile, getTasteSpace, getTasteVectors, type TasteSnapshot } from "./index";
 
 // ---------------------------------------------------------------------------
 // Cache (in-process LRU, insertion-ordered Map)
@@ -142,6 +145,7 @@ interface UserContext {
 /** Positive anchors (weighted, with embeddings + titles + genres). */
 async function loadAnchors(
   userId: number,
+  space: TasteSpace,
   extraEmbeddingKeys: readonly TitleKey[],
   extraInfoKeys: readonly TitleKey[] = []
 ): Promise<{
@@ -158,10 +162,12 @@ async function loadAnchors(
   const keys = new Set<TitleKey>([...positives.map((p) => p.key), ...extraEmbeddingKeys]);
   const { movieIds, seriesIds } = splitKeys(keys);
   const anchorIds = splitKeys(new Set([...positives.map((p) => p.key), ...extraInfoKeys]));
-  const [embeddings, info] = await Promise.all([
+  const [rawEmbeddings, info] = await Promise.all([
     fetchTitleEmbeddings(movieIds, seriesIds),
     fetchAnchorInfo(anchorIds.movieIds, anchorIds.seriesIds),
   ]);
+  // Anchors and cluster members live in the same space as the stored user vectors.
+  const embeddings = projectAll(space, rawEmbeddings);
   const anchors: RecAnchor[] = [];
   for (const p of positives) {
     const meta = info.get(p.key);
@@ -288,6 +294,35 @@ async function tmdbFallback(ctx: UserContext, limit = REC_FOR_YOU_SIZE): Promise
 // Main path
 // ---------------------------------------------------------------------------
 
+/** Candidate embeddings projected into the taste space (unprojectable ones dropped). */
+export function projectCandidates(cands: readonly RecCandidate[], space: TasteSpace): RecCandidate[] {
+  if (space.kind === "raw") return [...cands];
+  const out: RecCandidate[] = [];
+  for (const c of cands) {
+    const p = space.project(c.embedding);
+    if (p) out.push({ ...c, embedding: p });
+  }
+  return out;
+}
+
+/** The `n` candidates with the best exact raw relevance (same formula as scoreCandidates). */
+function topByRelevance(
+  cands: readonly RecCandidate[],
+  clusters: readonly RecCluster[],
+  v: { centroid: number[] | null; negCentroid: number[] | null },
+  n: number
+): RecCandidate[] {
+  if (cands.length <= n) return [...cands];
+  const units = clusters.map((c) => c.vector);
+  const centroid = v.centroid ? l2Normalize(v.centroid) : null;
+  const neg = v.negCentroid ? l2Normalize(v.negCentroid) : null;
+  return cands
+    .map((c) => ({ c, r: rawRelevance(l2Normalize(c.embedding) ?? [], units, centroid, neg).rel }))
+    .sort((a, b) => b.r - a.r || a.c.key.localeCompare(b.c.key))
+    .slice(0, n)
+    .map((x) => x.c);
+}
+
 /** Normalised mean of a cluster's member embeddings (falls back to the medoid). */
 function clusterVector(memberKeys: readonly TitleKey[], medoidKey: TitleKey, embeddings: Map<TitleKey, number[]>) {
   const items = memberKeys
@@ -300,14 +335,19 @@ function clusterVector(memberKeys: readonly TitleKey[], medoidKey: TitleKey, emb
 }
 
 async function computeRecs(userId: number, snapshot: TasteSnapshot | null): Promise<RecsDTO> {
-  const [clusters, vectors, exclusions] = await Promise.all([
+  const [clusters, vectors, exclusions, current] = await Promise.all([
     getTasteClusters(userId),
     getTasteVectors(userId),
     fetchRecExclusions(userId),
+    getTasteSpace(),
   ]);
+  // Project candidates/anchors into the space the stored vectors were built in.
+  // A stale row from another space (recompute failed) degrades to raw.
+  const space = vectors.space === current.kind ? current : RAW_SPACE;
   const topClusters = [...clusters].sort((a, b) => b.importance - a.importance).slice(0, REC_MAX_CLUSTER_QUERIES);
   const { anchors, embeddings, safeTitles } = await loadAnchors(
     userId,
+    space,
     topClusters.flatMap((c) => [...c.memberKeys, c.medoidKey]),
     topClusters.map((c) => c.medoidKey)
   );
@@ -338,7 +378,10 @@ async function computeRecs(userId: number, snapshot: TasteSnapshot | null): Prom
   });
   const queries = [...recClusters.map((c) => c.vector), vectors.centroid];
 
-  // Retrieval: best distance per title across all query vectors.
+  // Retrieval on the RAW HNSW index with (centered) query vectors. Raw
+  // distances from different queries are made comparable in the centered
+  // space with `dist + μ·q` (spec 2026-10-10 §2), then the best per title.
+  const offsets = queries.map((q) => space.meanDot(q));
   const best = new Map<TitleKey, { table: VectorTable; id: number; dist: number }>();
   for (const t of indexed) {
     const hits = await annCandidates(t.table, queries, {
@@ -348,22 +391,30 @@ async function computeRecs(userId: number, snapshot: TasteSnapshot | null): Prom
     });
     for (const h of hits) {
       const key = `${t.mediaType === "movie" ? "m" : "s"}:${h.id}`;
+      const dist = h.dist + (offsets[h.query] ?? 0);
       const cur = best.get(key);
-      if (!cur || h.dist < cur.dist) best.set(key, { table: t.table, id: h.id, dist: h.dist });
+      if (!cur || dist < cur.dist) best.set(key, { table: t.table, id: h.id, dist });
     }
   }
-  const pool = [...best.values()].sort((a, b) => a.dist - b.dist).slice(0, REC_POOL);
+  // Over-fetch, then re-rank exactly in the taste space: the raw index misses
+  // the per-title ‖x − μ‖ term, so its top REC_POOL is not the exact top.
+  const fetchN = space.kind === "raw" ? REC_POOL : Math.ceil(REC_POOL * REC_POOL_OVERFETCH);
+  const pool = [...best.values()].sort((a, b) => a.dist - b.dist).slice(0, fetchN);
   if (pool.length === 0) return coldStart(ctx);
-  const [movies, series] = await Promise.all(
-    TABLES.map((t) =>
-      fetchCandidateDetails(
-        t.table,
-        pool.filter((p) => p.table === t.table).map((p) => p.id)
+  const fetched = (
+    await Promise.all(
+      TABLES.map((t) =>
+        fetchCandidateDetails(
+          t.table,
+          pool.filter((p) => p.table === t.table).map((p) => p.id)
+        )
       )
     )
-  );
+  ).flat();
+  const projected = projectCandidates(fetched, space);
+  const exactPool = topByRelevance(projected, recClusters, vectors, REC_POOL);
 
-  const scored = scoreCandidates([...movies, ...series], {
+  const scored = scoreCandidates(exactPool, {
     clusters: recClusters,
     centroid: vectors.centroid,
     negCentroid: vectors.negCentroid,

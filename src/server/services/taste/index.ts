@@ -20,7 +20,9 @@ import {
   type TasteSnapshot,
 } from "@/lib/taste/profile";
 import type { TasteScope } from "@/lib/taste/types";
-import { readTasteRow, readTasteVectors, type TasteRow } from "@/server/db/postgres/social/taste";
+import { readTasteRow, readTasteVectors, type TasteRow, type TasteVectors } from "@/server/db/postgres/social/taste";
+import type { SpaceKind } from "@/lib/taste/space";
+import { getTasteSpace } from "./baseline-cache";
 import { markTasteDirty } from "@/server/db/postgres/social/taste-dirty";
 import { dataLogger } from "@/lib/logger";
 import type { ProfileTasteDTO } from "@/types/social";
@@ -29,6 +31,8 @@ import { z } from "zod";
 import pLimit from "p-limit";
 
 export { markTasteDirty };
+export { getTasteSpace };
+export type { TasteVectors };
 export { cosineSimilarity, l2Normalize } from "@/lib/taste/vector";
 export type { TasteSnapshot, TasteCluster } from "@/lib/taste/profile";
 
@@ -47,11 +51,14 @@ const limit = pLimit(RECOMPUTE_CONCURRENCY);
 const inflight = new Map<number, Promise<TasteRow | null>>();
 const backoff = new Map<number, { until: number; delay: number }>();
 
-function isFresh(row: TasteRow | null): boolean {
+function isFresh(row: TasteRow | null, space: SpaceKind): boolean {
   return (
     row !== null &&
     !row.dirty &&
     row.algoVersion === TASTE_ALGO_VERSION &&
+    // A row built in another embedding space (e.g. raw before the cron first
+    // stored μ) recomputes: vectors of different spaces must never be compared.
+    row.space === space &&
     row.computedAt !== null &&
     Date.now() - row.computedAt.getTime() < TASTE_TTL_MS
   );
@@ -114,8 +121,8 @@ function startRecompute(userId: number, stale: TasteRow | null): Promise<TasteRo
  * `pending` = a recompute is still running for a row that had nothing to serve.
  */
 async function ensureFresh(userId: number): Promise<{ row: TasteRow | null; pending: boolean }> {
-  const row = await readTasteRow(userId);
-  if (row && isFresh(row)) return { row, pending: false };
+  const [row, space] = await Promise.all([readTasteRow(userId), getTasteSpace()]);
+  if (row && isFresh(row, space.kind)) return { row, pending: false };
   const b = backoff.get(userId);
   if (b && Date.now() < b.until) return { row, pending: false };
   const p = startRecompute(userId, row);
@@ -176,12 +183,11 @@ export async function getTasteClusters(userId: number): Promise<TasteCluster[]> 
   return parsed.success ? parsed.data : [];
 }
 
-/** All stored vectors (1024-d, L2-normalised) after ensuring freshness. */
-export async function getTasteVectors(userId: number): Promise<{
-  centroid: number[] | null;
-  negCentroid: number[] | null;
-  publicCentroid: number[] | null;
-}> {
+/**
+ * All stored vectors (1024-d, L2-normalised, in `space`) after ensuring
+ * freshness. Compare them only with vectors projected into the same space.
+ */
+export async function getTasteVectors(userId: number): Promise<TasteVectors> {
   await ensureFresh(userId);
   return readTasteVectors(userId);
 }

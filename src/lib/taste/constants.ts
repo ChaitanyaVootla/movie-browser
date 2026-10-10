@@ -6,7 +6,7 @@
  * profiles with a different version are recomputed on their next read, so no
  * migration or backfill is needed.
  */
-export const TASTE_ALGO_VERSION = 2; // v2: privacy over all entry kinds, uncapped privacy, public-finish rule, adult filter
+export const TASTE_ALGO_VERSION = 3; // v3: vectors in the mean-centered embedding space (2026-10-10 spec); v2: privacy over all entry kinds, uncapped privacy, public-finish rule, adult filter
 
 /** Signal weights (spec §4). */
 export const W_FAVORITE = 3;
@@ -65,5 +65,18 @@ export const TASTE_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** Baseline population: non-adult titles with at least this many TMDB votes. */
 export const BASELINE_MIN_VOTES = 100;
+/**
+ * Minimum embedded titles for a catalog mean μ (spec 2026-10-10 §2); below it
+ * (dev DBs) the embedding space stays raw.
+ */
+export const SPACE_MIN_TITLES = 500;
+/**
+ * Diagonal whitening on top of centering. OFF: on the restored prod data
+ * (136 leave-one-out trials, 2026-10-10 spec §7) whitening was within noise of
+ * plain centering (hit@10 .184 vs .162, nDCG@10 .083 vs .083) and adds a
+ * second estimated statistic that amplifies low-variance dimensions. σ is
+ * still stored nightly so this can be re-evaluated without a migration.
+ */
+export const TASTE_SPACE_WHITEN = false;
 /** Below this many titles the baseline falls back to the whole non-adult catalog (dev DBs). */
 export const BASELINE_MIN_SIZE = 1000;

@@ -1357,6 +1357,12 @@ model TasteBaselineMeta {
   yearQuantiles       Float[]   @default([]) @map("year_quantiles")
   computedAt          DateTime? @map("computed_at")
   durationMs          Int?      @map("duration_ms")
+  // Catalog mean of L2-normalised embeddings over the same population (spec
+  // 2026-10-10-taste-vector-upgrades.md §2). NULL = not computed yet → raw space.
+  embeddingMean       Unsupported("vector(1024)")? @map("embedding_mean")
+  // Per-dimension std of the normalised embeddings (diagonal whitening); [] = absent.
+  embeddingStd        Float[]   @default([]) @map("embedding_std")
+  embeddingCount      Int       @default(0) @map("embedding_count")
 
   @@map("taste_baseline_meta")
 }
@@ -1382,6 +1388,9 @@ model UserTasteProfile {
   positiveCount  Int                          @default(0) @map("positive_count")
   publicSnapshot Json                         @default("{}") @map("public_snapshot")
   algoVersion    Int                          @default(0) @map("algo_version")
+  // Embedding space the vectors live in ("raw" | "centered" | "whitened"); a row
+  // whose space differs from the current baseline recomputes on read.
+  space          String                       @default("raw")
   dirty          Boolean                      @default(true)
   computedAt     DateTime?                    @map("computed_at")
   updatedAt      DateTime                     @default(now()) @updatedAt @map("updated_at")

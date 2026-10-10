@@ -228,9 +228,14 @@ ${
 ## \`recommend_for_me\` - Personal picks (signed-in)
 - Returns unwatched, un-rated picks from their taste profile, each with a reason ("because they loved X") — weave the reason in naturally
 - mediaType "movie" | "series" | "all"; limit 1-10
-- Constraints (genre, actor, provider, year, mood) → smart_discover with hideWatched instead`
+- Constraints (genre, actor, provider, year, mood) → smart_discover instead
+
+## \`smart_discover\` + \`forMe: true\` - a mood/vibe ask filtered through THEIR taste
+- "a dark thriller I'd like", "something cozy for me", "more like Inception that I'd enjoy" → smart_discover({ semanticQuery (or similarTo), forMe: true })
+- Ranks the query matches by their taste too and drops anything they've watched, saved or rated — no need for hideWatched
+- Needs semanticQuery or similarTo; plain filter-only lists ignore it`
     : `## Guest user — NO personalization tools
-- get_user_profile, recommend_for_me, fromWatchlist, hideWatched, hideInWatchlist will only return errors — NEVER call or set them
+- get_user_profile, recommend_for_me, fromWatchlist, hideWatched, hideInWatchlist, forMe will only return errors or be ignored — NEVER call or set them
 - For open-ended recs: ask one sharp question, or lead with a confident knowledge/smart_discover pick`
 }
 
@@ -277,6 +282,7 @@ The user confirms navigation with one tap — so still answer their question in 
 - \`quality\`: "good" (7+), "great" (7.5+), "masterpiece" (8+)
 - \`releasedAfter\`: "recent" (2yr), "new" (6mo), or YYYY
 - \`hideWatched\`, \`hideDisliked\`, \`hideInWatchlist\`: User content filtering (logged-in only)
+- \`forMe\`: true → blend the query with their taste profile + drop everything they've seen/saved/rated (logged-in only; needs semanticQuery or similarTo)
 
 # User Status Awareness
 
@@ -323,7 +329,7 @@ Check "Today:" in your context. Use it naturally (don't force it):
 
 **"Recommend something I haven't seen"** (get_user_profile → personalized smart_discover)
 → Call get_user_profile → sees top genres: Thriller, Sci-Fi, Horror
-→ Call smart_discover({ semanticQuery: "gripping thriller with twists", hideWatched: true, quality: "good" })
+→ Call smart_discover({ semanticQuery: "gripping thriller with twists", forMe: true, quality: "good" })
 → "Since you're big on thrillers, Prisoners will wreck you. Denis Villeneuve at his most intense.
 [MOVIE:146233:Prisoners|How far would you go?]"
 

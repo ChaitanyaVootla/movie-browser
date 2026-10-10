@@ -18,7 +18,7 @@
 
 import { prisma } from "./index";
 import { notAdult } from "./adult-filter";
-import { annDistanceSql, annSessionSql, hasVectorIndex } from "./vector-index";
+import { annSearch, candidateParams, candidateSetSql } from "./vector-search";
 import { generateQueryEmbedding } from "@/lib/embeddings";
 import { dataLogger } from "@/lib/logger";
 
@@ -209,6 +209,17 @@ export interface SmartDiscoverResponse {
  * way.
  */
 export const TMDB_SOURCE_ID_SQL = "(SELECT id FROM data_sources WHERE slug = 'tmdb')";
+
+/** pgvector text form `[0.1,0.2,...]` → numbers (non-finite entries → 0). */
+function parseVectorText(text: string): number[] {
+  return text
+    .replace(/^\[|\]$/g, "")
+    .split(",")
+    .map((x) => {
+      const n = Number(x);
+      return Number.isFinite(n) ? n : 0;
+    });
+}
 
 export async function smartDiscover(filters: SmartDiscoverFilters): Promise<SmartDiscoverResponse> {
   const startTime = Date.now();
@@ -548,14 +559,27 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   // ANN path: when the HNSW index exists, take the nearest candidates by PURE
-  // distance first (index scan), then filter + blend-rank them in the outer
-  // query. A single query with the filters + blended ORDER BY can never use the
-  // index and is a full distance scan (8.2s cold / 557ms warm on prod).
-  // Candidate pool: similarTo needs ~30 that survive minVotes/adult (55-100 of
-  // the nearest 200 pass on prod data); semantic queries may carry many filters.
-  const useAnn = !!embeddingStr && sortBy === "relevance" && (await hasVectorIndex(table));
-  const annCandidates = similarToId ? 200 : 1000;
-  // Cosine distance for the row: from the candidate CTE on the ANN path.
+  // distance first (shared primitive `annSearch`: unfiltered MATERIALIZED CTE +
+  // SET LOCAL ef_search), then filter + blend-rank them in the outer query over
+  // the candidate set. A single query with the filters + blended ORDER BY can
+  // never use the index and is a full distance scan (8.2s cold / 557ms warm on
+  // prod). Candidate pool: similarTo needs ~30 that survive minVotes/adult
+  // (55-100 of the nearest 200 pass on prod data); semantic queries may carry
+  // many filters.
+  const annK = similarToId ? 200 : 1000;
+  const annHits =
+    embeddingStr && sortBy === "relevance"
+      ? await annSearch({ table, queries: [parseVectorText(embeddingStr)], k: annK })
+      : null;
+  const useAnn = annHits !== null;
+  let fromClause = `${table} m`;
+  if (annHits) {
+    const { ids, dists } = candidateParams(annHits);
+    fromClause = `${candidateSetSql(paramIndex, paramIndex + 1)} JOIN ${table} m ON m.id = c.cid`;
+    params.push(ids, dists);
+    paramIndex += 2;
+  }
+  // Cosine distance for the row: from the candidate set on the ANN path.
   const distSql = useAnn ? "c.dist" : `(m.embedding <=> '${embeddingStr}'::vector)`;
 
   // Build ORDER BY clause
@@ -635,19 +659,9 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
     `;
 
   // Execute query
-  const annCte =
-    useAnn && embeddingStr
-      ? `WITH c AS MATERIALIZED (
-      SELECT id AS cid, ${annDistanceSql("embedding", embeddingStr)} AS dist
-      FROM ${table}
-      ORDER BY ${annDistanceSql("embedding", embeddingStr)}
-      LIMIT ${annCandidates}
-    )`
-      : "";
   const sql = `
-    ${annCte}
     SELECT ${selectClause}
-    FROM ${useAnn ? `c JOIN ${table} m ON m.id = c.cid` : `${table} m`}
+    FROM ${fromClause}
     ${whereClause}
     ORDER BY ${orderBy}
     LIMIT $${paramIndex}
@@ -668,29 +682,7 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
   };
 
   try {
-    // ANN settings must be SET LOCAL on the SAME connection as the query, so
-    // both run in one (batch) transaction.
-    const results: Row[] = useAnn
-      ? ((
-          await prisma.$transaction([
-            ...annSessionSql(annCandidates).map((q) => prisma.$executeRawUnsafe(q)),
-            prisma.$queryRawUnsafe<Row[]>(sql, ...params),
-          ])
-        ).at(-1) as Row[])
-      : await prisma.$queryRawUnsafe<
-          Array<{
-            id: number;
-            title: string;
-            poster_path: string | null;
-            year: string | null;
-            rating: number | null;
-            vote_count: number | null;
-            popularity: number | null;
-            overview: string | null;
-            semantic_score: number | null;
-            genres: string[];
-          }>
-        >(sql, ...params);
+    const results = await prisma.$queryRawUnsafe<Row[]>(sql, ...params);
 
     // Filter by minimum semantic score if applicable
     let filteredResults = results;
