@@ -37,7 +37,7 @@ import {
 import type { RecItemDTO, RecReason, RecRowDTO, RecSource, RecsDTO } from "@/lib/taste/recommend-types";
 import { MIN_POSITIVES_FOR_CENTROID } from "@/lib/taste/constants";
 import { l2Normalize, weightedMean } from "@/lib/taste/vector";
-import { RAW_SPACE, projectAll, type TasteSpace } from "@/lib/taste/space";
+import { RAW_SPACE, projectAll, resolveStoredSpace, type TasteSpace } from "@/lib/taste/space";
 import { foldSignals } from "@/lib/taste/weights";
 import type { TasteMediaType, TitleKey } from "@/lib/taste/types";
 import { fetchTasteSignals, fetchTitleEmbeddings, isAdultKeyword } from "@/server/db/postgres/social/taste";
@@ -59,6 +59,13 @@ import { getTasteClusters, getTasteProfile, getTasteSpace, getTasteVectors, type
 // ---------------------------------------------------------------------------
 
 const cache = new Map<string, { at: number; value: RecsDTO }>();
+
+/**
+ * Concurrent cache misses for one key share ONE computation (same pattern as
+ * `startRecompute` in ./index): a home load, a Cue call and a retry arriving
+ * together would otherwise each run up to 8 HNSW scans at ef_search 1000.
+ */
+const inflight = new Map<string, Promise<RecsDTO>>();
 
 function cacheGet(key: string): RecsDTO | null {
   const hit = cache.get(key);
@@ -84,6 +91,7 @@ function cacheSet(key: string, value: RecsDTO): void {
 /** Test hook. */
 export function clearRecsCache(): void {
   cache.clear();
+  inflight.clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -334,7 +342,13 @@ function clusterVector(memberKeys: readonly TitleKey[], medoidKey: TitleKey, emb
   return v ? l2Normalize(v) : null;
 }
 
-async function computeRecs(userId: number, snapshot: TasteSnapshot | null): Promise<RecsDTO> {
+/** A computed result plus whether it may be cached under the taste-version key. */
+interface ComputedRecs {
+  value: RecsDTO;
+  cacheable: boolean;
+}
+
+async function computeRecs(userId: number, snapshot: TasteSnapshot | null): Promise<ComputedRecs> {
   const [clusters, vectors, exclusions, current] = await Promise.all([
     getTasteClusters(userId),
     getTasteVectors(userId),
@@ -342,8 +356,27 @@ async function computeRecs(userId: number, snapshot: TasteSnapshot | null): Prom
     getTasteSpace(),
   ]);
   // Project candidates/anchors into the space the stored vectors were built in.
-  // A stale row from another space (recompute failed) degrades to raw.
-  const space = vectors.space === current.kind ? current : RAW_SPACE;
+  // A stored raw row can be served in raw space; any other mismatch (a
+  // centered row while the space read failed, centered vs whitened) has no
+  // correct projection → no vector ranking at all: the distance-free TMDB
+  // fallback (→ cold start), NOT cached (the mismatch is transient).
+  const space = resolveStoredSpace(vectors.space, current);
+  if (!space) {
+    dataLogger.warn({ action: "taste.recs_space_mismatch", userId, stored: vectors.space, current: current.kind });
+    const { anchors } = await loadAnchors(userId, RAW_SPACE, []);
+    return { value: await tmdbFallback({ snapshot, anchors, exclusions }), cacheable: false };
+  }
+  return { value: await computeRecsInSpace(userId, snapshot, space, clusters, vectors, exclusions), cacheable: true };
+}
+
+async function computeRecsInSpace(
+  userId: number,
+  snapshot: TasteSnapshot | null,
+  space: TasteSpace,
+  clusters: Awaited<ReturnType<typeof getTasteClusters>>,
+  vectors: Awaited<ReturnType<typeof getTasteVectors>>,
+  exclusions: RecExclusions
+): Promise<RecsDTO> {
   const topClusters = [...clusters].sort((a, b) => b.importance - a.importance).slice(0, REC_MAX_CLUSTER_QUERIES);
   const { anchors, embeddings, safeTitles } = await loadAnchors(
     userId,
@@ -440,6 +473,19 @@ async function computeRecs(userId: number, snapshot: TasteSnapshot | null): Prom
   return { rows, reason: "ok", algo: REC_ALGO_VERSION };
 }
 
+function computeRecsOnce(key: string, userId: number, snapshot: TasteSnapshot | null): Promise<RecsDTO> {
+  const existing = inflight.get(key);
+  if (existing) return existing;
+  const p = computeRecs(userId, snapshot)
+    .then(({ value, cacheable }) => {
+      if (cacheable) cacheSet(key, value);
+      return value;
+    })
+    .finally(() => inflight.delete(key));
+  inflight.set(key, p);
+  return p;
+}
+
 /**
  * The owner's recommendations (For-you + up to two cluster rows). Cached per
  * (user, taste computedAt, algo) for an hour; never throws.
@@ -454,8 +500,7 @@ export async function getRecommendationsForUser(userId: number): Promise<RecsDTO
     // row recomputes lazily), so always re-filter against fresh exclusions —
     // one cheap UNION query. Also what backs Cue's "all picks are unwatched".
     if (cached) return withoutExcluded(cached, await fetchRecExclusions(userId));
-    const result = await computeRecs(userId, snapshot);
-    cacheSet(key, result);
+    const result = await computeRecsOnce(key, userId, snapshot);
     dataLogger.debug({
       action: "taste.recs",
       userId,

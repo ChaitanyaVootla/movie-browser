@@ -9,8 +9,8 @@
  *    (callers pick their own fallback; never a full distance scan);
  *  - per query an UNFILTERED `MATERIALIZED` CTE ordered by exactly the halfvec
  *    expression the index is built on, LIMIT k;
- *  - `SET LOCAL hnsw.ef_search = k` + iterative scan in the SAME batch
- *    transaction (one connection);
+ *  - `SET LOCAL hnsw.ef_search = k` + iterative scan + max_scan_tuples in the
+ *    SAME batch transaction (one connection); k capped per table (annMaxK);
  *  - returns raw ids + cosine distances. Filters (adult, votes, exclusions,
  *    structured filters) and re-ranking stay with the caller, which joins its
  *    table to `candidateSetSql(...)` — the shared filter stage.
@@ -34,6 +34,22 @@ export interface AnnHit {
 
 /** Hard ceiling on one HNSW scan (matches annSessionSql's ef_search cap). */
 export const ANN_MAX_K = 1000;
+
+/**
+ * Per-table k / ef_search ceiling. `series` is ~5× smaller than `movies`, and
+ * at a large LIMIT the planner prefers a parallel SEQ SCAN + top-N sort over
+ * the HNSW index: EXPLAIN ANALYZE on the restored prod dump (eval :5437,
+ * 24k embedded series, Oct 10 2026) kept the index up to k=650 and flipped at
+ * 700-1000. 500 keeps a margin (warm 11-12ms, cold 25ms). Movies keep the
+ * index at 1000 (warm 18-28ms, cold 82ms). ~18% of embedded series pass the
+ * 75-vote rec floor, so 500 still leaves ~90 eligible per query. Re-check the
+ * crossover with EXPLAIN on prod before raising it.
+ */
+const ANN_MAX_K_BY_TABLE: Record<VectorTable, number> = { movies: ANN_MAX_K, series: 500 };
+
+export function annMaxK(table: VectorTable): number {
+  return ANN_MAX_K_BY_TABLE[table];
+}
 
 /** pgvector text literal from numbers only (never user text). */
 export function vectorLiteral(v: readonly number[]): string {
@@ -70,7 +86,7 @@ export async function annSearch(opts: {
 }): Promise<AnnHit[] | null> {
   if (!(await hasVectorIndex(opts.table))) return null;
   if (opts.queries.length === 0) return [];
-  const k = Math.max(1, Math.min(ANN_MAX_K, Math.floor(opts.k)));
+  const k = Math.max(1, Math.min(annMaxK(opts.table), Math.floor(opts.k)));
   // Session settings first: SET LOCAL must precede the scans on the same connection.
   const session = annSessionSql(k).map((s) => prisma.$executeRawUnsafe(s));
   const exclude = opts.excludeIds && opts.excludeIds.length ? [...opts.excludeIds] : null;

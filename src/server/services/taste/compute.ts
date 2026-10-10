@@ -15,7 +15,7 @@ import {
 } from "@/server/db/postgres/social/taste";
 import { dataLogger } from "@/lib/logger";
 import { projectAll } from "@/lib/taste/space";
-import { getBaseline, getTasteSpace } from "./baseline-cache";
+import { getBaseline, getTasteSpaceState } from "./baseline-cache";
 
 export interface ComputedTaste {
   full: TasteComputeResult;
@@ -45,6 +45,13 @@ export async function computeAndStoreTaste(
   observedUpdatedAt: Date | null
 ): Promise<ComputedTaste> {
   const t0 = performance.now();
+  // Fresh read of the space (bypasses the 1h cache): a row is always built on
+  // the latest committed μ, so `computedAt >= meanAt` really means "current μ".
+  // Unknown space (read failed, nothing cached) → fail the recompute (the stale
+  // row keeps being served, with backoff) rather than write a guessed space.
+  const spaceState = await getTasteSpaceState({ fresh: true });
+  if (!spaceState.known) throw new Error("taste space unavailable");
+  const space = spaceState.space;
   const now = new Date();
   const signals = await fetchTasteSignals(userId);
 
@@ -54,10 +61,9 @@ export async function computeAndStoreTaste(
     for (const t of foldSignals(signals, scope, now).titles) keys.add(t.key);
   }
   const { movieIds, seriesIds } = splitIds(keys);
-  const [rawEmbeddings, { meta, people }, space] = await Promise.all([
+  const [rawEmbeddings, { meta, people }] = await Promise.all([
     fetchTitleEmbeddings(movieIds, seriesIds),
     fetchTitleMeta(movieIds, seriesIds),
-    getTasteSpace(),
   ]);
   // Every vector (centroids, clusters, medoids) is built in the current space —
   // mean-centered once the cron has stored μ (spec 2026-10-10 §2).

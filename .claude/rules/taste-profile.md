@@ -46,9 +46,10 @@ thresholds): `docs/superpowers/specs/2026-10-09-taste-profile-design.md`. Plan:
 | UI | `profile/widgets/taste-{widgets,moods,people}.tsx`, `profile/taste-owner-hint.tsx`; DESIGN.md → Taste profile |
 
 Interface for consumers: `getTasteProfile(userId, {scope})`, `getTasteClusters`,
-`getUserTasteEmbedding(userId, {scope?})` (default full), `getTasteVectors`,
-`markTasteDirty`, `getProfileTaste` (profile DTO, never throws), plus
-`cosineSimilarity` / `l2Normalize`.
+`getTasteVectors` (centroid / negCentroid / publicCentroid + the `space` they live in —
+`getUserTasteEmbedding` was removed Oct 10 2026 because it dropped the space),
+`getTasteSpace` / `getTasteSpaceState`, `markTasteDirty`, `getProfileTaste` (profile DTO,
+never throws), plus `cosineSimilarity` / `l2Normalize`.
 
 ## Hard rules
 
@@ -185,7 +186,7 @@ fallback table, gate matrix). Plan: `docs/superpowers/plans/2026-10-09-taste-rec
 Rules:
 
 1. **Recs = FULL scope, owner only; match + twins = PUBLIC scope for BOTH sides**
-   (`publicRatingsFromSignals` → `isRatingPrivate`, `getUserTasteEmbedding({scope:"public"})`).
+   (`publicRatingsFromSignals` → `isRatingPrivate`, `getTasteVectors(id).publicCentroid`).
    Owner recs may explain with a PRIVATE watch ("Like Get Out") — fine, only the owner
    sees them; never move rec explanations onto a surface someone else can see.
 2. **Catalog ANN only behind `hasVectorIndex(table)`**, in the §19 shape (filters
@@ -202,9 +203,12 @@ Rules:
    re-filtered with a fresh `fetchRecExclusions` (`withoutExcluded`) — the taste row
    recomputes lazily, so the key alone served just-watched titles for up to 1h.
    Bump `REC_ALGO_VERSION` on any rec-constant change.
-5b. Inner ANN LIMIT = `annLimitFor(150, exclusions)` (≤ 1000), also the ef_search:
-   filters run after the LIMIT and a heavy user's own titles are their centroid's
-   nearest neighbours — a fixed LIMIT starves exactly the most engaged users.
+5b. Inner ANN LIMIT = `REC_ANN_PER_QUERY` (1000), also the ef_search, capped per table by
+   `annMaxK` (series 500). The user's exclusions run INSIDE the scan (see the
+   Embedding-space section); the vote floor runs after the LIMIT.
+5e. Concurrent cache misses for one key share ONE computation (`inflight` map in
+   `recommend.ts`, same pattern as `startRecompute`). A space-mismatch fallback is NOT
+   cached.
 5c. Popular fallback: `WHERE popularity IS NOT NULL … ORDER BY popularity DESC`
    (NOT `DESC NULLS LAST` — the default DESC btree can't serve it → full sort).
 5d. Twins only consider clean rows at the current `TASTE_ALGO_VERSION`; the row
@@ -247,7 +251,18 @@ Spec + measured numbers: `docs/superpowers/specs/2026-10-10-taste-vector-upgrade
      embeddings before Rocchio/Ward, rec candidates and anchors, the forMe pool, and the
      other user's centroid.
    - Rows carry `user_taste_profiles.space`. A row whose space ≠ the current one recomputes
-     on read, and twins/match only compare same-space rows.
+     on read, and twins/match only compare same-space rows. A row with `computedAt` older
+     than μ's `taste_baseline_meta.computed_at` (`meanAt`) also recomputes.
+   - **A failed μ read must never downgrade to raw** (review fix, Oct 10 2026: that flapped
+     every centered row through a raw recompute and back). `getTasteSpaceState` keeps the
+     last good space, retries in 60s, and logs `taste.space_read_failed`. With nothing
+     cached it reports `known: false`: `isFresh` serves the row as-is, and the recompute
+     (which reads `{fresh: true}`) throws instead of writing a guessed space.
+   - **Comparing a stored vector: `resolveStoredSpace(stored, current)`.** Same kind →
+     current, stored raw → RAW_SPACE, anything else → null → do NOT compare. Recs take the
+     distance-free TMDB/cold-start fallback (uncached); forMe returns `no_profile`. Never
+     write `vectors.space === current.kind ? current : RAW_SPACE`: it dots raw-projected
+     candidates against a centered centroid.
    - No μ (fresh env, < `SPACE_MIN_TITLES` embedded) → `RAW_SPACE` = the pre-centering
      behaviour.
    - Whitening is implemented but OFF (`TASTE_SPACE_WHITEN`; within noise on the eval).
@@ -260,7 +275,15 @@ Spec + measured numbers: `docs/superpowers/specs/2026-10-10-taste-vector-upgrade
    MATERIALIZED CTE on the halfvec expression with `SET LOCAL ef_search` + iterative scan in
    one batch.
    - The only predicate allowed inside the CTE is an id exclusion (non-selective;
-     EXPLAIN-verified index scan + filter).
+     EXPLAIN-verified index scan + filter). Callers MUST pass the user's own titles there:
+     `smartDiscover` sends `annExclusions(...)` (excludeIds + hide* lists + the similar-to
+     source). An outer-only filter lets a heavy user's titles fill the k-limited pool.
+   - **Per-table k cap (`annMaxK`): movies 1000, series 500.** At a large LIMIT the
+     planner seq-scans the ~5× smaller series table: on the eval dump the index held at
+     k≤650 and flipped at 700–1000. Every scan also sets
+     `SET LOCAL hnsw.max_scan_tuples = 10000` (`ANN_MAX_SCAN_TUPLES`, ~7× the heaviest
+     real exclusion list), so a pathological list cannot walk unbounded. Numbers are in
+     spec §9; EXPLAIN on prod before raising either value.
    - Callers filter and rank over `candidateSetSql` (an unnest row source), with `notAdult()`
      in `$queryRawUnsafe` strings only.
    - Users: `taste-recs.annCandidates`, `smartDiscover` (similarTo + semantic), and through

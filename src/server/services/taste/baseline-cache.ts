@@ -19,6 +19,7 @@ import {
 } from "@/server/db/postgres/social/taste";
 import { RAW_SPACE, makeTasteSpace, type TasteSpace } from "@/lib/taste/space";
 import { TASTE_SPACE_WHITEN } from "@/lib/taste/constants";
+import { dataLogger } from "@/lib/logger";
 
 const TTL_MS = 60 * 60 * 1000;
 const MAX_KEYS = 50_000;
@@ -82,25 +83,70 @@ export function resetBaselineCache(): void {
 // Embedding space (spec 2026-10-10-taste-vector-upgrades.md §2)
 // ---------------------------------------------------------------------------
 
-let spaceCache: { value: TasteSpace; at: number } | null = null;
+/** After a failed read, retry this soon (not after the full TTL). */
+export const SPACE_RETRY_MS = 60 * 1000;
+
+export interface TasteSpaceState {
+  space: TasteSpace;
+  /** When the cron computed μ (null in raw space). Rows computed before it are stale. */
+  meanAt: Date | null;
+  /**
+   * False only when the space could not be read and no earlier good value
+   * exists in this process. `space` is then RAW_SPACE as a placeholder: callers
+   * must not treat it as authoritative (no "space mismatch → recompute", no
+   * row written in it).
+   */
+  known: boolean;
+}
+
+let spaceCache: (TasteSpaceState & { at: number; ttl: number }) | null = null;
+
+async function readSpace(): Promise<TasteSpaceState> {
+  const stats = await readEmbeddingStats();
+  if (!stats) return { space: RAW_SPACE, meanAt: null, known: true };
+  const space = makeTasteSpace({ mean: stats.mean, std: stats.std, whiten: TASTE_SPACE_WHITEN });
+  return { space, meanAt: space.kind === "raw" ? null : stats.computedAt, known: true };
+}
 
 /**
  * The current embedding space: mean-centered when the nightly cron has stored
- * a catalog mean, raw otherwise (fresh env). One PK read per hour per process;
- * a failed read degrades to raw (and is retried after the TTL).
+ * a catalog mean, raw when it has not (fresh env). One PK read per hour per
+ * process. `fresh: true` bypasses the cache (the recompute path, so a new row
+ * is always built on the latest committed μ) and refreshes it for readers.
+ *
+ * A failed read NEVER downgrades a known centered space to raw: that would
+ * make every centered row look stale, recompute it in raw, and flip it back an
+ * hour later (review finding, Oct 10 2026). It keeps the last good value and
+ * retries after SPACE_RETRY_MS; with no good value yet it reports
+ * `known: false`.
  */
-export async function getTasteSpace(): Promise<TasteSpace> {
+export async function getTasteSpaceState(opts: { fresh?: boolean } = {}): Promise<TasteSpaceState> {
   const now = Date.now();
-  if (spaceCache && now - spaceCache.at < TTL_MS) return spaceCache.value;
-  let value: TasteSpace = RAW_SPACE;
-  try {
-    const stats = await readEmbeddingStats();
-    if (stats) value = makeTasteSpace({ mean: stats.mean, std: stats.std, whiten: TASTE_SPACE_WHITEN });
-  } catch {
-    value = RAW_SPACE;
+  if (!opts.fresh && spaceCache && now - spaceCache.at < spaceCache.ttl) {
+    return { space: spaceCache.space, meanAt: spaceCache.meanAt, known: spaceCache.known };
   }
-  spaceCache = { value, at: now };
-  return value;
+  try {
+    const state = await readSpace();
+    spaceCache = { ...state, at: now, ttl: TTL_MS };
+    return state;
+  } catch (error: unknown) {
+    const last = spaceCache?.known ? spaceCache : null;
+    dataLogger.warn({
+      action: "taste.space_read_failed",
+      keptLastGood: last !== null,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    const state: TasteSpaceState = last
+      ? { space: last.space, meanAt: last.meanAt, known: true }
+      : { space: RAW_SPACE, meanAt: null, known: false };
+    spaceCache = { ...state, at: now, ttl: SPACE_RETRY_MS };
+    return state;
+  }
+}
+
+/** The current embedding space (see getTasteSpaceState). */
+export async function getTasteSpace(): Promise<TasteSpace> {
+  return (await getTasteSpaceState()).space;
 }
 
 /** Test hook. */

@@ -98,7 +98,7 @@ afterAll(async () => {
 describe("taste profile service (live DB)", () => {
   it("public projection excludes private watches + their ratings; full includes them", async () => {
     if (!ready) return;
-    const { getTasteProfile, getUserTasteEmbedding } = await import("./index");
+    const { getTasteProfile, getTasteVectors } = await import("./index");
     const pub = await getTasteProfile(userId, { scope: "public" });
     const full = await getTasteProfile(userId, { scope: "full" });
     expect(pub?.positiveCount).toBe(12);
@@ -108,8 +108,9 @@ describe("taste profile service (live DB)", () => {
     expect(pubJson).not.toContain(String(PRIVATE_IDS[0]));
     expect(JSON.stringify(full)).toContain("vitest secret genre");
 
-    const publicVec = await getUserTasteEmbedding(userId, { scope: "public" });
-    const fullVec = await getUserTasteEmbedding(userId);
+    const vectors = await getTasteVectors(userId);
+    const publicVec = vectors.publicCentroid;
+    const fullVec = vectors.centroid;
     expect(publicVec?.length).toBe(1024);
     expect(Math.abs(publicVec?.[500] ?? 1)).toBeLessThan(1e-6); // no private direction
     expect(fullVec?.[500] ?? 0).toBeGreaterThan(0.05);

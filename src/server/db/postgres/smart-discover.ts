@@ -22,6 +22,13 @@ import { annSearch, candidateParams, candidateSetSql } from "./vector-search";
 import { generateQueryEmbedding } from "@/lib/embeddings";
 import { dataLogger } from "@/lib/logger";
 
+export {
+  resolveGenreIds,
+  resolveKeywordIds,
+  resolvePersonIds,
+  resolveProviderIds,
+} from "./smart-discover-resolvers";
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -219,6 +226,27 @@ function parseVectorText(text: string): number[] {
       const n = Number(x);
       return Number.isFinite(n) ? n : 0;
     });
+}
+
+/**
+ * Ids to skip inside the ANN scan: explicit exclusions, the user-library
+ * exclusions (not in fromWatchlist INCLUDE mode) and the similar-to source.
+ * Undefined when there are none.
+ */
+export function annExclusions(f: {
+  excludeIds?: readonly number[];
+  watchedIds?: readonly number[];
+  dislikedIds?: readonly number[];
+  watchlistIds?: readonly number[];
+  fromWatchlist?: boolean;
+  similarToId?: number;
+}): number[] | undefined {
+  const ids = new Set<number>(f.excludeIds ?? []);
+  if (!f.fromWatchlist) {
+    for (const list of [f.watchedIds, f.dislikedIds, f.watchlistIds]) for (const id of list ?? []) ids.add(id);
+  }
+  if (f.similarToId) ids.add(f.similarToId);
+  return ids.size ? [...ids] : undefined;
 }
 
 export async function smartDiscover(filters: SmartDiscoverFilters): Promise<SmartDiscoverResponse> {
@@ -567,9 +595,15 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
   // (55-100 of the nearest 200 pass on prod data); semantic queries may carry
   // many filters.
   const annK = similarToId ? 200 : 1000;
+  // Id exclusions also go INSIDE the scan (the one predicate annSearch allows):
+  // filtered only after the LIMIT, a heavy user's own titles — which are the
+  // nearest neighbours of a query they'd like — would eat the whole candidate
+  // pool (forMe / hideWatched starved exactly the most engaged users). The
+  // outer WHERE keeps them too, as a backstop.
+  const annExcludeIds = annExclusions({ excludeIds, watchedIds, dislikedIds, watchlistIds, fromWatchlist, similarToId });
   const annHits =
     embeddingStr && sortBy === "relevance"
-      ? await annSearch({ table, queries: [parseVectorText(embeddingStr)], k: annK })
+      ? await annSearch({ table, queries: [parseVectorText(embeddingStr)], k: annK, excludeIds: annExcludeIds })
       : null;
   const useAnn = annHits !== null;
   let fromClause = `${table} m`;
@@ -743,140 +777,4 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
     });
     throw error;
   }
-}
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Get genre IDs by names (for tool input processing)
- */
-export async function resolveGenreIds(
-  names: string[],
-  mediaType: "movie" | "series"
-): Promise<{ found: { name: string; id: number }[]; notFound: string[] }> {
-  const found: { name: string; id: number }[] = [];
-  const notFound: string[] = [];
-
-  // Get all genres from database
-  const allGenres = await prisma.$queryRaw<{ id: number; name: string }[]>`
-    SELECT id, name FROM genres
-  `;
-
-  const genreMap = new Map(allGenres.map((g) => [g.name.toLowerCase(), g.id]));
-
-  for (const name of names) {
-    const normalizedName = name.toLowerCase();
-
-    // Try exact match first
-    if (genreMap.has(normalizedName)) {
-      found.push({ name, id: genreMap.get(normalizedName)! });
-      continue;
-    }
-
-    // Try partial match
-    const partialMatch = allGenres.find(
-      (g) =>
-        g.name.toLowerCase().includes(normalizedName) ||
-        normalizedName.includes(g.name.toLowerCase())
-    );
-
-    if (partialMatch) {
-      found.push({ name, id: partialMatch.id });
-    } else {
-      notFound.push(name);
-    }
-  }
-
-  return { found, notFound };
-}
-
-/**
- * Get keyword IDs by names (fuzzy matching)
- */
-export async function resolveKeywordIds(
-  names: string[]
-): Promise<{ found: { name: string; id: number; matchedName: string }[]; notFound: string[] }> {
-  const found: { name: string; id: number; matchedName: string }[] = [];
-  const notFound: string[] = [];
-
-  for (const name of names) {
-    const results = await prisma.$queryRaw<{ id: number; name: string; similarity: number }[]>`
-      SELECT id, name, similarity(LOWER(name), LOWER(${name})) as similarity
-      FROM keywords
-      WHERE LOWER(name) % LOWER(${name})
-      ORDER BY similarity DESC
-      LIMIT 1
-    `;
-
-    if (results[0]) {
-      found.push({ name, id: results[0].id, matchedName: results[0].name });
-    } else {
-      notFound.push(name);
-    }
-  }
-
-  return { found, notFound };
-}
-
-/**
- * Get person IDs by names (fuzzy matching)
- */
-export async function resolvePersonIds(
-  names: string[]
-): Promise<{ found: { name: string; id: number; matchedName: string }[]; notFound: string[] }> {
-  const found: { name: string; id: number; matchedName: string }[] = [];
-  const notFound: string[] = [];
-
-  for (const name of names) {
-    const results = await prisma.$queryRaw<{ id: number; name: string; similarity: number }[]>`
-      SELECT id, name, similarity(LOWER(name), LOWER(${name})) as similarity
-      FROM persons
-      WHERE LOWER(name) % LOWER(${name})
-      ORDER BY similarity DESC, popularity DESC
-      LIMIT 1
-    `;
-
-    if (results[0]) {
-      found.push({ name, id: results[0].id, matchedName: results[0].name });
-    } else {
-      notFound.push(name);
-    }
-  }
-
-  return { found, notFound };
-}
-
-/**
- * Get streaming provider IDs by names
- */
-export async function resolveProviderIds(
-  names: string[]
-): Promise<{ found: { name: string; id: number; matchedName: string }[]; notFound: string[] }> {
-  const found: { name: string; id: number; matchedName: string }[] = [];
-  const notFound: string[] = [];
-
-  const allProviders = await prisma.$queryRaw<{ id: number; name: string }[]>`
-    SELECT id, name FROM streaming_providers
-  `;
-
-  for (const name of names) {
-    const normalizedName = name.toLowerCase();
-
-    const match = allProviders.find(
-      (p) =>
-        p.name.toLowerCase() === normalizedName ||
-        p.name.toLowerCase().includes(normalizedName) ||
-        normalizedName.includes(p.name.toLowerCase())
-    );
-
-    if (match) {
-      found.push({ name, id: match.id, matchedName: match.name });
-    } else {
-      notFound.push(name);
-    }
-  }
-
-  return { found, notFound };
 }

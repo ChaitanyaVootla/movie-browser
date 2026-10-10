@@ -599,6 +599,12 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    after-LIMIT TMDB vote floor removes ~85% of embedded movies, so small LIMITs starve
    (recall of the exact top-160: .37 at k=150, .75 at k=1000). All catalog ANN goes
    through `annSearch` in `vector-search.ts` — see `taste-profile.md`.
+   **A large LIMIT flips a SMALL table to a seq scan, even in the unfiltered CTE.** At
+   k=ef=1000, series on the eval dump (24k embedded) ran a Parallel Seq Scan + top-N
+   sort. The index held up to k≈650 and the plan flipped at 700. Movies (120k) kept the
+   index at 1000. So `annMaxK` caps series at 500, and every scan sets
+   `hnsw.max_scan_tuples = 10000` to bound walks past in-scan exclusions. EXPLAIN every
+   table at the k you ship; one table passing proves nothing about the other.
    Build: deferred background deploy step (`scripts/apply-vector-indexes.sh`,
    15 min after deploy, 1 worker, 512MB m_w_m, CONCURRENTLY, hash written only
    when both indexes are `indisvalid`). Local build: series 17s, movies 100s.

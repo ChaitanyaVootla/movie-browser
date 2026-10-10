@@ -75,6 +75,20 @@ export function makeTasteSpace(opts: {
   };
 }
 
+/**
+ * The space to project comparison vectors into, given the space a STORED user
+ * vector was built in. Same kind → the current space. A stored RAW vector can
+ * always be served in raw space (projection = plain normalisation, no μ
+ * needed). Any other mismatch (stored centered/whitened while current is raw,
+ * e.g. after a failed μ read, or centered vs whitened) has no correct
+ * projection: null → the caller must NOT compare and takes its fallback.
+ */
+export function resolveStoredSpace(stored: SpaceKind, current: TasteSpace): TasteSpace | null {
+  if (stored === current.kind) return current;
+  if (stored === "raw") return RAW_SPACE;
+  return null;
+}
+
 /** Project every vector of a map; entries that degenerate are dropped. */
 export function projectAll<K>(space: TasteSpace, vectors: ReadonlyMap<K, ArrayLike<number>>): Map<K, number[]> {
   const out = new Map<K, number[]>();

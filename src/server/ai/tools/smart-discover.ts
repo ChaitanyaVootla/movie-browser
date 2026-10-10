@@ -483,13 +483,16 @@ export const smartDiscoverTool = tool(
 
       // ===== Execute Smart Discover =====
       const discovered = await smartDiscover(filters);
-      const { totalFound } = discovered;
+      let totalFound = discovered.totalFound;
       let results = discovered.results;
       let forMeStatus: string | null = null;
       if (forMe && userId) {
         const personalized = await personalizeResults(userId, mediaType, results, limit);
         results = personalized.items;
         forMeStatus = personalized.status;
+        // The pool was widened ×FOR_ME_POOL_FACTOR for the re-rank; report what
+        // the user actually gets, not the internal pool size.
+        totalFound = results.length;
       }
 
       // ===== Build Response =====
