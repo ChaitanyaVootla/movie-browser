@@ -90,20 +90,28 @@ describe("smartDiscover vector path", () => {
     expect(sql).toContain("m.embedding <=> '[0.1,0.2]'::vector");
   });
 
-  it("with the index: nearest candidates by the halfvec expression, then filter + re-rank", async () => {
+  it("with the index: nearest candidates by the halfvec expression (shared ANN primitive), then filter + re-rank", async () => {
     flags.indexValid = true;
     await smartDiscover({ mediaType: "movie", similarToId: 157336, popularityWeight: 0.15 });
-    const sql = mainSql();
+    const norm = rawCalls
+      .filter((s) => !s.includes("SELECT embedding::text") && !s.startsWith("SET LOCAL"))
+      .map((s) => s.replace(/\s+/g, " "));
+    expect(norm).toHaveLength(2);
+    const [ann, sql] = norm;
     // Candidate CTE orders by EXACTLY the indexed expression and carries no filters.
-    expect(sql).toMatch(
-      /WITH c AS MATERIALIZED \( SELECT id AS cid, embedding::halfvec\(1024\) <=> '\[0\.1,0\.2\]'::halfvec\(1024\) AS dist FROM movies ORDER BY embedding::halfvec\(1024\) <=> '\[0\.1,0\.2\]'::halfvec\(1024\) LIMIT 200 \)/
+    expect(ann).toMatch(
+      /WITH c AS MATERIALIZED \( SELECT id AS cid, embedding::halfvec\(1024\) <=> '\[0\.1000000,0\.2000000\]'::halfvec\(1024\) AS dist FROM movies ORDER BY embedding::halfvec\(1024\) <=> '\[0\.1000000,0\.2000000\]'::halfvec\(1024\) LIMIT 200 \)/
     );
-    expect(sql).toContain("FROM c JOIN movies m ON m.id = c.cid");
-    // Filters (adult, TMDB votes) and the blended rank live in the outer query.
+    expect(ann).not.toContain("adult");
+    expect(ann).not.toContain("ratings");
+    // Filters (adult, TMDB votes) and the blended rank live in the outer query over the candidate set.
+    expect(sql).toContain("unnest(");
+    expect(sql).toContain("AS c(cid, dist) JOIN movies m ON m.id = c.cid");
     expect(sql).toContain("m.adult IS NOT TRUE");
     expect(sql).toContain(`r.source_id = ${TMDB_SOURCE_ID_SQL}`);
     expect(sql).toContain("(1 - c.dist)");
-    // SET LOCAL ran in the same transaction.
+    // SET LOCAL ran in the same transaction as the ANN statement.
+    expect(rawCalls).toContain("SET LOCAL hnsw.ef_search = 200");
     expect(rawCalls).toContain("SET LOCAL hnsw.iterative_scan = relaxed_order");
   });
 });
