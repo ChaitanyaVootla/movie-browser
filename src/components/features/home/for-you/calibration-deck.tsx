@@ -31,6 +31,7 @@ export interface TasteCalibrationDeckProps {
 }
 
 const SWIPE_PX = 60;
+const ANSWER_BTN = "h-auto min-h-14 flex-col gap-1 px-2 text-xs sm:min-h-10 sm:flex-row sm:gap-2 sm:px-4 sm:text-sm";
 const EXIT_MS = 200;
 const ANSWER_COPY: Record<CalibrationAnswer, string> = {
   disliked: "Not for me",
@@ -63,6 +64,7 @@ export function TasteCalibrationDeck({ mode, onProgress, onComplete, className }
   const [done, setDone] = useState(false);
   const [ready, setReady] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; dx: number } | null>(null);
 
   const fetchDeck = useCallback(() => {
@@ -94,6 +96,11 @@ export function TasteCalibrationDeck({ mode, onProgress, onComplete, className }
   const answer = useCallback(
     (a: CalibrationAnswer) => {
       if (!current || busy || done) return;
+      // The answer buttons disable while the write lands, and a disabled button
+      // drops focus to <body> — the arrow keys would stop working after one
+      // click. Keep focus in the deck instead.
+      const root = rootRef.current;
+      const keepFocus = root !== null && root.contains(document.activeElement);
       setBusy(true);
       const position = answered + 1;
       trackAction({
@@ -123,6 +130,7 @@ export function TasteCalibrationDeck({ mode, onProgress, onComplete, className }
             setIndex((i) => i + 1);
           }
           setBusy(false);
+          if (keepFocus) root?.focus({ preventScroll: true });
         });
       };
       const el = cardRef.current;
@@ -172,7 +180,9 @@ export function TasteCalibrationDeck({ mode, onProgress, onComplete, className }
 
   return (
     <div
-      className={cn("rounded-xl border bg-card p-4 md:p-6", className)}
+      ref={rootRef}
+      tabIndex={-1}
+      className={cn("rounded-xl border bg-card p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring md:p-6", className)}
       onKeyDown={onKeyDown}
       role="group"
       aria-label="Rate titles to start your taste profile"
@@ -221,7 +231,7 @@ export function TasteCalibrationDeck({ mode, onProgress, onComplete, className }
             <div className="flex items-center gap-3">
               <div className="flex gap-1" aria-hidden>
                 {Array.from({ length: CALIBRATION_TARGET_ANSWERS }).map((_, i) => (
-                  <span key={i} className={cn("size-2 rounded-full", i < shown ? "bg-brand" : "bg-muted")} />
+                  <span key={i} className={cn("size-2 rounded-full", i < shown ? "bg-brand" : "bg-foreground/15")} />
                 ))}
               </div>
               <span className="text-xs font-medium tabular-nums text-muted-foreground">
@@ -237,14 +247,16 @@ export function TasteCalibrationDeck({ mode, onProgress, onComplete, className }
                 <p className="text-xs font-medium text-muted-foreground">{current.genres.join(", ")}</p>
               )}
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" className="min-h-10" disabled={busy} onClick={() => answer("disliked")}>
+            {/* Mobile: three equal columns, icon over label — a row of three
+                labelled buttons does not fit 390px and "Loved it" wrapped alone. */}
+            <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+              <Button variant="secondary" className={ANSWER_BTN} disabled={busy} onClick={() => answer("disliked")}>
                 <ThumbsDown className="size-4" aria-hidden /> Not for me
               </Button>
-              <Button variant="secondary" className="min-h-10" disabled={busy} onClick={() => answer("liked")}>
+              <Button variant="secondary" className={ANSWER_BTN} disabled={busy} onClick={() => answer("liked")}>
                 <ThumbsUp className="size-4" aria-hidden /> Liked it
               </Button>
-              <Button className="min-h-10" disabled={busy} onClick={() => answer("loved")}>
+              <Button className={ANSWER_BTN} disabled={busy} onClick={() => answer("loved")}>
                 <Heart className="size-4" aria-hidden /> Loved it
               </Button>
             </div>

@@ -616,9 +616,12 @@ rows → Taste twins. Rhythm is the home `space-y-10`.
 - **Calibration deck** (cold start, replaces the old "Popular in your genres" row) —
   heading "Start your taste profile" + sub-line; a `bg-card border rounded-xl` panel:
   poster `aspect-[2/3]` (`w-[60vw] max-w-[240px]`), progress dots (`size-2`, brand =
-  answered) + "4 of 10", title (year) + ≤ 2 genres, three buttons (Not for me /
-  Liked it secondary, Loved it primary) and a "Haven't seen it" link. Buttons are the
-  accessible path; swipe (60px) and arrow keys are enhancements. Exit: `translateX(±40px)`
+  answered, `bg-foreground/15` = to go — `bg-muted` vanishes on `bg-card`) + "4 of 10",
+  title (year) + ≤ 2 genres, three buttons (Not for me / Liked it secondary, Loved it
+  primary; on mobile a `grid-cols-3` row with the icon over the label, `min-h-14`, so
+  none wraps alone) and a "Haven't seen it" link. Buttons are the accessible path;
+  swipe (60px) and arrow keys are enhancements — the panel is `tabIndex=-1` and takes
+  focus back after an answer, so the keys keep working once a button disables. Exit: `translateX(±40px)`
   / down + fade 200ms; the next card scales `0.96 → 1`; reduced motion = fades only.
 - **Taste twins** — `SectionHeading` + one metadata line, horizontal chips: `bg-card
   border rounded-xl p-3 min-h-12 w-[260px]`, `size-10` round avatar (initials
