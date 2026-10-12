@@ -67,9 +67,21 @@ async function startDeck(userId: number, now: Date): Promise<CalibrationItemDTO[
 }
 
 async function sharpenDeck(userId: number, now: Date): Promise<CalibrationItemDTO[] | null> {
-  const pool = await getRecPoolForUser(userId);
+  const [pool, ex, skips] = await Promise.all([
+    getRecPoolForUser(userId),
+    fetchRecExclusions(userId),
+    fetchActiveSkips(userId),
+  ]);
   if (!pool) return null;
-  const middle = pool.scored.slice(SHARPEN_RANKS.from, SHARPEN_RANKS.to);
+  // The pool may be a cache hit from before a rating / dismissal, and SKIPs are
+  // a deck-only exclusion the recs pool never applies — filter both first.
+  const banned = new Set([
+    ...[...ex.movieIds, ...skips.movieIds].map((id) => `m:${id}`),
+    ...[...ex.seriesIds, ...skips.seriesIds].map((id) => `s:${id}`),
+  ]);
+  const middle = pool.scored
+    .filter((c) => !banned.has(c.key))
+    .slice(SHARPEN_RANKS.from, SHARPEN_RANKS.to);
   if (middle.length < 4) return null;
   const rand = seededRandom(hashSeed(`${userId}:${dayStamp(now)}:sharpen`));
   return [...middle]

@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   getTasteProfile: vi.fn(),
   evict: vi.fn(),
   fetchCalibrationCandidates: vi.fn(),
+  getRecPoolForUser: vi.fn(),
 }));
 vi.mock("@/server/db/postgres", () => ({
   prisma: { movie: { findMany: h.movieFind }, series: { findMany: h.seriesFind } },
@@ -23,7 +24,7 @@ vi.mock("@/server/db/postgres/social/taste-recs", () => ({
   fetchRecExclusions: vi.fn(async () => ({ movieIds: [1], seriesIds: [2] })),
 }));
 vi.mock("./index", () => ({ getTasteProfile: h.getTasteProfile }));
-vi.mock("./recommend", () => ({ evictRecsCache: h.evict, getRecPoolForUser: vi.fn(async () => null) }));
+vi.mock("./recommend", () => ({ evictRecsCache: h.evict, getRecPoolForUser: h.getRecPoolForUser }));
 vi.mock("@/lib/logger", () => ({ dataLogger: { warn: vi.fn() } }));
 
 const { submitCalibrationFor, getCalibrationDeckFor } = await import("./calibration");
@@ -33,6 +34,7 @@ beforeEach(() => {
   h.movieFind.mockResolvedValue([{ id: 10 }, { id: 11 }, { id: 12 }]);
   h.seriesFind.mockResolvedValue([{ id: 20 }]);
   h.getTasteProfile.mockResolvedValue({ positiveCount: 3 });
+  h.getRecPoolForUser.mockResolvedValue(null);
 });
 
 describe("submitCalibrationFor", () => {
@@ -78,5 +80,41 @@ describe("getCalibrationDeckFor", () => {
     expect(out.items).toEqual([]);
     expect(h.fetchCalibrationCandidates).toHaveBeenCalledWith("movies", { excludeIds: [1, 5], minVotes: 1000, limit: 80 });
     expect(h.fetchCalibrationCandidates).toHaveBeenCalledWith("movies", expect.objectContaining({ minVotes: 0 }));
+  });
+});
+
+describe("sharpen deck", () => {
+  const scored = (n: number) =>
+    Array.from({ length: n }, (_, i) => {
+      const series = i % 5 === 0;
+      const id = 1000 + i;
+      return {
+        key: `${series ? "s" : "m"}:${id}`,
+        mediaType: series ? "series" : "movie",
+        id,
+        title: `T${id}`,
+        posterPath: null,
+        releaseDate: "2020-01-01",
+        year: 2020,
+        genres: ["Drama"],
+      };
+    });
+
+  it("drops engaged titles (fresh exclusions) and 90-day SKIPs before taking the middle ranks", async () => {
+    const pool = scored(200);
+    h.getRecPoolForUser.mockResolvedValue({ scored: pool });
+    // The first 120 ranks (the whole unfiltered sharpen window) are engaged or skipped.
+    const window = pool.slice(0, 120);
+    const ex = window.filter((c) => c.mediaType === "movie" && c.id % 2 === 0).map((c) => c.id);
+    const skip = window.filter((c) => c.mediaType === "movie" && c.id % 2 === 1).map((c) => c.id);
+    const exS = window.filter((c) => c.mediaType === "series").map((c) => c.id);
+    const tr = await import("@/server/db/postgres/social/taste-recs");
+    const rf = await import("@/server/db/postgres/social/rec-feedback");
+    vi.mocked(tr.fetchRecExclusions).mockResolvedValueOnce({ movieIds: ex, seriesIds: exS });
+    vi.mocked(rf.fetchActiveSkips).mockResolvedValueOnce({ movieIds: skip, seriesIds: [] });
+    const out = await getCalibrationDeckFor(7, "sharpen", new Date("2026-10-12T00:00:00Z"));
+    const banned = new Set([...ex.map((i) => `movie:${i}`), ...skip.map((i) => `movie:${i}`), ...exS.map((i) => `series:${i}`)]);
+    expect(out.items.length).toBeGreaterThan(0);
+    expect(out.items.some((it) => banned.has(`${it.mediaType}:${it.id}`))).toBe(false);
   });
 });
