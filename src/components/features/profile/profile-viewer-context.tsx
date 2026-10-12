@@ -31,6 +31,8 @@ interface ViewerContextValue {
    * this so the owner sees their own edits despite the page being CDN-cached.
    */
   profile: PublicProfileDTO;
+  /** Owner only: re-pull the fresh profile (e.g. after the calibration deck wrote ratings). */
+  refreshProfile: () => Promise<void>;
 }
 
 const ViewerContext = createContext<ViewerContextValue | null>(null);
@@ -84,6 +86,16 @@ export function ProfileViewerProvider({
     };
   }, [status, username]);
 
+  const refreshProfile = async () => {
+    if (!viewer.isOwner) return;
+    try {
+      const fresh = await getFreshProfileForOwner(username);
+      if (fresh) setFreshProfile(fresh);
+    } catch {
+      // keep the current body
+    }
+  };
+
   const setIsFollowing = (value: boolean) =>
     setViewer((prev) => ({ ...prev, isFollowing: value }));
 
@@ -98,6 +110,7 @@ export function ProfileViewerProvider({
         editMode,
         setEditMode,
         profile: freshProfile ?? initialProfile,
+        refreshProfile,
       }}
     >
       {children}

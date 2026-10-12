@@ -5,7 +5,7 @@ import { Check, Loader2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLoginDialog } from "@/components/features/auth";
+import { useSignInPrompt } from "@/components/features/media/title-actions/sign-in-dialog";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { followAction } from "@/server/actions/profile";
 import { useProfileViewer } from "./profile-viewer-context";
@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 
 interface FollowButtonProps {
   username: string;
+  /** "hero" = over imagery (hardcoded white); "card" = on a card surface (tokens). */
+  variant?: "hero" | "card";
   className?: string;
 }
 
@@ -21,9 +23,9 @@ interface FollowButtonProps {
  * NEVER in server HTML — it hydrates here per viewer (§4.1.8).
  * Styled for placement over hero imagery (hardcoded white is correct there).
  */
-export function FollowButton({ username, className }: FollowButtonProps) {
+export function FollowButton({ username, variant = "hero", className }: FollowButtonProps) {
   const { resolved, authenticated, isOwner, isFollowing, setIsFollowing } = useProfileViewer();
-  const { openLoginDialog } = useLoginDialog();
+  const signIn = useSignInPrompt();
   const { trackAction } = useAnalytics();
   const [busy, setBusy] = useState(false);
 
@@ -34,7 +36,7 @@ export function FollowButton({ username, className }: FollowButtonProps) {
 
   const handleClick = async () => {
     if (!authenticated) {
-      openLoginDialog();
+      signIn.prompt();
       return;
     }
     const next = !isFollowing;
@@ -52,27 +54,35 @@ export function FollowButton({ username, className }: FollowButtonProps) {
     }
   };
 
+  const followingStyle =
+    variant === "card"
+      ? "border border-border bg-muted text-foreground hover:bg-muted/80"
+      : "bg-white/15 text-white border border-white/30 backdrop-blur-sm hover:bg-white/25";
+
   return (
-    <Button
-      size="sm"
-      className={cn(
-        "h-10 gap-1.5 rounded-full font-semibold transition-all",
-        isFollowing
-          ? "bg-white/15 text-white border border-white/30 backdrop-blur-sm hover:bg-white/25"
-          : "bg-brand text-brand-foreground hover:bg-brand/90 shadow-sm",
-        className
-      )}
-      disabled={busy}
-      onClick={() => void handleClick()}
-    >
-      {busy ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : isFollowing ? (
-        <Check className="h-4 w-4 stroke-[2.5]" />
-      ) : (
-        <UserPlus className="h-4 w-4" />
-      )}
-      {isFollowing ? "Following" : "Follow"}
-    </Button>
+    <>
+      <Button
+        size="sm"
+        className={cn(
+          "h-10 gap-1.5 rounded-full font-semibold transition-all",
+          isFollowing
+            ? followingStyle
+            : "bg-brand text-brand-foreground hover:bg-brand/90 shadow-sm",
+          className
+        )}
+        disabled={busy}
+        onClick={() => void handleClick()}
+      >
+        {busy ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : isFollowing ? (
+          <Check className="h-4 w-4 stroke-[2.5]" />
+        ) : (
+          <UserPlus className="h-4 w-4" />
+        )}
+        {isFollowing ? "Following" : "Follow"}
+      </Button>
+      {signIn.dialog}
+    </>
   );
 }

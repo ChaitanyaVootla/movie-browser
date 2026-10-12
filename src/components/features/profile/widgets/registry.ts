@@ -1,3 +1,5 @@
+import { isNeutralMoodFacet } from "@/lib/taste/lift";
+import { hasTasteCard } from "../taste/taste-data";
 import {
   LAYOUT_COLS,
   type ProfileLayout,
@@ -29,10 +31,14 @@ export const WIDGET_META: Record<WidgetType, WidgetMeta> = {
   "showcase.discussions": { type: "showcase.discussions", category: "showcase", title: "Discussions", defaultSize: { w: 6, h: 3 }, minSize: { w: 4, h: 2 }, mobileSpan: 2, isAvailable: (d) => d.discussions.length > 0 },
 
   // Taste profile (public snapshot only; ready = ≥10 public positive titles).
-  "taste.dna": { type: "taste.dna", category: "taste", title: "Taste DNA", defaultSize: { w: 4, h: 3 }, minSize: { w: 3, h: 3 }, mobileSpan: 2, isAvailable: (d) => d.taste?.status === "ready" && d.taste.snapshot.axes.length > 0 },
-  "taste.moods": { type: "taste.moods", category: "taste", title: "Moods & themes", defaultSize: { w: 4, h: 2 }, minSize: { w: 3, h: 2 }, mobileSpan: 2, isAvailable: (d) => d.taste?.status === "ready" && d.taste.snapshot.moods.length > 0 },
-  "taste.people": { type: "taste.people", category: "taste", title: "Your people", defaultSize: { w: 4, h: 3 }, minSize: { w: 3, h: 3 }, mobileSpan: 2, isAvailable: (d) => d.taste?.status === "ready" && (d.taste.snapshot.people.mostWatched.length > 0 || d.taste.snapshot.people.highestRated.length > 0) },
-  "taste.clusters": { type: "taste.clusters", category: "taste", title: "Taste clusters", defaultSize: { w: 6, h: 3 }, minSize: { w: 4, h: 2 }, mobileSpan: 2, isAvailable: (d) => d.taste?.status === "ready" && d.taste.snapshot.clusters.length >= 2 },
+  // v2: one Taste card (posters + axis strand + moods); `taste.dna` and
+  // `taste.clusters` are legacy aliases kept so saved layouts still validate
+  // (resolveLayout migrates them) — they are not offered for new layouts.
+  "taste.card": { type: "taste.card", category: "taste", title: "Taste", defaultSize: { w: 12, h: 3 }, minSize: { w: 6, h: 3 }, mobileSpan: 2, isAvailable: (d) => hasTasteCard(d.taste?.status === "ready" ? d.taste.snapshot : null) },
+  "taste.dna": { type: "taste.dna", category: "taste", title: "Taste", defaultSize: { w: 12, h: 3 }, minSize: { w: 6, h: 3 }, mobileSpan: 2, isAvailable: () => false },
+  "taste.moods": { type: "taste.moods", category: "taste", title: "Moods & themes", defaultSize: { w: 6, h: 2 }, minSize: { w: 3, h: 2 }, mobileSpan: 2, isAvailable: (d) => d.taste?.status === "ready" && d.taste.snapshot.moods.some((m) => !isNeutralMoodFacet(m)) },
+  "taste.people": { type: "taste.people", category: "taste", title: "Your people", defaultSize: { w: 6, h: 3 }, minSize: { w: 3, h: 3 }, mobileSpan: 2, isAvailable: (d) => d.taste?.status === "ready" && (d.taste.snapshot.people.mostWatched.length > 0 || d.taste.snapshot.people.highestRated.length > 0) },
+  "taste.clusters": { type: "taste.clusters", category: "taste", title: "Taste", defaultSize: { w: 12, h: 3 }, minSize: { w: 6, h: 3 }, mobileSpan: 2, isAvailable: () => false },
 
   "text.note": { type: "text.note", category: "text", title: "Note", defaultSize: { w: 4, h: 1 }, minSize: { w: 3, h: 1 }, mobileSpan: 2, isAvailable: () => true },
 };
@@ -52,10 +58,9 @@ const DEFAULT_ORDER: WidgetType[] = [
   "chart.decades",
   "chart.countries",
   "chart.activity",
-  "taste.dna",
+  "taste.card",
   "taste.moods",
   "taste.people",
-  "taste.clusters",
   "showcase.lists",
   "showcase.reviews",
   "showcase.discussions",
@@ -88,6 +93,29 @@ export function buildDefaultLayout(data: ProfileWidgetData): ProfileLayout {
   return { v: 1, cols: LAYOUT_COLS, widgets };
 }
 
+const LEGACY_TASTE: ReadonlySet<WidgetType> = new Set(["taste.dna", "taste.clusters"]);
+
+/**
+ * Taste v2 migration (spec §4.1): the first legacy `taste.dna`/`taste.clusters`
+ * instance becomes `taste.card` at full width (same position); further legacy
+ * instances — and any second card — are dropped. Idempotent.
+ */
+export function migrateTasteWidgets(widgets: WidgetInstance[]): WidgetInstance[] {
+  let hasCard = widgets.some((w) => w.type === "taste.card");
+  const out: WidgetInstance[] = [];
+  for (const w of widgets) {
+    if (!LEGACY_TASTE.has(w.type)) {
+      out.push(w);
+      continue;
+    }
+    if (hasCard) continue;
+    hasCard = true;
+    const { w: dw, h: dh } = WIDGET_META["taste.card"].defaultSize;
+    out.push({ ...w, type: "taste.card", x: 0, w: dw, h: Math.max(w.h, dh) });
+  }
+  return out;
+}
+
 /** Validate + coerce a stored layout; fall back to default on anything off. */
 export function resolveLayout(stored: unknown, data: ProfileWidgetData): ProfileLayout {
   if (
@@ -97,7 +125,7 @@ export function resolveLayout(stored: unknown, data: ProfileWidgetData): Profile
     Array.isArray((stored as ProfileLayout).widgets)
   ) {
     const layout = stored as ProfileLayout;
-    const widgets = layout.widgets.filter((w) => w && w.type in WIDGET_META);
+    const widgets = migrateTasteWidgets(layout.widgets.filter((w) => w && w.type in WIDGET_META));
     if (widgets.length > 0) {
       return { v: 1, cols: layout.cols || LAYOUT_COLS, widgets };
     }

@@ -464,43 +464,99 @@ button's left. Never under it.
 
 ## Taste profile
 
-Four profile widgets (`src/components/features/profile/widgets/taste-*.tsx`) render
-the PUBLIC taste snapshot. They reuse existing tokens only — no new sizes, radii or
-colors.
+The profile taste block (`src/components/features/profile/taste/`, taste v2 spec
+2026-10-12 §4) renders the PUBLIC taste snapshot. One card carries the boldness;
+Moods and People stay quiet widgets. Existing tokens only, plus the one size noted
+below (`h-2` strand track).
 
 - **Copy is numbers + neutral templates (Fable rule).** Axis endpoints are dimension
   labels ("Mainstream" / "Niche"), captions describe titles ("Favourites average the
-  top 26% by popularity"), never the person. No archetypes, no "you are a…".
-- **Taste DNA** — one bipolar track per axis: `h-1.5 rounded-full bg-muted` track, a
-  1px centre tick (`bg-border`), a `bg-brand/40` fill that grows FROM THE CENTRE to the
-  value, and a `size-3 bg-brand ring-2 ring-card` marker. The endpoint nearer the value
-  is `text-foreground`, the other `text-muted-foreground`; caption below in the
-  metadata recipe. Chosen over a radar: legible at 390px and every axis keeps its own
-  caption. Tracks are `role="meter"` with the caption as `aria-valuetext`.
-- **Moods & themes** — AI tags as chips (`rounded-full`, `text-xs font-medium`,
-  `min-h-10` mobile / `md:min-h-8`), label + tabular count. The three strongest lifts
-  use the AI-tag tint (`bg-brand/15 text-brand`), the rest `bg-muted
-  text-muted-foreground`. Tap = evidence: Popover (`w-80`) on desktop, Vaul Drawer +
-  `useHistoryDismiss` on mobile, a 3-column poster grid of the supporting titles.
-- **Your people** — segmented toggle (`rounded-full bg-muted p-1`, active segment
-  `bg-card`, depth by lightness step, no shadow), rows `min-h-12` with a `size-10`
-  round portrait (initials fallback), role line, metric right-aligned (titles count,
-  or a `text-brand` filled star + the shrunk mean on the 5-star scale + rated count).
-- **Taste clusters** — medoid posters (`aspect-[2/3] rounded-lg`), label
-  (`text-sm font-semibold line-clamp-1`) and "N titles like {medoid}". Mobile fills the
-  row (2 or 3 across); `sm:` and up keep the Favorites widget's 4-across poster size.
-- **Owner-only hint** below the grid (dashed `rounded-xl border` card) when the profile
-  is under the 10-title threshold (progress bar) or hidden by the privacy toggle.
+  top 26% by popularity"), never the person. No archetypes, no "you are a…". All
+  templates live in `taste/taste-copy.ts` (tested).
+- **Every number is a door.** A poster, an axis end, a mood chip, a person's count:
+  tapping it shows the titles behind it. One trigger primitive, `ExploreTrigger`:
+  Popover (`w-96`, `max-h-[70dvh]` scroll) on desktop, Vaul Drawer +
+  `useHistoryDismiss` on mobile; the body mounts only while open (`next/dynamic`
+  bodies). One body recipe, `EvidenceGrid`: 3-column `aspect-[2/3] rounded-lg`
+  posters, title under each (`text-xs font-medium text-muted-foreground`
+  `line-clamp-1`), and the title's own number when there is one (`text-[11px]
+  font-medium tabular-nums text-foreground`). Tappable text carries a dotted
+  underline (`underline decoration-dotted underline-offset-4`) — no extra glyph.
+  An end/number that has too little behind it renders the same label muted and
+  inert (`aria-disabled`, `opacity-60`).
+- **Taste card** (`taste.card`, full width, `WidgetCard` titled "Taste" with the
+  `Dna` icon; trailing `{n} titles` in the metadata recipe). Desktop: cluster
+  posters in a `md:w-[280px]` column on the left, strand + moods on the right;
+  mobile stacks posters → strand → moods → buttons.
+  - **Cluster posters**: medoid posters `aspect-[2/3] rounded-lg ring-1 ring-border`
+    (hover `ring-2 ring-brand/60`). 3–4 posters overlap on desktop (`md:w-[88px]`,
+    `-ml-6` after the first, earlier posters on top); 2 sit side by side
+    (`md:w-[134px]`) so the column has no empty half. Mobile: a 2–4-column grid with
+    the cluster label under each poster (`text-xs font-semibold line-clamp-2`);
+    desktop shows the labels as one metadata line (`line-clamp-2`). Labels never
+    truncate to one line. A poster is a button → **cluster explorer** (title = the
+    label, "{n} titles like {medoid} · {share}% of this profile", ≤12 member
+    posters, then "Also" + the cluster's other facets as muted chips; a facet that
+    is one of the profile's moods opens that mood). Under 2 clusters the Four
+    Favourites stand in, labelled "Four favourites".
+  - **Axis strand**: one bipolar track per axis, `h-2 rounded-full bg-muted` (the
+    strand track — one step up from the old `h-1.5` so the centre-out fill reads),
+    1px centre tick (`h-3 w-px bg-border`), `bg-brand/40` fill from the centre to the
+    value, owner marker `size-3.5 bg-brand ring-2 ring-card`. Endpoint labels
+    `text-xs font-medium` (nearer end `text-foreground`, far end
+    `text-muted-foreground`) are buttons (`min-h-10` mobile / `md:min-h-8`) → **axis
+    titles sheet**: "{End} end of this profile", "{n} favourites toward {End}", the
+    favourites at that end with each one's number (popularity rank, year, genre
+    count, "Rated 9 · TMDB 7.1", mood words). Fewer than 3 examples → the end is
+    inert. Caption beside the track on desktop (`md:grid-cols-[1fr_14rem]`,
+    `line-clamp-2`), below it on mobile. Tracks are `role="meter"` with the caption
+    as `aria-valuetext`. The marker itself is never a target.
+  - **Top moods**: the three strongest lifted moods/themes as tinted chips (the Moods
+    widget's chip, `MoodChip`).
+  - **Actions** (`taste-card-actions.tsx`, client island): `Button variant=secondary
+    size=sm`, full width stacked on mobile (`min-h-10`), right-aligned on `sm:`.
+    **Compare with me** (hidden for the owner; guests → sign-in prompt) and
+    **Share** (Web Share API, else copy the profile URL + "Link copied" toast; text =
+    the three axis ends farthest from centre + the title count).
+- **Compare overlay** (signed-in visitor): the VIEWER's PUBLIC axes as a second,
+  hollow marker per track — `size-3.5 rounded-full border-2 border-foreground
+  bg-card` (shape, not hue, distinguishes "you" — Social signals rule). It mounts at
+  the centre tick and travels to its value once (`transition-[left] duration-300
+  ease-out`, `motion-reduce:transition-none`). A legend line appears under the
+  strand ("● Ada ○ You", `text-xs font-medium text-muted-foreground`) and captions
+  switch to the difference template ("You sit 18 points closer to Niche" / "Same
+  spot", `text-foreground`). The button becomes "Hide comparison". A viewer under
+  the threshold gets an inline "Rate 10 titles to compare. Start" (opens the
+  calibration deck); a viewer with a hidden taste profile gets the privacy hint. The
+  cached HTML never carries any of it.
+- **Moods & themes** (`taste.moods`, w6) — chips (`rounded-full`, `text-xs
+  font-medium`, `min-h-10` mobile / `md:min-h-8`), dotted-underlined label + tabular
+  count; the three strongest use the AI-tag tint (`bg-brand/15 text-brand`), the
+  rest `bg-muted text-muted-foreground`. Neutral mid-scale values ("Medium
+  intensity", "Mixed tone", "Steady pacing", "Emotionally balanced") never display.
+- **Your people** (`taste.people`, w6) — segmented toggle (`rounded-full bg-muted
+  p-1`, active segment `bg-card`), rows `min-h-12`: portrait + name link to the
+  person page; the right-aligned metric is a button that opens that person's titles.
+  "Highest rated" shows the `text-brand` star + shrunk mean; on mobile the raw
+  average and rated count are visible text under it ("4.8 · 3 rated"), not a tooltip.
+- **Owner-only hint** below the grid (dashed `rounded-xl border` card) under the
+  10-title threshold: "Build your taste profile — {n} of 10 titles counted",
+  progress bar, and ONE primary button "Rate 10 titles now" that opens the
+  calibration deck (Dialog desktop / Drawer mobile). Hidden-profile copy unchanged.
   Visitors see nothing.
-- **Taste match** (profile reserved slot, signed-in non-owner only): one `bg-card
-  border rounded-xl` card. Left column (`md:w-56`): "Your taste match with {first
-  name}" (`text-sm font-semibold`), the score as the one big element
-  (`text-3xl sm:text-4xl font-bold tracking-tight tabular-nums`), the evidence line
-  in the metadata recipe, then one labelled `h-1.5 rounded-full bg-muted` meter per
-  non-null component (`bg-brand` fill, `role="meter"`). Right column: "You both
-  loved" poster row (`aspect-[2/3] rounded-lg`, 72–80px wide) and "You'd argue about"
-  rows (`min-h-12`, title + both scores as `--brand` stars). Copy describes titles and
-  agreement, never the person.
+- **Taste match** (signed-in non-owner only, the FIRST element under the hero): one
+  `bg-card border rounded-xl` card. Left column (`md:w-72`): "Your taste match with
+  {first name}" (`text-sm font-semibold`), the score as the one big element
+  (`text-3xl sm:text-4xl font-bold tracking-tight tabular-nums`), one evidence line
+  in the metadata recipe ("7 titles both rated · 6 shared loves · favourites 28%
+  alike"), then ONE `h-2 rounded-full bg-muted` bar filled to the score and
+  segmented by each component's weighted contribution (`bg-brand` / `bg-brand/70` /
+  `bg-brand/40` — the parts sum to the headline, never three competing
+  percentages), a legend of the three labels, and a "How it adds up" toggle that
+  shows the honest component numbers. Right column: "You both loved" poster row and
+  "You'd argue about" rows. Footer row: Follow (card variant: `bg-brand` → following
+  `bg-muted border`), the Cue pill "Find something for both of us", and "Compare on
+  the strand" (scrolls to the Taste card and turns Compare on).
 
 ## Recommendations (home)
 

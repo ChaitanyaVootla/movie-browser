@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { liftFacets, rankPeople, shrink } from "./lift";
+import { isNeutralMoodFacet, liftFacets, rankPeople, shrink } from "./lift";
 import type { FacetBaseline, FacetValue, PersonInfo, TitleRef } from "./types";
 
 const ref = (id: number): TitleRef => ({ mediaType: "movie", tmdbId: id, title: `T${id}`, posterPath: null });
@@ -100,6 +100,26 @@ describe("rankPeople", () => {
     expect(highestRated[0].avgScore).toBe(9.5);
     const ben = highestRated.find((x) => x.name === "Ben");
     expect(ben?.shrunkScore).toBe(5.75); // v=2, R=4.5 → (9 + 14)/4
+  });
+
+  it("carries the person's titles (heaviest first) when refs are given", () => {
+    const ref = (id: number): TitleRef => ({ mediaType: "movie", tmdbId: id, title: `T${id}`, posterPath: null });
+    const withRefs = items.map((it, i) => ({ ...it, ref: ref(i + 1), weight: it.weight + i / 10 }));
+    const { mostWatched } = rankPeople(withRefs, info, 7);
+    expect(mostWatched.find((x) => x.name === "Ben")?.titles.map((t) => t.tmdbId)).toEqual([5, 4, 3]);
+    expect(rankPeople(items, info, 7).mostWatched[0].titles).toEqual([]);
+  });
+});
+
+describe("isNeutralMoodFacet", () => {
+  it("drops mid-scale mood values and bare neutral themes only", () => {
+    for (const key of ["intensity:medium", "tone:mixed", "pacing:steady", "emotional:balanced", "emotional:medium", "x:moderate", "x:neutral"]) {
+      expect(isNeutralMoodFacet({ type: "mood", key })).toBe(true);
+    }
+    expect(isNeutralMoodFacet({ type: "theme", key: "balanced" })).toBe(true);
+    for (const key of ["pacing:fast", "tone:dark", "emotional:heavy"]) expect(isNeutralMoodFacet({ type: "mood", key })).toBe(false);
+    expect(isNeutralMoodFacet({ type: "theme", key: "identity and memory" })).toBe(false);
+    expect(isNeutralMoodFacet({ type: "genre", key: "medium" })).toBe(false);
   });
 });
 

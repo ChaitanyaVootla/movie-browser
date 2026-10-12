@@ -186,3 +186,122 @@ describe("public projection privacy (live DB)", () => {
     expect((await prisma.userStats.findUnique({ where: { userId: uidA }, select: { dirty: true } }))?.dirty).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Snapshot v2 + Compare (taste v2 spec 2026-10-12 §4.5): a viewer whose only
+// "horror" watches are PRIVATE must show no horror anywhere in the public
+// snapshot (cluster members, axis examples, people titles) AND no horror shift
+// in the axes the compare overlay plots (= the public projection).
+// ---------------------------------------------------------------------------
+const V2 = 999_310_000;
+const PUBLIC_DRAMA = Array.from({ length: 12 }, (_, i) => V2 + 1 + i);
+const PRIVATE_HORROR = Array.from({ length: 8 }, (_, i) => V2 + 100 + i);
+const G_C = "taste-privacy-vitest-c";
+const GENRE_DRAMA = V2 + 900;
+const GENRE_HORROR = V2 + 901;
+let readyC = false;
+let uidC = 0;
+
+async function cleanupC() {
+  const u = await prisma.user.findUnique({ where: { googleId: G_C }, select: { id: true } });
+  if (u) {
+    await prisma.watchEvent.deleteMany({ where: { userId: u.id } });
+    await prisma.userRating.deleteMany({ where: { userId: u.id } });
+    await prisma.$executeRaw`DELETE FROM user_taste_profiles WHERE user_id = ${u.id}`;
+    await prisma.user.delete({ where: { id: u.id } });
+  }
+  await prisma.movie.deleteMany({ where: { id: { in: [...PUBLIC_DRAMA, ...PRIVATE_HORROR] } } });
+  await prisma.genre.deleteMany({ where: { tmdbId: { in: [GENRE_DRAMA, GENRE_HORROR] } } });
+}
+
+/** 1024-d synthetic embedding: drama titles point one way, horror titles another. */
+const vec = (axis: number, jitter: number) => {
+  const v = new Array<number>(1024).fill(0);
+  v[axis] = 1;
+  v[axis + 1] = jitter;
+  return `[${v.join(",")}]`;
+};
+
+describe("public snapshot v2 + compare axes (live DB)", () => {
+  beforeAll(async () => {
+    if (!/@(localhost|127\.0\.0\.1):(5436|5437)\//.test(process.env.DATABASE_URL ?? "")) return;
+    try {
+      const t = await prisma.$queryRaw<Array<{ ok: boolean }>>`
+        SELECT to_regclass('public.user_taste_profiles') IS NOT NULL AS ok`;
+      if (!t[0]?.ok) return;
+      await cleanupC();
+      const drama = await prisma.genre.create({ data: { tmdbId: GENRE_DRAMA, name: "Vitest Drama" } });
+      const horror = await prisma.genre.create({ data: { tmdbId: GENRE_HORROR, name: "Vitest Horror" } });
+      await prisma.movie.createMany({
+        data: [
+          ...PUBLIC_DRAMA.map((id) => ({ id, title: `Vitest Public Drama ${id}`, popularity: 50, releaseDate: new Date("2021-01-01") })),
+          ...PRIVATE_HORROR.map((id) => ({ id, title: `Vitest Secret Horror ${id}`, popularity: 50, releaseDate: new Date("1960-01-01") })),
+        ],
+      });
+      await prisma.movieGenre.createMany({
+        data: [
+          ...PUBLIC_DRAMA.map((movieId) => ({ movieId, genreId: drama.id })),
+          ...PRIVATE_HORROR.map((movieId) => ({ movieId, genreId: horror.id })),
+        ],
+      });
+      for (const [i, id] of PUBLIC_DRAMA.entries()) {
+        await prisma.$executeRawUnsafe(`UPDATE movies SET embedding = $1::vector WHERE id = $2`, vec(10 + (i % 2) * 2, i / 50), id);
+      }
+      for (const [i, id] of PRIVATE_HORROR.entries()) {
+        await prisma.$executeRawUnsafe(`UPDATE movies SET embedding = $1::vector WHERE id = $2`, vec(500, i / 50), id);
+      }
+      const c = await prisma.user.create({ data: { googleId: G_C, email: `${G_C}@example.test`, username: "taste_priv_c" } });
+      uidC = c.id;
+      // PUBLIC drama: watched + rated 9. PRIVATE horror: watched privately + scored via the same private watch.
+      for (const id of PUBLIC_DRAMA) {
+        await prisma.watchEvent.create({ data: { userId: uidC, movieId: id, mediaType: "MOVIE", isPrivate: false, watchedAt: new Date() } });
+        await prisma.userRating.create({ data: { userId: uidC, movieId: id, mediaType: "MOVIE", score: 9, liked: true, ratedAt: new Date() } });
+      }
+      for (const id of PRIVATE_HORROR) {
+        await prisma.watchEvent.create({ data: { userId: uidC, movieId: id, mediaType: "MOVIE", isPrivate: true, score: 10, watchedAt: new Date() } });
+        await prisma.userRating.create({ data: { userId: uidC, movieId: id, mediaType: "MOVIE", score: 10, liked: true, ratedAt: new Date() } });
+      }
+      readyC = true;
+    } catch (error: unknown) {
+      console.warn("taste v2 privacy integration test skipped:", error instanceof Error ? error.message : error);
+    }
+  }, 120_000);
+
+  afterAll(async () => {
+    if (readyC) await cleanupC();
+  });
+
+  it("members / examples / people titles in the PUBLIC snapshot never include private-only titles", async () => {
+    if (!readyC) return;
+    const { recomputeTasteNow } = await import("./index");
+    const r = await recomputeTasteNow(uidC);
+    expect(r.public.v).toBe(2);
+    expect(r.public.positiveCount).toBe(PUBLIC_DRAMA.length);
+    const json = JSON.stringify({
+      members: r.public.clusters.map((c) => c.members),
+      examples: r.public.axes.map((a) => a.examples),
+      people: r.public.people,
+      moods: r.public.moods,
+    });
+    expect(json).not.toContain("Secret Horror");
+    expect(json).not.toContain("Vitest Horror");
+    for (const id of PRIVATE_HORROR) expect(JSON.stringify(r.public)).not.toContain(String(id));
+    // …while the FULL projection (owner recs) does see them.
+    expect(JSON.stringify(r.full)).toContain("Vitest Horror");
+  });
+
+  it("the compare overlay's axes (viewer PUBLIC) show no shift from the private horror watches", async () => {
+    if (!readyC) return;
+    const { recomputeTasteNow, getProfileTaste } = await import("./index");
+    const r = await recomputeTasteNow(uidC);
+    const pub = await getProfileTaste(uidC, true);
+    expect(pub?.status).toBe("ready");
+    const axes = pub?.status === "ready" ? pub.snapshot.axes : [];
+    const range = axes.find((a) => a.key === "range");
+    // Public = one genre only → fully focused; FULL (drama + horror) is not.
+    expect(range?.value).toBe(0);
+    expect(r.full.axes.find((a) => a.key === "range")?.value ?? 0).toBeGreaterThan(0);
+    // Hidden taste → the viewer cannot compare.
+    expect((await getProfileTaste(uidC, false))?.status).toBe("hidden");
+  });
+});

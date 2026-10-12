@@ -153,7 +153,7 @@ function fullSnapshotFromRow(row: TasteRow): TasteSnapshot | null {
   if (!facetsCol.success) return null;
   const clusters = z.array(TasteClusterSchema).safeParse(row.clusters);
   return parseTasteSnapshot({
-    v: 1,
+    v: 2,
     computedAt: row.computedAt?.toISOString() ?? new Date(0).toISOString(),
     scope: "full",
     positiveCount: row.positiveCount,

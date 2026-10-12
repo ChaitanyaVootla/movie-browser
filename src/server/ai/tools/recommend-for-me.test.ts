@@ -87,12 +87,12 @@ describe("taste summary for Cue", () => {
     const ref = (id: number, title: string) => ({ mediaType: "movie" as const, tmdbId: id, title, posterPath: null });
     const summary = buildCueTasteSummary(
       {
-        v: 1,
+        v: 2,
         computedAt: "2026-10-09T00:00:00Z",
         scope: "full",
         positiveCount: 20,
         signalCount: 25,
-        axes: [{ key: "mainstream", value: 0.6789, support: 9, lowLabel: "Mainstream", highLabel: "Niche", caption: "" }],
+        axes: [{ key: "mainstream", value: 0.6789, support: 9, lowLabel: "Mainstream", highLabel: "Niche", caption: "", examples: { low: [], high: [] } }],
         moods: [facet("Mind-bending"), facet("Dread-soaked")],
         facets: {
           genre: [facet("Science Fiction"), facet("Thriller"), facet("Mystery"), facet("Horror")],
@@ -109,8 +109,8 @@ describe("taste summary for Cue", () => {
         clusters: [],
       },
       [
-        { medoid: ref(1, "A"), medoidKey: "m:1", memberKeys: [], size: 3, importance: 0.2, label: "Small", topFacets: [] },
-        { medoid: ref(2, "B"), medoidKey: "m:2", memberKeys: [], size: 9, importance: 0.8, label: "Big", topFacets: [] },
+        { medoid: ref(1, "A"), medoidKey: "m:1", memberKeys: [], size: 3, importance: 0.2, label: "Small", topFacets: [], members: [] },
+        { medoid: ref(2, "B"), medoidKey: "m:2", memberKeys: [], size: 9, importance: 0.8, label: "Big", topFacets: [], members: [] },
       ]
     );
     expect(summary?.genres).toEqual(["Science Fiction", "Thriller", "Mystery"]);
