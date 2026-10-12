@@ -29,17 +29,19 @@ export function AxisStrand({ axes }: { axes: readonly TasteAxis[] }) {
 function EndLabel({ axis, end, near }: { axis: TasteAxis; end: "low" | "high"; near: boolean }) {
   const examples = axis.examples[end];
   const label = end === "low" ? axis.lowLabel : axis.highLabel;
+  const disabled = examples.length < AXIS_EXAMPLES_MIN_TO_OPEN;
   return (
     <ExploreTrigger
       tap={end === "low" ? "axis_low" : "axis_high"}
-      disabled={examples.length < AXIS_EXAMPLES_MIN_TO_OPEN}
+      disabled={disabled}
       ariaLabel={`Titles at the ${label} end`}
       title={axisEndTitle(axis, end)}
       description={axisEndDescription(axis, end)}
       label={label}
       className={cn(
         "-my-2 inline-flex min-h-10 items-center rounded-md px-1 py-2 text-xs font-medium md:-my-1 md:min-h-8 md:py-1",
-        "underline decoration-dotted underline-offset-4",
+        // The dotted underline says "tap me" — an end with too few titles is inert, so it goes.
+        !disabled && "underline decoration-dotted underline-offset-4",
         near ? "text-foreground" : "text-muted-foreground hover:text-foreground",
         end === "low" ? "-ml-1" : "-mr-1"
       )}

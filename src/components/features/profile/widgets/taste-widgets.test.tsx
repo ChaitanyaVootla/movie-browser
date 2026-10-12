@@ -321,10 +321,15 @@ describe("Taste card (public, cacheable)", () => {
     expect(h.prompt).toHaveBeenCalledWith("Sign in to compare your taste");
     cleanup();
 
+    expect(screen.queryByRole("button", { name: "Ask Cue about my taste" })).toBeNull();
+    cleanup();
+
     Object.assign(viewer, { resolved: true, authenticated: true, isOwner: true });
     render(<TasteCard data={ready()} />);
     expect(screen.queryByRole("button", { name: "Compare with me" })).toBeNull();
     expect(screen.getByRole("button", { name: "Share" })).toBeTruthy();
+    // §5.1: the owner's Cue entry; visitors (and the cached HTML) never get it.
+    expect(screen.getByRole("button", { name: "Ask Cue about my taste" })).toBeTruthy();
   });
 });
 

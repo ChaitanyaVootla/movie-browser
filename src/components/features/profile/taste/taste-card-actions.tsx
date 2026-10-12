@@ -4,6 +4,7 @@ import { useState } from "react";
 import { GitCompareArrows, Loader2, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { CueEntryButton } from "@/components/features/ai/cue-entry";
 import { useSignInPrompt } from "@/components/features/media/title-actions/sign-in-dialog";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useProfileViewer } from "../profile-viewer-context";
@@ -14,9 +15,10 @@ import { shareText, shareTitle } from "./taste-copy";
 type AxisLite = { lowLabel: string; highLabel: string; value: number };
 
 /**
- * Taste card actions island (taste v2 spec §4.2, §4.5, §4.8): Compare with me
- * (signed-in visitors; guests get the sign-in prompt; hidden for the owner)
- * and Share (Web Share API, copy-link fallback). The cached HTML renders both
+ * Taste card actions island (taste v2 spec §4.2, §4.5, §4.8, §5.1): Compare
+ * with me (signed-in visitors; guests get the sign-in prompt; hidden for the
+ * owner), "Ask Cue about my taste" (owner only) and Share (Web Share API,
+ * copy-link fallback). The cached HTML renders both
  * buttons in their default state; nothing here knows the viewer until
  * `useProfileViewer()` resolves client-side.
  */
@@ -65,12 +67,21 @@ export function TasteCardActions({
   };
 
   const showCompare = !(resolved && isOwner);
+  const showAskCue = resolved && isOwner;
   const loading = compare.status === "loading";
   const btn = "min-h-10 w-full gap-1.5 sm:w-auto md:min-h-8";
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+        {showAskCue && (
+          <CueEntryButton
+            entry="taste_card"
+            label="Ask Cue about my taste"
+            message="Which part of my taste profile is thinnest, and what would fill it?"
+            className="w-full justify-center sm:mr-auto sm:w-auto"
+          />
+        )}
         {showCompare && (
           <Button
             type="button"
