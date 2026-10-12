@@ -74,6 +74,10 @@ export function percentileOf(x: number, quantiles: readonly number[]): number {
   if (q.length < 2) return 0.5;
   if (x <= q[0]) return 0;
   if (x >= q[q.length - 1]) return 1;
+  // A value equal to a run of tied quantiles (integer years tie heavily) sits
+  // at the run's middle — the search below would put it at the run's top.
+  const first = q.indexOf(x);
+  if (first !== -1) return (first + q.lastIndexOf(x)) / 2 / (q.length - 1);
   let lo = 0;
   let hi = q.length - 1;
   while (hi - lo > 1) {

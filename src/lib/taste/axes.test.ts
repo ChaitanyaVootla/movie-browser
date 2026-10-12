@@ -21,6 +21,17 @@ describe("percentileOf / median", () => {
     expect(percentileOf(-5, catalog.popularity)).toBe(0);
     expect(percentileOf(500, catalog.popularity)).toBe(1);
   });
+  it("a value equal to a run of tied quantiles sits at the MIDDLE of the run", () => {
+    // Integer years tie heavily: half the catalog quantiles are 2020. The
+    // catalog-median year must read as the middle, not the top of the tie
+    // (it used to return 0.9 → "New" while the caption said "catalog median").
+    const q = [1990, 2000, 2010, 2020, 2020, 2020, 2020, 2020, 2020, 2025, 2026];
+    expect(percentileOf(2020, q)).toBeCloseTo(0.55);
+    expect(percentileOf(2015, q)).toBeCloseTo(0.25);
+    // ties at the clamps keep clamping
+    expect(percentileOf(1, [1, 1, 1, 5, 9])).toBe(0);
+    expect(percentileOf(9, [1, 5, 9, 9, 9])).toBe(1);
+  });
   it("median handles odd/even/empty", () => {
     expect(median([3, 1, 2])).toBe(2);
     expect(median([1, 2, 3, 4])).toBe(2.5);
