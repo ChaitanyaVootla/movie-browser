@@ -1,22 +1,18 @@
 /**
- * ============================================================================
- * INTEGRATION STUB (workstream C) — RECONCILE WITH WORKSTREAM A'S STORE.
- * ============================================================================
- *
- * Taste v2 §5.1: the home For-you island (workstream A, owner of this file)
- * publishes whether the signed-in viewer has a usable taste profile
- * (`reason === "ok"`), so Cue's prompts (`components/features/ai/prompts.ts`)
- * can offer taste-aware entry prompts with NO extra request. Cue only READS
- * `hasProfile`. If A's version lands with the same names, keep A's file.
+ * Tiny client-only slice: does the signed-in viewer have a taste profile?
+ * Published by the home For-you island (it already knows `reason`), read by
+ * Cue's home prompts (`getHomepagePrompts`) — no extra request (taste v2 spec
+ * 2026-10-12 §5.1). Never persisted; resets on reload.
  */
 import { create } from "zustand";
 import type { RecReason } from "@/lib/taste/recommend-types";
 
 export interface TasteUiState {
-  /** The viewer's For-you row is taste-based (`reason === "ok"`). False until the island reports. */
+  /** reason === "ok" | "no_index" — personalised picks exist. */
   hasProfile: boolean;
+  /** Last home recs reason (null = not loaded / guest). */
   reason: RecReason | null;
-  setTaste: (next: { hasProfile: boolean; reason: RecReason | null }) => void;
+  setTaste(p: { hasProfile: boolean; reason: RecReason | null }): void;
 }
 
 export const useTasteUiStore = create<TasteUiState>((set) => ({

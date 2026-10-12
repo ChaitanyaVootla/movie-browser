@@ -1,27 +1,83 @@
 /**
- * ============================================================================
- * INTEGRATION STUB (workstream C) — REPLACE WITH WORKSTREAM A'S REAL MODULE.
- * ============================================================================
+ * Recommendation feedback (taste v2 spec 2026-10-12 §3.4, §6.1) — the ONE write
+ * path for "Not for me" / Undo, shared by the UI actions (`source: "ui"`) and
+ * Cue's `record_rec_feedback` tool (`source: "cue"`), so an Undo in the UI
+ * undoes a Cue dismissal too.
  *
- * Taste v2 §5.3 / §6.1: `record_rec_feedback` (Cue) must write through the
- * SAME `rec_feedback` path as the UI's Not-for-me / Undo (A's
- * `actions/rec-feedback.ts`), so an Undo in the UI undoes a Cue dismissal.
- * Workstream A owns that write (insert/delete + markTasteDirty + recs-cache
- * eviction). Cue codes against exactly these two signatures; the integrator
- * swaps this file for A's service (or re-exports A's functions from here).
- *
- * Until then both functions throw, and the Cue tool reports `{ error }`.
+ * A DISMISS joins `fetchRecExclusions` (never shown again) and feeds the
+ * negative centroid at W_DISMISS; every write marks the taste row dirty and
+ * evicts the user's cached recs. Never throws.
  */
+import { z } from "zod";
 import type { RecFeedbackInput, RecFeedbackResult, RecFeedbackSource } from "@/lib/taste/recommend-types";
+import { deleteRecFeedback, upsertRecFeedback } from "@/server/db/postgres/social/rec-feedback";
+import { markTasteDirty } from "@/server/db/postgres/social/taste-dirty";
+import { dataLogger } from "@/lib/logger";
+import { evictRecsCache } from "./recommend";
+import { clearSeedCache } from "./more-like-this";
 
-export async function recordRecFeedbackFor(
-  _userId: number,
-  _input: RecFeedbackInput,
-  _source: RecFeedbackSource
-): Promise<RecFeedbackResult> {
-  throw new Error("recordRecFeedbackFor: not implemented (integration stub — replace with workstream A's service)");
+export const RecFeedbackInputSchema = z.object({
+  mediaType: z.enum(["movie", "series"]),
+  id: z.number().int().positive(),
+  kind: z.enum(["DISMISS", "SKIP"]),
+  rowId: z
+    .string()
+    .max(40)
+    .regex(/^[a-z0-9:_-]+$/)
+    .optional(),
+  anchorKey: z
+    .string()
+    .regex(/^[ms]:\d{1,9}$/)
+    .optional(),
+});
+
+function afterWrite(userId: number): void {
+  markTasteDirty(userId);
+  evictRecsCache(userId);
+  clearSeedCache(userId);
 }
 
-export async function undoRecFeedbackFor(_userId: number, _input: RecFeedbackInput): Promise<RecFeedbackResult> {
-  throw new Error("undoRecFeedbackFor: not implemented (integration stub — replace with workstream A's service)");
+function fail(action: string, userId: number, error: unknown): RecFeedbackResult {
+  dataLogger.warn({ action, userId, error: error instanceof Error ? error.message : String(error) });
+  return { ok: false, error: "failed" };
+}
+
+/** Record (or refresh) one feedback row. `{ ok: false }` on invalid input / unknown title / DB error. */
+export async function recordRecFeedbackFor(
+  userId: number,
+  input: RecFeedbackInput,
+  source: RecFeedbackSource
+): Promise<RecFeedbackResult> {
+  const parsed = RecFeedbackInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  try {
+    const v = parsed.data;
+    const written = await upsertRecFeedback({
+      userId,
+      mediaType: v.mediaType,
+      id: v.id,
+      kind: v.kind,
+      rowId: v.rowId ?? null,
+      anchorKey: v.anchorKey ?? null,
+      source,
+    });
+    if (!written) return { ok: false, error: "not_found" };
+    afterWrite(userId);
+    return { ok: true };
+  } catch (error: unknown) {
+    return fail("taste.rec_feedback_failed", userId, error);
+  }
+}
+
+/** Undo = delete the (user, title, kind) row. Idempotent: undoing nothing is ok. */
+export async function undoRecFeedbackFor(userId: number, input: RecFeedbackInput): Promise<RecFeedbackResult> {
+  const parsed = RecFeedbackInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  try {
+    const removed = await deleteRecFeedback(userId, parsed.data.mediaType, parsed.data.id, parsed.data.kind);
+    if (removed > 0) afterWrite(userId);
+    return { ok: true };
+  } catch (error: unknown) {
+    return fail("taste.rec_feedback_undo_failed", userId, error);
+  }
 }

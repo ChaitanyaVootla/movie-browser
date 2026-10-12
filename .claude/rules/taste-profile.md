@@ -17,6 +17,12 @@ paths:
   - "src/server/db/postgres/social/taste-recs.ts"
   - "src/server/actions/taste-recs.ts"
   - "src/components/features/home/for-you-section.tsx"
+  - "src/components/features/home/for-you/**"
+  - "src/server/db/postgres/social/rec-feedback.ts"
+  - "src/server/db/postgres/social/calibration.ts"
+  - "src/server/actions/rec-feedback.ts"
+  - "src/server/actions/taste-calibration.ts"
+  - "src/stores/taste-ui.ts"
   - "src/components/features/home/taste-twins-strip.tsx"
   - "src/components/features/profile/taste-match.tsx"
   - "src/server/ai/tools/recommend-for-me.ts"
@@ -213,7 +219,7 @@ fallback table, gate matrix). Plan: `docs/superpowers/plans/2026-10-09-taste-rec
 | SQL (ANN candidates, exclusions, popular fallback, twins scan) | `src/server/db/postgres/social/taste-recs.ts` |
 | Services | `src/server/services/taste/{recommend,match}.ts` |
 | Actions (POST) | `src/server/actions/taste-recs.ts` — `getHomeRecs`, `getTasteMatch`, `getTasteTwins` |
-| UI | `home/for-you-section.tsx`, `home/taste-twins-strip.tsx`, `profile/taste-match.tsx` (reserved slot) |
+| UI | `home/for-you/*` (v2; `home/for-you-section.tsx` re-exports), `home/taste-twins-strip.tsx`, `profile/taste-match.tsx` (reserved slot) |
 | Cue | `ai/tools/recommend-for-me.ts` (`recommend_for_me`), `ai/tools/taste-summary.ts` (`get_user_profile.taste`) |
 | Eval | `scripts/eval-recs.ts` (read-only, :5436-guarded) |
 
@@ -232,7 +238,8 @@ Rules:
 3. Every candidate query carries `notAdult()`; TMDB fallback items are filtered on
    `adult`; facet/cluster labels pass `isAdultKeyword`.
 4. Exclusions = any WATCH/NOTE event, watchlist row, title-level rating row (incl.
-   dislikes and heart-only) and series_progress row (`fetchRecExclusions`).
+   dislikes and heart-only), series_progress row and every `rec_feedback` DISMISS
+   (`fetchRecExclusions`). Calibration SKIPs are NOT rec exclusions (deck only).
 5. Cache key `userId:computedAt:REC_ALGO_VERSION`, and EVERY cache hit is
    re-filtered with a fresh `fetchRecExclusions` (`withoutExcluded`) — the taste row
    recomputes lazily, so the key alone served just-watched titles for up to 1h.
@@ -245,9 +252,9 @@ Rules:
    cached.
 5c. Popular fallback: `WHERE popularity IS NOT NULL … ORDER BY popularity DESC`
    (NOT `DESC NULLS LAST` — the default DESC btree can't serve it → full sort).
-5d. Twins only consider clean rows at the current `TASTE_ALGO_VERSION`; the row
-   medoid shown in "Because you loved X" must pass `notAdult` (else the cluster is
-   skipped).
+5d. Twins only consider clean rows at the current `TASTE_ALGO_VERSION`. Because-row
+   heading anchors are cluster MEMBERS that passed `fetchAnchorInfo` (`notAdult`); an
+   adult member can never be named.
 6. Gate (`canViewTasteMatch`): no session/self → deny; hidden (BLOCK either way or
    viewer's MUTE, via `getHiddenUserIds`) → deny; target `showTaste=false` or private
    → deny, and a mutual follow NEVER overrides that (review fix — the first version
@@ -259,9 +266,9 @@ Rules:
 
 Gotchas:
 
-- **Card subtitles are one line at 150px** (`MovieCard` `line-clamp-1`): "Because you
-  loved Pride & Prejudice" truncated to "Because you loved Prid…" on mobile, losing
-  the anchor. Card copy is `Like <title>`; the long form lives in the row heading.
+- **Rec rows no longer use the card `subtitle`** (v2): the why lives in the anchor tag
+  under the card (poster thumb + title, `line-clamp-1`), and the long form in the row
+  heading. "Like X" read as an instruction ("like this!") — do not bring it back.
 - **Min-max normalised relevance makes tiny pools extreme** — with 3 candidates the
   worst is always rel 0. Tests that exercise MMR need a far-away "anchor" item.
 - **Dev synthetic centroids are NOT Cohere-shaped**, and the dev DB has < 500 embeddings so
@@ -270,6 +277,54 @@ Gotchas:
 - Eval on the dev seed said centroid-only beat clusters. **On real prod data (136 LOO
   trials) clusters won** (centered hit@10 .162 clusters+MMR+calib vs .110
   centroid+MMR+calib), so the cluster pipeline stays. Synthetic seeds are not evidence.
+
+## Taste experience v2 — home (Oct 12 2026, branch `taste-v2/a-home`)
+
+Spec `docs/superpowers/specs/2026-10-12-taste-experience-v2-design.md` §3, §6. UI in
+`src/components/features/home/for-you/` (DESIGN.md → Recommendations (home)).
+
+1. **Heading = the set, tag = the member (the one-why model).** A because row is
+   explained against ITS CLUSTER'S MEMBERS ONLY (`anchorClusterRow` in
+   `lib/taste/recommend.ts`): items whose best in-cluster cosine < `REC_BECAUSE_MIN_COS`
+   are dropped, the heading = the ≤ 3 members anchoring the most items (ties by
+   weight), and survivors are RE-explained against that heading set, so every card's
+   anchor is in `row.anchors`. The client (`for-you/rec-copy.ts` `tagFor`) also refuses
+   to render a tag outside the heading and never tags the first heading anchor.
+   Pinned by `recommend.test.ts` (builder), `for-you-section.test.tsx` (DOM) and
+   `recs.integration.test.ts` (live). The v1 bug was two algorithms for one "why":
+   medoid heading + best-of-100-positives subtitle — 0 of 16 cards agreed.
+2. **`rec_feedback`** (`RecFeedback`; raw CHECKs + NULLS NOT DISTINCT unique in
+   `04-ugc-constraints.sql`; NOT audited). DISMISS = "Not for me": forever until undone,
+   joins `fetchRecExclusions`, and feeds the negative centroid via
+   `TitleSignals.dismissedAt` → `W_DISMISS` (−0.75, decayed, FULL scope ONLY — a
+   dismissal never reaches the public projection). SKIP = calibration "Haven't seen
+   it", +90d, deck exclusion only. Undo = DELETE. ONE write path for UI + Cue:
+   `services/taste/rec-feedback.ts` (`recordRecFeedbackFor` / `undoRecFeedbackFor`) —
+   marks taste dirty + evicts the user's recs + seed caches.
+3. **Tune never runs ANN.** One computation per `userId:computedAt:REC_ALGO_VERSION`
+   caches the rows AND the scored pool (`RecPool`: Float32 units, embeddings dropped,
+   ≈1MB; pools capped separately at `REC_POOL_CACHE_MAX`). `getHomeRecsForUser(uid,
+   tune, {shuffle, exclude})` re-ranks that pool (`services/taste/tune.ts`; pure filter
+   in `lib/taste/tune-filter.ts`); < `REC_TUNE_MIN_SURVIVORS` → popular top-up with the
+   same filters (`fetchPopularTuned`, 1.5s statement timeout, fail → []). Only the
+   For-you row is tuned; because rows stay, minus what the tuned row shows. Pinned by
+   the "never runs a new ANN query" test in `services/taste/recommend.test.ts`.
+4. **Tune tokens** are the closed vocabulary in `recommend-types.ts`; per-user values
+   are slugs (`tuneValue`: "Science Fiction" → `g:science-fiction`, "tone:dark" mood →
+   `m:tone-dark`). The server matches by slug, so any well-formed value is safe (an
+   unknown genre just yields the top-up). The client validates URL / Cue tokens against
+   the user's own chip set (`tokensToTune(tokens, allowed)`). `?tune=` is read ONLY by
+   `for-you/tune-url-sync.tsx` inside its own `<Suspense>` (performance.md §18) — never
+   `useSearchParams` elsewhere in the home tree.
+5. **Calibration deck** (`services/taste/calibration.ts`) writes ratings through
+   `setUserRating` in ONE `auditedTransaction` (loved = heart, liked/disliked = thumb
+   ±1) and NO watch events (the implied-watch cascade of the `setRating` action is
+   deliberately skipped — rating a known title is not logging a viewing). Deck =
+   popular, embedded, non-adult, poster, vote floor 1000 → 200 → 0, genre-spread with
+   ≥ 3 series, deterministic per user-day (`lib/taste/calibration.ts`).
+6. More like this = one `annCandidates` per table around the seed (exclusions inside
+   the scan), blended 0.65 seed / 0.35 centered taste; 10-min in-process cache,
+   re-filtered by fresh exclusions on every hit (`services/taste/more-like-this.ts`).
 
 ## Embedding space + the ONE ANN entry point (branch `feat/taste-vectors`, Oct 10 2026)
 

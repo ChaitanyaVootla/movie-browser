@@ -45,6 +45,21 @@ export interface RecAnchor extends RecTitleRef {
   weight: number;
   genres: string[];
   embedding: number[];
+  /** For heading thumbs / the why sheet (absent in older fixtures). */
+  posterPath?: string | null;
+}
+
+/** An anchor with its unit vector precomputed (explanations dot against it per item). */
+export type UnitAnchor = RecAnchor & { unit: ArrayLike<number> };
+
+/** Precompute anchor unit vectors once per request; anchors without a vector are dropped. */
+export function withUnits(anchors: readonly RecAnchor[]): UnitAnchor[] {
+  const out: UnitAnchor[] = [];
+  for (const a of anchors) {
+    const unit = a.embedding.length ? l2Normalize(a.embedding) : null;
+    if (unit) out.push({ ...a, unit });
+  }
+  return out;
 }
 
 /** One retrieval cluster: normalised member mean + its medoid (row anchor). */
@@ -54,6 +69,8 @@ export interface RecCluster {
   label: string;
   medoid: RecTitleRef & { posterPath: string | null };
   vector: number[];
+  /** FULL member keys (owner-only): "because" rows explain against these only. */
+  memberKeys?: readonly TitleKey[];
 }
 
 export interface RecCandidate extends RecTitleRef {
@@ -68,6 +85,13 @@ export interface RecCandidate extends RecTitleRef {
   genres: string[];
   language: string | null;
   embedding: number[];
+  /** Tune inputs (taste v2 §3.5); null/absent = unknown → dropped only when that filter is on. */
+  runtimeMinutes?: number | null;
+  year?: number | null;
+  /** ai_data MOOD tone. */
+  tone?: "light" | "dark" | "mixed" | null;
+  /** Normalised AI theme keys + mood keys ("identity and memory", "tone:dark"). */
+  tags?: string[];
 }
 
 export interface RecUserVectors {
@@ -77,8 +101,8 @@ export interface RecUserVectors {
 }
 
 export interface ScoredCandidate extends RecCandidate {
-  /** Unit embedding (normalised copy). */
-  unit: number[];
+  /** Unit embedding (normalised copy; a Float32Array once cached). */
+  unit: ArrayLike<number>;
   relRaw: number;
   rel: number;
   quality: number;
@@ -339,6 +363,8 @@ export interface LiftedFacets {
   genres: readonly string[];
   /** Lifted original-language keys (ISO 639-1), best first. */
   languages: readonly string[];
+  /** Lifted AI mood/theme facets (key as in `RecCandidate.tags`), best first. */
+  moods?: ReadonlyArray<{ key: string; label: string }>;
 }
 
 /** "Korean thrillers" / "More thrillers" / "Korean picks" / null. */
@@ -358,30 +384,130 @@ export function facetLabel(
   return null;
 }
 
-/** Nearest positive anchor (cos ≥ threshold), else a facet label, else null. */
+/** The ≤ `max` lifted facets an item carries, in lifted order: genres, then moods/themes, then language. */
+export function sharedFacets(
+  item: { genres: readonly string[]; language: string | null; tags?: readonly string[] },
+  lifted: LiftedFacets,
+  max = 2
+): string[] {
+  const out: string[] = [];
+  const itemGenres = new Set(item.genres.map((g) => g.toLowerCase()));
+  for (const g of lifted.genres) if (itemGenres.has(g.toLowerCase())) out.push(g);
+  const tags = new Set(item.tags ?? []);
+  for (const m of lifted.moods ?? []) if (tags.has(m.key)) out.push(m.label);
+  if (item.language && item.language !== "en" && lifted.languages.includes(item.language)) {
+    const name = languageName(item.language);
+    if (name) out.push(name);
+  }
+  return out.slice(0, max);
+}
+
+/** An item that can be explained: its unit vector, key and facet inputs. */
+export interface ExplainableItem {
+  unit: ArrayLike<number>;
+  key: string;
+  genres: readonly string[];
+  language: string | null;
+  tags?: readonly string[];
+}
+
+/** Anchors ranked by cosine to the item (never the item itself), best first. */
+function rankAnchors(item: ExplainableItem, anchors: readonly UnitAnchor[]): Array<{ a: UnitAnchor; cos: number }> {
+  const out: Array<{ a: UnitAnchor; cos: number }> = [];
+  for (const a of anchors) {
+    if (a.key === item.key) continue;
+    out.push({ a, cos: dot(item.unit, a.unit) });
+  }
+  return out.sort((x, y) => y.cos - x.cos || y.a.weight - x.a.weight || x.a.key.localeCompare(y.a.key));
+}
+
+function thumbRef(a: RecAnchor) {
+  return { mediaType: a.mediaType, id: a.id, title: a.title, posterPath: a.posterPath ?? null };
+}
+
+const round3 = (x: number) => Math.round(x * 1000) / 1000;
+
+function asUnitAnchors(anchors: ReadonlyArray<RecAnchor | UnitAnchor>): UnitAnchor[] {
+  const out: UnitAnchor[] = [];
+  for (const a of anchors) {
+    if ("unit" in a) out.push(a);
+    else out.push(...withUnits([a]));
+  }
+  return out;
+}
+
+/**
+ * v2 explanation (spec 2026-10-12 §3.1): the nearest anchor among `anchors`
+ * (cos ≥ minCos) with ≤ 2 other anchors it is also near and ≤ 2 lifted facets
+ * it carries; else a lifted-facet label; else null. Pass a cluster's members
+ * as `anchors` for a "because" row — the explanation can then only name a
+ * member of that row.
+ */
 export function explainItem(
-  item: { unit: ArrayLike<number>; key: string; genres: readonly string[]; language: string | null },
-  anchors: ReadonlyArray<RecAnchor & { unit?: number[] }>,
+  item: ExplainableItem,
+  anchors: ReadonlyArray<RecAnchor | UnitAnchor>,
   lifted: LiftedFacets,
   minCos = REC_BECAUSE_MIN_COS
 ): RecExplanation | null {
-  let best: RecAnchor | null = null;
-  let bestCos = -Infinity;
-  for (const a of anchors) {
-    if (a.key === item.key) continue;
-    const unit = a.unit ?? l2Normalize(a.embedding);
-    if (!unit) continue;
-    const c = dot(item.unit, unit);
-    if (c > bestCos || (c === bestCos && best !== null && a.weight > best.weight)) {
-      bestCos = c;
-      best = a;
-    }
-  }
-  if (best && bestCos >= minCos) {
-    return { kind: "because", anchor: { mediaType: best.mediaType, id: best.id, title: best.title } };
+  const ranked = rankAnchors(item, asUnitAnchors(anchors)).filter((r) => r.cos >= minCos);
+  const facets = sharedFacets(item, lifted);
+  if (ranked.length > 0) {
+    const [best, ...rest] = ranked;
+    return {
+      kind: "because",
+      anchor: thumbRef(best.a),
+      cos: round3(best.cos),
+      alsoNear: rest.slice(0, 2).map((r) => thumbRef(r.a)),
+      facets,
+    };
   }
   const label = facetLabel(item, lifted);
-  return label ? { kind: "facet", label } : null;
+  return label ? { kind: "facet", label, facets } : null;
+}
+
+export type BecauseExplanation = Extract<RecExplanation, { kind: "because" }>;
+
+/**
+ * "Because you loved …" row anchoring (spec §3.1, the one-why model): every
+ * item is explained against the cluster's MEMBERS only; items with nothing
+ * truthful to say (best in-cluster cos < minCos) are dropped; the heading set
+ * is the ≤ `maxAnchors` members anchoring the most items (ties by weight), and
+ * the survivors are re-explained against THAT set, so every card tag names a
+ * title in the heading. Heading anchors are ordered by items anchored.
+ */
+export function anchorClusterRow<T extends ExplainableItem>(
+  items: readonly T[],
+  members: readonly UnitAnchor[],
+  lifted: LiftedFacets,
+  opts: { maxAnchors?: number; minCos?: number } = {}
+): { items: Array<{ item: T; explanation: BecauseExplanation }>; anchors: UnitAnchor[] } {
+  const maxAnchors = opts.maxAnchors ?? 3;
+  const minCos = opts.minCos ?? REC_BECAUSE_MIN_COS;
+  const tally = (anchors: readonly UnitAnchor[]) => {
+    const explained: Array<{ item: T; explanation: BecauseExplanation }> = [];
+    const counts = new Map<string, number>();
+    for (const item of items) {
+      const e = explainItem(item, anchors, lifted, minCos);
+      if (e?.kind !== "because") continue;
+      explained.push({ item, explanation: e });
+      const k = `${e.anchor.mediaType === "movie" ? "m" : "s"}:${e.anchor.id}`;
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+    return { explained, counts };
+  };
+  const order = (anchors: readonly UnitAnchor[], counts: Map<string, number>) =>
+    anchors
+      .filter((a) => (counts.get(a.key) ?? 0) > 0)
+      .sort(
+        (a, b) =>
+          (counts.get(b.key) ?? 0) - (counts.get(a.key) ?? 0) || b.weight - a.weight || a.key.localeCompare(b.key)
+      );
+
+  const first = tally(members);
+  const heading = order(members, first.counts).slice(0, maxAnchors);
+  if (heading.length === 0) return { items: [], anchors: [] };
+  const second = tally(heading);
+  return { items: second.explained, anchors: order(heading, second.counts) };
 }
 
 // ---------------------------------------------------------------------------

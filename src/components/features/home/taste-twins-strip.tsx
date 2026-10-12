@@ -8,6 +8,7 @@ import { useAnalytics } from "@/hooks/use-analytics";
 import { ScrollContainer } from "@/components/features/media/scroll-container";
 import { SectionHeading } from "@/components/features/layout/section-heading";
 import { getTasteTwins } from "@/server/actions/taste-recs";
+import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import type { TasteTwinDTO } from "@/lib/taste/recommend-types";
 
 function initials(name: string): string {
@@ -21,14 +22,14 @@ function initials(name: string): string {
   );
 }
 
-/** One suggestion: round avatar, name, handle, "NN% taste match". */
+/** One suggestion: round avatar, name, "NN% taste match" and up to two shared loves (PUBLIC both sides). */
 export function TasteTwinChip({ twin, onOpen }: { twin: TasteTwinDTO; onOpen?: () => void }) {
   return (
     <Link
       href={`/u/${twin.username}`}
       prefetch={false}
       onClick={onOpen}
-      className="flex min-h-12 w-[220px] flex-shrink-0 items-center gap-3 rounded-xl border bg-card p-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex min-h-12 w-[260px] flex-shrink-0 items-center gap-3 rounded-xl border bg-card p-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <span className="relative flex size-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold text-muted-foreground">
         {twin.avatarUrl ? (
@@ -43,6 +44,17 @@ export function TasteTwinChip({ twin, onOpen }: { twin: TasteTwinDTO; onOpen?: (
           <span className="tabular-nums text-foreground">{twin.match}%</span> taste match
         </span>
       </span>
+      {twin.shared && twin.shared.length > 0 && (
+        <span className="flex flex-shrink-0 gap-1" aria-label={`Both loved ${twin.shared.map((t) => t.title).join(" and ")}`}>
+          {twin.shared.slice(0, 2).map((t) => (
+            <span key={`${t.mediaType}-${t.tmdbId}`} className="relative block h-[42px] w-7 overflow-hidden rounded-md bg-muted">
+              {t.posterPath && (
+                <Image src={`${TMDB_IMAGE_BASE}/w92${t.posterPath}`} alt="" fill sizes="28px" className="object-cover" unoptimized />
+              )}
+            </span>
+          ))}
+        </span>
+      )}
     </Link>
   );
 }

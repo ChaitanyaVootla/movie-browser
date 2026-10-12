@@ -16,6 +16,7 @@ import {
   W_THUMB,
   W_ENGAGED,
   W_WATCHLIST,
+  W_DISMISS,
 } from "./constants";
 import type { TasteScope, TitleSignals, WeightedTitle } from "./types";
 
@@ -130,6 +131,11 @@ export function titleWeight(
 
   // Watchlist is aspirational and PRIVATE: never part of the public projection.
   if (!isPublic && s.watchlistedAt) w += W_WATCHLIST;
+
+  // "Not for me" on a rec: a decayed negative, FULL scope only. A dismissed
+  // title with other positive signals keeps its net weight (the rating wins
+  // by magnitude — someone can dismiss a rec of a film they later love).
+  if (!isPublic && s.dismissedAt) w += W_DISMISS * decayFactor(s.dismissedAt, now);
 
   return {
     key: s.key,

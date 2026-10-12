@@ -18,6 +18,8 @@ const h = vi.hoisted(() => ({
   getTasteClusters: vi.fn(),
   annCandidates: vi.fn(),
   getTmdbRecommendations: vi.fn(),
+  fetchCandidateDetails: vi.fn(),
+  fetchPopularTuned: vi.fn(),
   signals: [] as TitleSignals[],
 }));
 
@@ -42,15 +44,16 @@ vi.mock("@/server/db/postgres/social/taste-recs", () => ({
         ["m:3", { title: "Three", genres: ["Drama"], posterPath: null }],
       ])
   ),
-  fetchCandidateDetails: vi.fn(async () => []),
+  fetchCandidateDetails: h.fetchCandidateDetails,
   fetchPopularCandidates: vi.fn(async () => []),
+  fetchPopularTuned: h.fetchPopularTuned,
   fetchRecExclusions: vi.fn(async () => ({ movieIds: [1, 2, 3], seriesIds: [] })),
 }));
 vi.mock("@/server/db/postgres/vector-index", () => ({ hasVectorIndex: vi.fn(async () => true) }));
 vi.mock("@/server/services/tmdb", () => ({ getRecommendations: h.getTmdbRecommendations }));
 vi.mock("@/lib/logger", () => ({ dataLogger: { warn: vi.fn(), debug: vi.fn() } }));
 
-const { getRecommendationsForUser, clearRecsCache } = await import("./recommend");
+const { getRecommendationsForUser, getHomeRecsForUser, clearRecsCache } = await import("./recommend");
 
 const fav = (id: number): TitleSignals => ({
   key: `m:${id}`,
@@ -77,6 +80,73 @@ beforeEach(() => {
   }));
   h.annCandidates.mockReset().mockResolvedValue([]);
   h.getTmdbRecommendations.mockReset().mockResolvedValue({ results: [] });
+  h.fetchCandidateDetails.mockReset().mockResolvedValue([]);
+  h.fetchPopularTuned.mockReset().mockResolvedValue([]);
+});
+
+const cand = (id: number, mediaType: "movie" | "series", embedding: number[]) => ({
+  key: `${mediaType === "movie" ? "m" : "s"}:${id}`,
+  mediaType,
+  id,
+  title: `T${id}`,
+  posterPath: null,
+  backdropPath: null,
+  releaseDate: "2021-01-01",
+  voteAverage: 7,
+  voteCount: 1000,
+  popularity: 10,
+  genres: ["Drama"],
+  language: "en",
+  embedding,
+  runtimeMinutes: 90,
+  year: 2021,
+  tone: "dark" as const,
+  tags: [],
+});
+
+describe("home recs: tune re-ranks the cached pool", () => {
+  beforeEach(() => {
+    h.annCandidates.mockImplementation(async (table: string) =>
+      Array.from({ length: 12 }, (_, i) => ({ id: (table === "movies" ? 100 : 200) + i, dist: 0.1 + i / 100, query: 0 }))
+    );
+    h.fetchCandidateDetails.mockImplementation(async (table: string, ids: number[]) =>
+      ids.map((id, i) => cand(id, table === "movies" ? "movie" : "series", [0.2 + i / 50, 0.3, 0.9 - i / 60]))
+    );
+  });
+
+  it("a tune or a shuffle never runs a new ANN query", async () => {
+    const base = await getHomeRecsForUser(1);
+    expect(base.reason).toBe("ok");
+    const annCalls = h.annCandidates.mock.calls.length;
+    expect(annCalls).toBe(2);
+    const series = await getHomeRecsForUser(1, { media: "series" });
+    const shuffled = await getHomeRecsForUser(1, {}, { shuffle: 5 });
+    expect(h.annCandidates).toHaveBeenCalledTimes(annCalls);
+    expect(series.rows[0].items.every((i) => i.mediaType === "series")).toBe(true);
+    expect(series.rows[0].tune).toEqual({ media: "series" });
+    expect(shuffled.rows[0].items.length).toBeGreaterThan(0);
+    expect(base.tuneAvailable.series).toBe(12);
+    expect(base.tuneChips.map((c) => c.token)).toContain("darker");
+  });
+
+  it("Surprise me shows ≥ 50% titles that were not on screen", async () => {
+    const base = await getHomeRecsForUser(1);
+    const shown = base.rows[0].items.map((i) => `${i.mediaType === "movie" ? "m" : "s"}:${i.id}`);
+    const next = await getHomeRecsForUser(1, {}, { shuffle: 11, exclude: shown });
+    const fresh = next.rows[0].items.filter((i) => !shown.includes(`${i.mediaType === "movie" ? "m" : "s"}:${i.id}`));
+    expect(fresh.length / next.rows[0].items.length).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it("thin survivors are topped up from popular with the same filters", async () => {
+    h.fetchPopularTuned.mockResolvedValue([{ ...cand(900, "movie", []), title: "Popular one", tone: "light" }]);
+    const out = await getHomeRecsForUser(1, { maxRuntime: 100, tone: "light" });
+    expect(h.fetchPopularTuned).toHaveBeenCalled();
+    expect(out.rows[0].items.map((i) => i.title)).toContain("Popular one");
+    expect(out.rows[0].items.find((i) => i.title === "Popular one")?.explanation).toEqual({
+      kind: "popular",
+      label: "Popular lighter picks",
+    });
+  });
 });
 
 describe("recs: never compare across embedding spaces", () => {

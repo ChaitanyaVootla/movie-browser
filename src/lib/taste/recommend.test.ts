@@ -12,6 +12,9 @@ import {
   rawRelevance,
   scoreCandidates,
   shrunkQuality,
+  anchorClusterRow,
+  sharedFacets,
+  withUnits,
   type RecAnchor,
   type RecCandidate,
   type RecCluster,
@@ -42,6 +45,11 @@ function cand(id: number, embedding: number[], extra: Partial<RecCandidate> = {}
     embedding,
     ...extra,
   };
+}
+
+function l2(v: number[]): number[] {
+  const n = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
+  return v.map((x) => x / n);
 }
 
 function cluster(index: number, vector: number[], importance = 0.5): RecCluster {
@@ -198,8 +206,23 @@ describe("explanations", () => {
   it("names the nearest positive anchor", () => {
     expect(explainItem({ unit: axis(1), key: "m:1", genres: [], language: null }, anchors, lifted)).toEqual({
       kind: "because",
-      anchor: { mediaType: "series", id: 20, title: "Dark" },
+      anchor: { mediaType: "series", id: 20, title: "Dark", posterPath: null },
+      cos: 1,
+      alsoNear: [],
+      facets: [],
     });
+  });
+  it("lists other close anchors (alsoNear) and the lifted facets the item carries", () => {
+    const e = explainItem(
+      { unit: l2(axis(0, 1, 0.9)), key: "m:1", genres: ["Drama"], language: "ko", tags: ["identity"] },
+      anchors,
+      { ...lifted, moods: [{ key: "identity", label: "Identity" }] }
+    );
+    expect(e?.kind).toBe("because");
+    if (e?.kind !== "because") return;
+    expect(e.anchor.id).toBe(10);
+    expect(e.alsoNear?.map((a) => a.id)).toEqual([20]);
+    expect(e.facets).toEqual(["Drama", "Identity"]);
   });
   it("never explains an item by itself", () => {
     const e = explainItem({ unit: axis(0), key: "m:10", genres: [], language: null }, anchors, lifted);
@@ -207,7 +230,7 @@ describe("explanations", () => {
   });
   it("falls back to a lifted-facet label below the cosine threshold", () => {
     const e = explainItem({ unit: axis(4), key: "m:1", genres: ["Thriller"], language: "ko" }, anchors, lifted);
-    expect(e).toEqual({ kind: "facet", label: "Korean thrillers" });
+    expect(e).toEqual({ kind: "facet", label: "Korean thrillers", facets: ["Thriller", "Korean"] });
   });
   it("returns null with no anchor and no matching facet", () => {
     expect(explainItem({ unit: axis(4), key: "m:1", genres: ["Western"], language: "en" }, anchors, lifted)).toBeNull();
@@ -222,6 +245,68 @@ describe("explanations", () => {
     expect(genreNoun("Unknownre")).toBe("unknownre");
     expect(languageName("ja")).toBe("Japanese");
     expect(languageName(null)).toBeNull();
+  });
+});
+
+describe("sharedFacets", () => {
+  it("keeps lifted order and caps at two", () => {
+    const lifted = { genres: ["Thriller", "Drama"], languages: ["ko"], moods: [{ key: "tone:dark", label: "Dark tone" }] };
+    expect(sharedFacets({ genres: ["Drama", "Thriller"], language: "ko", tags: ["tone:dark"] }, lifted)).toEqual([
+      "Thriller",
+      "Drama",
+    ]);
+    expect(sharedFacets({ genres: [], language: "ko", tags: ["tone:dark"] }, lifted)).toEqual(["Dark tone", "Korean"]);
+    expect(sharedFacets({ genres: [], language: "en" }, lifted)).toEqual([]);
+  });
+});
+
+describe("anchorClusterRow (heading = set, tag = member)", () => {
+  const member = (id: number, v: number[], weight = 1): RecAnchor => ({
+    key: `m:${id}`,
+    mediaType: "movie",
+    id,
+    title: `A${id}`,
+    weight,
+    genres: [],
+    embedding: v,
+  });
+  // Five members on five axes; items near each, plus an outsider anchor that
+  // is closer than any member for some items (it must never be named).
+  const members = withUnits([member(1, axis(0), 3), member(2, axis(1), 2), member(3, axis(2)), member(4, axis(3)), member(5, axis(4))]);
+  const mk = (id: number, v: number[]) => ({ key: `m:${100 + id}`, unit: l2(v), genres: [], language: null });
+  const items = [
+    mk(1, axis(0, 7, 0.2)),
+    mk(2, axis(0, 7, 0.3)),
+    mk(3, axis(0, 6, 0.1)),
+    mk(4, axis(1, 7, 0.2)),
+    mk(5, axis(1, 6, 0.2)),
+    mk(6, axis(2, 7, 0.1)),
+    mk(7, axis(3, 7, 0.1)), // anchored by a member outside the top 3 → re-explained or dropped
+    mk(8, axis(7)), // near nothing in the cluster → dropped
+  ];
+
+  it("every explanation names a heading anchor, and heading ≤ 3 ordered by items anchored", () => {
+    const row = anchorClusterRow(items, members, { genres: [], languages: [] });
+    const heading = new Set(row.anchors.map((a) => a.id));
+    expect(row.anchors.length).toBeLessThanOrEqual(3);
+    expect(row.anchors.map((a) => a.id)).toEqual([1, 2, 3]);
+    for (const r of row.items) {
+      expect(heading.has(r.explanation.anchor.id)).toBe(true);
+      for (const n of r.explanation.alsoNear ?? []) expect(heading.has(n.id)).toBe(true);
+    }
+    const ids = row.items.map((r) => r.item.key);
+    expect(ids).not.toContain("m:108");
+    expect(ids).not.toContain("m:107");
+  });
+
+  it("never names a title outside the cluster even when it is closer", () => {
+    const outsider = withUnits([member(99, axis(0), 10)]);
+    const row = anchorClusterRow(items, members, { genres: [], languages: [] });
+    for (const r of row.items) expect(r.explanation.anchor.id).not.toBe(outsider[0].id);
+  });
+
+  it("returns nothing when no item clears the cosine floor", () => {
+    expect(anchorClusterRow([mk(9, axis(7))], members, { genres: [], languages: [] })).toEqual({ items: [], anchors: [] });
   });
 });
 

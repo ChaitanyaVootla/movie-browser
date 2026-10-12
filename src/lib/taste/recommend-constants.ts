@@ -71,3 +71,16 @@ export const REC_BECAUSE_MIN_COS = 0.3;
 /** In-process cache. */
 export const REC_CACHE_TTL_MS = 60 * 60 * 1000;
 export const REC_CACHE_MAX = 500;
+/** Cached scored pools (≈1MB of Float32 vectors each) — bounded separately from REC_CACHE_MAX. */
+export const REC_POOL_CACHE_MAX = 48;
+
+/** Tune bar (v2 §3.5): fewer pool survivors than this → top up from popular with the same filters. */
+export const REC_TUNE_MIN_SURVIVORS = 8;
+/** Surprise me: MMR λ (more diversity) and the nonce-seeded jitter added to each score. */
+export const REC_SHUFFLE_LAMBDA = 0.5;
+export const REC_SHUFFLE_JITTER = 0.25;
+/** More like this: rows hold this many items; ANN k per table; blend weight on the seed. */
+export const REC_SEED_ROW_SIZE = 12;
+export const REC_SEED_ANN_K = 300;
+export const REC_SEED_QUERY_WEIGHT = 0.65;
+export const REC_SEED_CACHE_TTL_MS = 10 * 60 * 1000;

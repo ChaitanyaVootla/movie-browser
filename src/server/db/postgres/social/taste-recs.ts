@@ -8,6 +8,7 @@
  * catalog query carries `notAdult()`.
  */
 import { prisma } from "@/server/db/postgres";
+import { dataLogger } from "@/lib/logger";
 import { notAdult } from "@/server/db/postgres/adult-filter";
 import { TMDB_SOURCE_ID_SQL } from "@/server/db/postgres/smart-discover";
 import {
@@ -27,8 +28,15 @@ const TABLE_MEDIA: Record<VectorTable, TasteMediaType> = { movies: "movie", seri
 
 function cols(table: VectorTable) {
   return table === "movies"
-    ? { title: "title", date: "release_date", genreJoin: "movie_genres", fk: "movie_id" }
-    : { title: "name", date: "first_air_date", genreJoin: "series_genres", fk: "series_id" };
+    ? { title: "title", date: "release_date", genreJoin: "movie_genres", fk: "movie_id", runtime: "t.runtime" }
+    : {
+        title: "name",
+        date: "first_air_date",
+        genreJoin: "series_genres",
+        fk: "series_id",
+        // Episode runtime: the smallest positive listed value (NULL or {} → unknown).
+        runtime: "(SELECT min(x) FROM unnest(t.episode_run_time) x WHERE x > 0)",
+      };
 }
 
 export { vectorLiteral };
@@ -46,15 +54,17 @@ export interface RecExclusions {
 /**
  * Everything the user already engaged with: any WATCH event, any watchlist
  * row, any title-level rating row (score / thumb incl. dislikes / heart), any
- * series progress. NOTE entries are excluded too — a title they wrote about is
- * not a discovery.
+ * series progress, and every "Not for me" (rec_feedback DISMISS). NOTE entries
+ * are excluded too — a title they wrote about is not a discovery. Calibration
+ * SKIPs are deliberately NOT here (they only keep a title out of the deck).
  */
 export async function fetchRecExclusions(userId: number): Promise<RecExclusions> {
   const rows = await prisma.$queryRaw<Array<{ movie_id: number | null; series_id: number | null }>>`
     SELECT movie_id, series_id FROM watch_events WHERE user_id = ${userId}
     UNION SELECT movie_id, series_id FROM watchlist WHERE user_id = ${userId}
     UNION SELECT movie_id, series_id FROM user_ratings WHERE user_id = ${userId}
-    UNION SELECT NULL::int, series_id FROM series_progress WHERE user_id = ${userId}`;
+    UNION SELECT NULL::int, series_id FROM series_progress WHERE user_id = ${userId}
+    UNION SELECT movie_id, series_id FROM rec_feedback WHERE user_id = ${userId} AND kind = 'DISMISS'`;
   const movieIds = new Set<number>();
   const seriesIds = new Set<number>();
   for (const r of rows) {
@@ -132,7 +142,25 @@ interface DetailRow {
   vote_average: number | null;
   vote_count: number | null;
   genres: string[] | null;
+  runtime: number | null;
+  tags: string[] | null;
   v: number[] | null;
+}
+
+function aiTagsSql(fk: string): string {
+  // Same keys as the taste facets (normalizeTagKey: lower + whitespace-collapsed;
+  // MOOD → "<sub>:<value>"), so lifted moods/themes match candidate tags.
+  return `ARRAY(SELECT CASE WHEN ai.category = 'MOOD'
+                         THEN COALESCE(ai.subcategory, '') || ':' || lower(regexp_replace(btrim(ai.text), '\\s+', ' ', 'g'))
+                         ELSE lower(regexp_replace(btrim(ai.text), '\\s+', ' ', 'g')) END
+                FROM ai_data ad JOIN ai_insights ai ON ai.ai_data_id = ad.id
+                WHERE ad.${fk} = t.id AND ai.spoiler_level = 'FREE'
+                  AND ai.category IN ('THEME', 'VIBE', 'MOOD') AND length(ai.text) <= 60)`;
+}
+
+function toneOf(raw: string | null): RecCandidate["tone"] {
+  const t = raw?.trim().toLowerCase();
+  return t === "light" || t === "dark" || t === "mixed" ? t : null;
 }
 
 /** Metadata + embedding for an explicit id list (bounded by the caller). */
@@ -150,6 +178,8 @@ export async function fetchCandidateDetails(
             r.score AS vote_average, r.vote_count,
             ARRAY(SELECT g.name FROM genres g JOIN ${c.genreJoin} gj ON gj.genre_id = g.id
                   WHERE gj.${c.fk} = t.id ORDER BY g.name) AS genres,
+            ${c.runtime} AS runtime,
+            ${aiTagsSql(c.fk)} AS tags,
             ${embedding} AS v
      FROM ${table} t
      LEFT JOIN LATERAL (
@@ -174,6 +204,10 @@ export async function fetchCandidateDetails(
     genres: r.genres ?? [],
     language: r.language,
     embedding: r.v ? r.v.map(Number) : [],
+    runtimeMinutes: r.runtime == null ? null : Number(r.runtime),
+    year: r.date ? r.date.getUTCFullYear() : null,
+    tone: toneOf((r.tags ?? []).find((t) => t.startsWith("tone:"))?.slice(5) ?? null),
+    tags: r.tags ?? [],
   }));
 }
 
@@ -216,6 +250,81 @@ export async function fetchPopularCandidates(
     { withEmbedding: false }
   );
   const order = new Map(rows.map((r, i) => [r.id, i]));
+  return details.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+}
+
+/** SQL-side filters for a tuned popular top-up (tone / moods are filtered by the caller). */
+export interface PopularTuneFilters {
+  /** Slugged genre names (`tuneValue`), OR. */
+  genreSlugs?: readonly string[];
+  /** ISO 639-1, OR. */
+  languages?: readonly string[];
+  /** Strictly below (movies: runtime; series: smallest episode runtime). */
+  maxRuntime?: number;
+  yearBefore?: number;
+  yearFrom?: number;
+}
+
+/** Bound on one tuned top-up scan: a selective filter combo can walk far down the popularity btree. */
+const TUNED_TOPUP_TIMEOUT_MS = 1500;
+
+/**
+ * Tune-bar top-up (spec §3.5): popular titles passing the tune's SQL-expressible
+ * filters, same adult / vote / exclusion rules and the same `popularity DESC`
+ * btree walk as `fetchPopularCandidates`. Runs under a statement timeout and
+ * returns [] on timeout — a top-up is a nicety, never worth a slow response.
+ */
+export async function fetchPopularTuned(
+  table: VectorTable,
+  opts: { filters: PopularTuneFilters; excludeIds: readonly number[]; minVotes: number; limit: number }
+): Promise<RecCandidate[]> {
+  const c = cols(table);
+  const f = opts.filters;
+  const params: unknown[] = [[...opts.excludeIds], opts.minVotes];
+  const where: string[] = [];
+  const bind = (v: unknown) => {
+    params.push(v);
+    return `$${params.length}`;
+  };
+  if (f.genreSlugs?.length) {
+    where.push(`EXISTS (SELECT 1 FROM ${c.genreJoin} gj JOIN genres g ON g.id = gj.genre_id
+                 WHERE gj.${c.fk} = t.id
+                   AND btrim(regexp_replace(lower(g.name), '[^a-z0-9]+', '-', 'g'), '-') = ANY(${bind([...f.genreSlugs])}::text[]))`);
+  }
+  if (f.languages?.length) where.push(`t.original_language = ANY(${bind([...f.languages])}::text[])`);
+  if (f.maxRuntime != null) where.push(`${c.runtime} < ${bind(f.maxRuntime)}::int`);
+  if (f.yearBefore != null) where.push(`t.${c.date} < make_date(${bind(f.yearBefore)}::int, 1, 1)`);
+  if (f.yearFrom != null) where.push(`t.${c.date} >= make_date(${bind(f.yearFrom)}::int, 1, 1)`);
+  const sql = `SELECT t.id FROM ${table} t
+     WHERE t.popularity IS NOT NULL
+       AND ${notAdult("t")}
+       AND NOT (t.id = ANY($1::int[]))
+       AND EXISTS (SELECT 1 FROM ratings r WHERE r.${c.fk} = t.id
+                   AND r.source_id = ${TMDB_SOURCE_ID_SQL} AND r.vote_count >= $2)
+       ${where.map((w) => `AND ${w}`).join("\n       ")}
+     ORDER BY t.popularity DESC
+     LIMIT ${Math.floor(opts.limit)}`;
+  let rows: Array<{ id: number }> = [];
+  try {
+    const [, result] = await prisma.$transaction([
+      prisma.$executeRawUnsafe(`SET LOCAL statement_timeout = ${TUNED_TOPUP_TIMEOUT_MS}`),
+      prisma.$queryRawUnsafe<Array<{ id: number }>>(sql, ...params),
+    ]);
+    rows = result;
+  } catch (error: unknown) {
+    dataLogger.warn({
+      action: "taste.tune_topup_failed",
+      table,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  }
+  const details = await fetchCandidateDetails(
+    table,
+    rows.map((r) => Number(r.id)),
+    { withEmbedding: false }
+  );
+  const order = new Map(rows.map((r, i) => [Number(r.id), i]));
   return details.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }
 
