@@ -23,17 +23,17 @@ export type RecExplanation =
   | {
       kind: "because";
       anchor: RecThumbRef;
-      /** Centered-space cosine to the anchor. populated by workstream A */
+      /** Centered-space cosine to the anchor (3 dp). Absent only for the TMDB no-index fallback. */
       cos?: number;
-      /** Other positives the item is also close to (≤ 2). populated by workstream A */
+      /** Other anchors (same set) the item is also close to (≤ 2). Always set by the recs service. */
       alsoNear?: RecThumbRef[];
-      /** Facets the item carries that are lifted for the user (≤ 2 labels). populated by workstream A */
+      /** Facets the item carries that are lifted for the user (≤ 2 labels). Always set by the recs service. */
       facets?: string[];
     }
   | {
       kind: "facet";
       label: string;
-      /** populated by workstream A */
+      /** Lifted facets the item carries (≤ 2 labels). */
       facets?: string[];
     }
   /** "More like X" rows — the heading carries the seed, so no card tag. */
@@ -67,21 +67,20 @@ export interface RecRowDTO {
   id: string;
   kind: RecRowKind;
   /**
-   * @deprecated v1 single heading anchor (the cluster medoid). Superseded by
-   * `anchors`; removed once workstream A's row heading reads `anchors`.
-   */
-  anchor: { mediaType: TasteMediaType; id: number; title: string; posterPath: string | null } | null;
-  /**
    * The heading's SET of anchors (because: ≤ 3 cluster members ordered by
-   * items anchored, ties by weight; seed: [seed]; otherwise []).
-   * populated by workstream A
+   * items anchored, ties by weight; seed: [seed]; otherwise []). Invariant:
+   * every because-explanation in a because row names one of these.
    */
-  anchors?: RecThumbRef[];
+  anchors: RecThumbRef[];
   /** Cluster facet label (fallback heading). */
   label: string | null;
   items: RecItemDTO[];
-  /** The tune that produced this row (for_you only, else null). populated by workstream A */
-  tune?: TuneParams | null;
+  /** The tune that produced this row (for_you only, else null). */
+  tune: TuneParams | null;
+  /** because rows: cluster size (the why sheet's "and N more titles in this group"). */
+  groupSize?: number;
+  /** because rows: ≤ 12 member posters (FULL scope — owner's own home only). */
+  members?: RecThumbRef[];
 }
 
 export interface RecsDTO {
@@ -146,18 +145,27 @@ export const TUNE_URL_KEY = "tune";
 export interface GetHomeRecsInput {
   tune?: TuneParams;
   shuffle?: number;
+  /** Title keys ("m:603") currently on screen — Surprise me never repeats them (≤ 40). */
+  exclude?: string[];
 }
 
 /** `getHomeRecs` / `getHomeRecsForUser` result. */
 export interface HomeRecsDTO extends RecsDTO {
   /** Survivors in the unfiltered pool per tune token (0 → chip disabled). populated by workstream A */
   tuneAvailable: Partial<Record<TuneToken, number>>;
+  /**
+   * The user's chip set in display order (fixed tokens first, then the
+   * per-user g:/l:/m: chips with their labels). Empty without a pool.
+   */
+  tuneChips: Array<{ token: TuneToken; label: string }>;
   /** Titles the profile is built from (FULL scope; "Built from {N} titles"). */
   positiveCount: number;
 }
 
 export interface GetHomeRecsOptions {
   shuffle?: number;
+  /** See GetHomeRecsInput.exclude. */
+  exclude?: readonly string[];
 }
 
 /** `getMoreLikeThis` input — the seed title. */

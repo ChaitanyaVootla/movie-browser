@@ -224,3 +224,22 @@ describe("privacy over ALL entry kinds (NOTE entries, reviews)", () => {
     expect(titleWeight(allPublic, "public", ctx).weight).toBe(1.25);
   });
 });
+
+describe("rec dismissals (W_DISMISS)", () => {
+  it("a dismissal alone is a decayed negative in FULL scope", () => {
+    expect(titleWeight(sig({ dismissedAt: NOW }), "full", ctx).weight).toBe(-0.75);
+    expect(titleWeight(sig({ dismissedAt: ago(547.5) }), "full", ctx).weight).toBeCloseTo(-0.75 * Math.exp(-1), 5);
+  });
+  it("never reaches the PUBLIC projection", () => {
+    expect(titleWeight(sig({ dismissedAt: NOW }), "public", ctx).weight).toBe(0);
+  });
+  it("a later heart outweighs the dismissal", () => {
+    const s = sig({ dismissedAt: NOW, rating: { score: null, thumb: null, liked: true, ratedAt: NOW } });
+    expect(titleWeight(s, "full", ctx).weight).toBe(1.25);
+  });
+  it("foldSignals keeps a dismissal-only title as a negative", () => {
+    const { titles } = foldSignals([sig({ dismissedAt: NOW })], "full", NOW);
+    expect(titles).toHaveLength(1);
+    expect(titles[0].weight).toBeLessThan(0);
+  });
+});

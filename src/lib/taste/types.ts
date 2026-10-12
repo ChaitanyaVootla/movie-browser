@@ -53,6 +53,11 @@ export interface TitleSignals {
   progress: { status: SeriesStatusLite; updatedAt: Date } | null;
   watchlistedAt: Date | null;
   /**
+   * "Not for me" on a recommendation (rec_feedback DISMISS). FULL scope only —
+   * a dismissal is a private preference, never part of the public projection.
+   */
+  dismissedAt?: Date | null;
+  /**
    * Visibility of the user's diary/review entries on this title, over ALL entry
    * kinds (WATCH and NOTE watch_events + user_reviews), computed WITHOUT the
    * source row cap. Drives the public-scope decision for ratings/progress:
