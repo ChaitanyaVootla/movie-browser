@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo, type KeyboardEvent } from "react";
+import { useFocusOnSignal } from "./use-chat-trigger";
 import { m } from "framer-motion";
 import { X, ArrowUp, ArrowRight, Minimize2, RotateCcw } from "lucide-react";
 import { AISparkIcon } from "./ai-icon";
@@ -26,9 +27,11 @@ export function ExpandedChat({
   onReset,
   pendingNavigation,
   onNavigate,
+  focusSignal,
 }: ExpandedChatProps) {
   const { trackAIChatSubmit } = useAnalytics();
   const inputRef = useRef<HTMLInputElement>(null);
+  useFocusOnSignal(inputRef, focusSignal);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const keyboardHeight = useKeyboardInset();
 
@@ -171,7 +174,7 @@ export function ExpandedChat({
                         <PulsingSpark size={18} />
                       </span>
                     ) : (
-                      <RichMessageContent content={msg.content} showPosterRow />
+                      <RichMessageContent content={msg.content} showPosterRow isStreaming={msg.isStreaming} />
                     )
                   ) : (
                     <p className="text-sm">{msg.content}</p>

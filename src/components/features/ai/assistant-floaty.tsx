@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import { useChatStream } from "@/hooks/use-chat-stream";
 import { useMobile } from "@/hooks/use-mobile";
 import { useMediaContextState } from "@/stores/media-context";
+import { useTasteUiStore } from "@/stores/taste-ui";
 import { useLoginDialog, LoginDialog } from "@/components/features/auth/login-dialog";
 import { MobileChatDrawer } from "./mobile-chat-drawer";
 import { WakeUpBorder } from "./ai-animations";
@@ -17,7 +18,8 @@ import { IdleCircle } from "./idle-circle";
 import { MinimalView } from "./minimal-view";
 import { ExpandedChat } from "./expanded-chat";
 import { getContextualPrompts, IDLE_PROMPTS } from "./prompts";
-import { type AiChatTriggerDetail, type FloatyState, type PromptConfig, type PostWatchContext, TRANSITION_EASE } from "./types";
+import { type FloatyState, type PromptConfig, type PostWatchContext, TRANSITION_EASE } from "./types";
+import { useChatTrigger } from "./use-chat-trigger";
 
 // =============================================================================
 // Main Component
@@ -32,6 +34,8 @@ export function AssistantFloaty({ className }: { className?: string }) {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [postWatch, setPostWatch] = useState<PostWatchContext | null>(null);
   const [showWakeUpBorder, setShowWakeUpBorder] = useState(false);
+  /** Bumped when an entry point prefills the input → the open view focuses it. */
+  const [focusSignal, setFocusSignal] = useState(0);
 
   const isMobile = useMobile();
   const pathname = usePathname();
@@ -40,10 +44,13 @@ export function AssistantFloaty({ className }: { className?: string }) {
   const mediaContext = useMediaContextState();
   const { isOpen: loginOpen, message: loginMessage, openLoginDialog, setIsOpen: setLoginOpen } = useLoginDialog();
 
+  // Taste-aware prompts need a signed-in viewer whose For-you row is taste-based.
+  const hasTasteProfile = useTasteUiStore((s) => s.hasProfile) && isAuthenticated;
+
   // Generate contextual prompts based on page and media context
   const contextualPrompts = useMemo(
-    () => getContextualPrompts(pathname, mediaContext),
-    [pathname, mediaContext]
+    () => getContextualPrompts(pathname, mediaContext, { hasTasteProfile }),
+    [pathname, mediaContext, hasTasteProfile]
   );
 
   // Build page context for chat stream (for AI agent context)
@@ -65,21 +72,24 @@ export function AssistantFloaty({ className }: { className?: string }) {
   const { messages, isLoading, pendingNavigation, requiresLogin, sendMessage, executeNavigation, clearMessages } =
     useChatStream({ pageContext, isAuthenticated });
 
-  // Listen for external chat trigger events (from AIQuestionsSection)
-  useEffect(() => {
-    const handleChatTrigger = (event: CustomEvent<AiChatTriggerDetail>) => {
-      const { message } = event.detail;
-      if (message) {
-        sendMessage(message);
-        setState("active");
-      }
-    };
-
-    window.addEventListener("ai-chat-trigger", handleChatTrigger as EventListener);
-    return () => {
-      window.removeEventListener("ai-chat-trigger", handleChatTrigger as EventListener);
-    };
-  }, [sendMessage]);
+  // External chat triggers (AIQuestionsSection, CueEntryButton). `prefill`
+  // opens the chat with the text in the input, focused, and does NOT send.
+  const openChatSurface = useCallback(() => {
+    if (isMobile) setMobileDrawerOpen(true);
+    else setState((s) => (s === "idle" ? "active" : s));
+  }, [isMobile]);
+  useChatTrigger({
+    send: (message) => {
+      sendMessage(message);
+      openChatSurface();
+    },
+    prefill: (message) => {
+      setInput(message);
+      setShowIdlePrompt(false);
+      setFocusSignal((n) => n + 1);
+      openChatSurface();
+    },
+  });
 
   // Show login dialog when anonymous message limit is hit
   useEffect(() => {
@@ -280,6 +290,7 @@ export function AssistantFloaty({ className }: { className?: string }) {
           onPromptClick={handlePromptClick}
           pendingNavigation={pendingNavigation}
           onNavigate={handleMobileNavigate}
+          focusSignal={focusSignal}
         />
 
         <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} message={loginMessage} />
@@ -342,6 +353,7 @@ export function AssistantFloaty({ className }: { className?: string }) {
           onPromptClick={handlePromptClick}
           pendingNavigation={pendingNavigation}
           onNavigate={handleNavigate}
+          focusSignal={focusSignal}
         />
       )}
 
@@ -358,6 +370,7 @@ export function AssistantFloaty({ className }: { className?: string }) {
           onReset={handleReset}
           pendingNavigation={pendingNavigation}
           onNavigate={handleNavigate}
+          focusSignal={focusSignal}
         />
       )}
       </AnimatePresence>

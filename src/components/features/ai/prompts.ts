@@ -404,12 +404,43 @@ export function getBrowsePrompts(): PromptConfig[] {
   return getHomepagePrompts();
 }
 
+export interface PromptOptions {
+  /**
+   * Signed in AND the For-you row is taste-based (stores/taste-ui.ts). Enables
+   * the taste prompts (taste v2 §5.1): "Would I like this?" on detail pages,
+   * For-you prompts on home. Known client-side, no request.
+   */
+  hasTasteProfile?: boolean;
+}
+
+/** Detail pages: "Would I like this?" first (→ explain_title_fit). */
+function withFitPrompt(prompts: PromptConfig[], title: string | null | undefined, opts: PromptOptions): PromptConfig[] {
+  if (!opts.hasTasteProfile || !title) return prompts;
+  const fit: PromptConfig = {
+    text: "Would I like this?",
+    message: `Would I like ${title}? Compare it to what I usually love.`,
+  };
+  return [fit, ...prompts.filter((p) => p.text !== fit.text)].slice(0, 4);
+}
+
+/** Home with a profile: the For-you prompts lead (→ recommend_for_me). */
+export function getTasteHomePrompts(): PromptConfig[] {
+  const [, ...rest] = getHomepagePrompts();
+  return [
+    { text: "What's in my For-you row?", message: "What's in my For-you row and why?" },
+    { text: "Pick one for tonight", message: "Pick one thing from my picks for tonight" },
+    { text: "What's trending?", message: "What's trending right now?" },
+    ...pickRandom(rest, 1),
+  ];
+}
+
 /**
  * Get contextual prompts based on current page context and media context store
  */
 export function getContextualPrompts(
   path: string | null,
-  mediaContext: MediaContextState | null
+  mediaContext: MediaContextState | null,
+  opts: PromptOptions = {}
 ): PromptConfig[] {
   if (!path) return getHomepagePrompts();
 
@@ -418,15 +449,19 @@ export function getContextualPrompts(
 
   // Movie detail page
   if (pageType === "movie" && mediaContext?.mediaType === "movie") {
-    return getMovieDetailPrompts(mediaContext.title || undefined, mediaContext.aiQuestions || undefined, mediaContext);
+    return withFitPrompt(
+      getMovieDetailPrompts(mediaContext.title || undefined, mediaContext.aiQuestions || undefined, mediaContext),
+      mediaContext.title,
+      opts
+    );
   }
 
   // Series detail page
   if (pageType === "series" && mediaContext?.mediaType === "series") {
-    return getSeriesDetailPrompts(
-      mediaContext.title || undefined,
-      mediaContext.aiQuestions || undefined,
-      mediaContext
+    return withFitPrompt(
+      getSeriesDetailPrompts(mediaContext.title || undefined, mediaContext.aiQuestions || undefined, mediaContext),
+      mediaContext.title,
+      opts
     );
   }
 
@@ -448,6 +483,8 @@ export function getContextualPrompts(
   if (pageType === "browse" || pageType === "topics") {
     return getBrowsePrompts();
   }
+
+  if (pathParts.length === 0 && opts.hasTasteProfile) return getTasteHomePrompts();
 
   return getHomepagePrompts();
 }

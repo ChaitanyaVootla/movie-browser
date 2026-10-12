@@ -12,6 +12,8 @@ import { MediaChip, PosterRow } from "./media-chip";
 import { ChatRatings, ChatWatchOptions, ChatTrailer, PersonChip, useTagData } from "./chat-tags";
 import { SourceChip } from "./source-chip";
 import { WebImageCard } from "./web-image-card";
+import { TuneTagSlot } from "./tune-tag-slot";
+import { stripTuneTag } from "./tune-tag-text";
 import { cn } from "@/lib/utils";
 
 // =============================================================================
@@ -24,6 +26,8 @@ interface RichMessageContentProps {
   showPosterRow?: boolean;
   /** If true, only show poster row without any text */
   postersOnly?: boolean;
+  /** The reply is still streaming (lets a `[TUNE:…]` tag auto-apply only for live replies). */
+  isStreaming?: boolean;
   className?: string;
 }
 
@@ -40,11 +44,15 @@ interface RichMessageContentProps {
  * Interactive tags (ratings, watch, person) are rendered inline.
  */
 export const RichMessageContent = memo(function RichMessageContent({
-  content,
+  content: rawContent,
   showPosterRow = true,
   postersOnly = false,
+  isStreaming = false,
   className,
 }: RichMessageContentProps) {
+  // `[TUNE:…]` renders as its own pill (tune-pill.tsx), never as text.
+  const content = useMemo(() => stripTuneTag(rawContent), [rawContent]);
+  const tunePill = postersOnly ? null : <TuneTagSlot content={rawContent} isStreaming={isStreaming} />;
   const parsed = useMemo(() => parseContent(content), [content]);
   const dataFetchIds = useMemo(() => getDataFetchIds(content), [content]);
 
@@ -184,6 +192,8 @@ export const RichMessageContent = memo(function RichMessageContent({
 
         {/* Poster cards */}
         {parsed.mediaTags.length > 0 && <PosterRow tags={parsed.mediaTags} />}
+
+        {tunePill}
       </div>
     );
   }
@@ -283,6 +293,7 @@ export const RichMessageContent = memo(function RichMessageContent({
           return null;
         })}
       </div>
+      {tunePill}
     </div>
   );
 });
