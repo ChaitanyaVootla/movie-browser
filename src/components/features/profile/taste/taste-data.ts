@@ -16,5 +16,11 @@ export function displayMoods(taste: TasteSnapshot) {
 }
 
 export function hasTasteCard(taste: TasteSnapshot | null): taste is TasteSnapshot {
-  return taste !== null && (taste.axes.length > 0 || taste.clusters.length >= 2 || displayMoods(taste).length > 0);
+  return (
+    taste !== null &&
+    (taste.axes.length > 0 || taste.clusters.length >= 2 || displayMoods(taste).length > 0)
+  );
 }
+
+/** DOM id of the Taste card (the match card scrolls to it for "Compare on the strand"). */
+export const TASTE_CARD_ID = "taste-card";

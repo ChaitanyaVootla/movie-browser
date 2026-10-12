@@ -2,7 +2,13 @@
 
 import { useState, type ReactNode } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { useMobile } from "@/hooks/use-mobile";
 import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { useAnalytics } from "@/hooks/use-analytics";
@@ -66,7 +72,10 @@ export function ExploreTrigger({
       aria-label={ariaLabel}
       aria-expanded={open}
       onClick={isMobile ? () => onOpenChange(true) : undefined}
-      className={cn("focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}
+      className={cn(
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        className
+      )}
     >
       {label}
     </button>

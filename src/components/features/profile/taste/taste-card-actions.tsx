@@ -81,11 +81,21 @@ export function TasteCardActions({
             disabled={loading}
             onClick={() => void onCompare()}
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GitCompareArrows className="h-4 w-4" />}
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <GitCompareArrows className="h-4 w-4" />
+            )}
             {compare.on ? "Hide comparison" : "Compare with me"}
           </Button>
         )}
-        <Button type="button" variant="secondary" size="sm" className={btn} onClick={() => void onShare()}>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className={btn}
+          onClick={() => void onShare()}
+        >
           <Share2 className="h-4 w-4" />
           Share
         </Button>
@@ -115,7 +125,9 @@ export function TasteCardActions({
         </p>
       )}
       {compare.status === "error" && (
-        <p className="text-xs font-medium text-muted-foreground sm:text-right">Couldn&apos;t load the comparison. Try again.</p>
+        <p className="text-xs font-medium text-muted-foreground sm:text-right">
+          Couldn&apos;t load the comparison. Try again.
+        </p>
       )}
 
       {signIn.dialog}

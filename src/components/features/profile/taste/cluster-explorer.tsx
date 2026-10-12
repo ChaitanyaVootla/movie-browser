@@ -28,14 +28,17 @@ export function ClusterExplorerBody({
           <span className="text-xs font-medium text-muted-foreground">Also</span>
           {also.map((label) => {
             const mood = moods.find((m) => m.label.toLowerCase() === label.toLowerCase());
-            const chip = "inline-flex min-h-10 items-center rounded-full bg-muted px-3 text-xs font-medium text-muted-foreground md:min-h-8";
+            const chip =
+              "inline-flex min-h-10 items-center rounded-full bg-muted px-3 text-xs font-medium text-muted-foreground md:min-h-8";
             return mood ? (
               <ExploreTrigger
                 key={label}
                 tap="mood"
                 title={mood.label}
                 description={moodEvidenceLine(mood)}
-                label={<span className="underline decoration-dotted underline-offset-4">{label}</span>}
+                label={
+                  <span className="underline decoration-dotted underline-offset-4">{label}</span>
+                }
                 className={`${chip} hover:text-foreground`}
               >
                 <EvidenceGrid titles={mood.titles} />

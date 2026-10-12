@@ -1,6 +1,15 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { TasteAxisKey } from "@/lib/taste/axes";
 import { getViewerTasteAxes } from "@/server/actions/taste-explore";
 import { useAnalytics } from "@/hooks/use-analytics";
@@ -19,7 +28,14 @@ import { differenceCaption } from "./taste-copy";
 /** Window event that turns compare on from outside the card (match card "Compare on the strand"). */
 export const TASTE_COMPARE_EVENT = "taste-compare-request";
 
-type CompareStatus = "idle" | "loading" | "ready" | "insufficient" | "hidden" | "signed_out" | "error";
+type CompareStatus =
+  | "idle"
+  | "loading"
+  | "ready"
+  | "insufficient"
+  | "hidden"
+  | "signed_out"
+  | "error";
 
 interface CompareState {
   on: boolean;
@@ -46,7 +62,13 @@ export function useTasteCompare(): CompareState {
   return useContext(CompareContext) ?? NOOP;
 }
 
-export function TasteCompareProvider({ ownerName, children }: { ownerName: string; children: ReactNode }) {
+export function TasteCompareProvider({
+  ownerName,
+  children,
+}: {
+  ownerName: string;
+  children: ReactNode;
+}) {
   const [on, setOn] = useState(false);
   const [status, setStatus] = useState<CompareStatus>("idle");
   const [viewer, setViewer] = useState<ReadonlyMap<TasteAxisKey, number>>(new Map());
@@ -140,7 +162,8 @@ export function AxisCaption({
 }) {
   const { on, viewer } = useTasteCompare();
   const v = viewer.get(axisKey);
-  const text = on && v !== undefined ? differenceCaption({ lowLabel, highLabel, value }, v) : caption;
+  const text =
+    on && v !== undefined ? differenceCaption({ lowLabel, highLabel, value }, v) : caption;
   return <p className={cn(className, on && v !== undefined && "text-foreground")}>{text}</p>;
 }
 
@@ -149,7 +172,10 @@ export function CompareLegend() {
   const { on, ownerName } = useTasteCompare();
   if (!on) return null;
   return (
-    <p className="flex items-center gap-4 text-xs font-medium text-muted-foreground" data-compare-legend>
+    <p
+      className="flex items-center gap-4 text-xs font-medium text-muted-foreground"
+      data-compare-legend
+    >
       <span className="inline-flex items-center gap-1.5">
         <span aria-hidden className="size-3 rounded-full bg-brand" />
         {ownerName}

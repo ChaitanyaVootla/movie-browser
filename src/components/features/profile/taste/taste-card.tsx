@@ -14,10 +14,7 @@ import { LazyClusterExplorer } from "./lazy-bodies";
 import { MoodChip } from "./mood-chip";
 import { TasteCardActions } from "./taste-card-actions";
 import { clusterDescription } from "./taste-copy";
-import { displayMoods, hasTasteCard, readyTaste } from "./taste-data";
-
-/** DOM id the match card scrolls to ("Compare on the strand"). */
-export const TASTE_CARD_ID = "taste-card";
+import { TASTE_CARD_ID, displayMoods, hasTasteCard, readyTaste } from "./taste-data";
 
 function Poster({ t, className }: { t: TitleRef; className?: string }) {
   return (
@@ -37,7 +34,9 @@ function Poster({ t, className }: { t: TitleRef; className?: string }) {
           sizes="(max-width:768px) 45vw, 140px"
         />
       ) : (
-        <span className="flex h-full items-center justify-center p-2 text-center text-xs text-muted-foreground">{t.title}</span>
+        <span className="flex h-full items-center justify-center p-2 text-center text-xs text-muted-foreground">
+          {t.title}
+        </span>
       )}
     </span>
   );
@@ -52,7 +51,13 @@ function posterLayout(n: number) {
   };
 }
 
-function ClusterPosters({ clusters, moods }: { clusters: TasteClusterView[]; moods: TasteSnapshot["moods"] }) {
+function ClusterPosters({
+  clusters,
+  moods,
+}: {
+  clusters: TasteClusterView[];
+  moods: TasteSnapshot["moods"];
+}) {
   const shown = clusters.slice(0, 4);
   const l = posterLayout(shown.length);
   return (
@@ -73,7 +78,9 @@ function ClusterPosters({ clusters, moods }: { clusters: TasteClusterView[]; moo
               label={
                 <>
                   <Poster t={c.medoid} />
-                  <span className="mt-2 line-clamp-2 block text-xs font-semibold md:hidden">{c.label}</span>
+                  <span className="mt-2 line-clamp-2 block text-xs font-semibold md:hidden">
+                    {c.label}
+                  </span>
                 </>
               }
             >
@@ -169,7 +176,11 @@ export function TasteCard({ data }: { data: ProfileWidgetData }) {
             <TasteCardActions
               username={data.username}
               displayName={data.displayName}
-              axes={taste.axes.map((a) => ({ lowLabel: a.lowLabel, highLabel: a.highLabel, value: a.value }))}
+              axes={taste.axes.map((a) => ({
+                lowLabel: a.lowLabel,
+                highLabel: a.highLabel,
+                value: a.value,
+              }))}
               positiveCount={taste.positiveCount}
             />
           </div>

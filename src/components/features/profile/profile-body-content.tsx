@@ -36,6 +36,10 @@ export function ProfileBodyContent({ profile }: { profile: PublicProfileDTO }) {
         <ProfileHero profile={profile} />
 
         <div className={`profile-stagger mx-auto w-full max-w-7xl ${PAGE_PADDING_X} pt-5 md:pt-6 space-y-6 md:space-y-8`}>
+          {/* Taste match (viewer ↔ owner) — the first thing a signed-in visitor
+              sees (taste v2 §4.9). Client island: renders nothing in the cached
+              HTML; gated + PUBLIC-scope server-side. */}
+          <TasteMatch username={profile.username} displayName={profile.displayName} />
           <ProfileSetupCard
             flags={{
               hasBackdrop: profile.backdrop !== null,
@@ -50,10 +54,6 @@ export function ProfileBodyContent({ profile }: { profile: PublicProfileDTO }) {
             <ProfileDashboard profile={profile} />
           </ProfileDashboardSwitch>
           <TasteOwnerHint taste={profile.taste} />
-
-          {/* Taste match (viewer ↔ owner): client island, renders nothing in
-              the cached HTML; gated + PUBLIC-scope server-side. */}
-          <TasteMatch username={profile.username} displayName={profile.displayName} />
 
           <p className={OVERLINE}>
             Member since{" "}

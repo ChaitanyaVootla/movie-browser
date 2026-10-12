@@ -11,7 +11,11 @@ import {
 import { matchSegments } from "./match-segments";
 
 const FABLE = /you're|you are|\bare a\b/i;
-const axis = (value: number, lowLabel = "Mainstream", highLabel = "Niche") => ({ value, lowLabel, highLabel });
+const axis = (value: number, lowLabel = "Mainstream", highLabel = "Niche") => ({
+  value,
+  lowLabel,
+  highLabel,
+});
 
 describe("taste copy templates", () => {
   it("difference caption: points toward the end the viewer sits nearer, or Same spot", () => {
@@ -21,7 +25,12 @@ describe("taste copy templates", () => {
   });
 
   it("share text: the three axes farthest from centre as end labels + the count", () => {
-    const axes = [axis(0.9), axis(0.1, "Classic", "New"), axis(0.8, "Focused", "Eclectic"), axis(0.55, "Light", "Heavy")];
+    const axes = [
+      axis(0.9),
+      axis(0.1, "Classic", "New"),
+      axis(0.8, "Focused", "Eclectic"),
+      axis(0.55, "Light", "Heavy"),
+    ];
     expect(shareText(axes, 42)).toBe("Niche · Classic · Eclectic — 42 titles");
     expect(shareText([axis(0.5)], 1)).toBe("1 title");
     expect(shareTitle("Ada")).toBe("Ada's taste on The Movie Browser");
@@ -44,7 +53,11 @@ describe("taste copy templates", () => {
       shareTitle("Ada"),
       moodEvidenceLine({ count: 3, lift: 2 }),
       moodEvidenceLine({ count: 1, lift: 1 }),
-      clusterDescription({ size: 10, importance: 0.38, medoid: { mediaType: "movie", tmdbId: 1, title: "Interstellar", posterPath: null } }),
+      clusterDescription({
+        size: 10,
+        importance: 0.38,
+        medoid: { mediaType: "movie", tmdbId: 1, title: "Interstellar", posterPath: null },
+      }),
       axisEndTitle(full, "high"),
       axisEndDescription(full, "low"),
       ...matchSegments({ scoreSim: 0.56, likedSim: 0.68, tasteSim: 0.28 }).map((s) => s.label),

@@ -31,6 +31,11 @@ export function matchSegments(components: TasteMatchDTO["components"]): MatchSeg
   if (den <= 0) return [];
   return present.map((p) => {
     const v = components[p.key] ?? 0;
-    return { key: p.key, label: p.label, value: Math.round(v * 100), width: (100 * v * p.weight) / den };
+    return {
+      key: p.key,
+      label: p.label,
+      value: Math.round(v * 100),
+      width: (100 * v * p.weight) / den,
+    };
   });
 }

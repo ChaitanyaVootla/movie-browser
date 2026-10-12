@@ -70,7 +70,10 @@ function AxisRow({ axis }: { axis: TasteAxis }) {
           aria-label={`${axis.lowLabel} to ${axis.highLabel}`}
           aria-valuetext={axis.caption}
         >
-          <span aria-hidden className="absolute left-1/2 top-1/2 h-3 w-px -translate-y-1/2 bg-border" />
+          <span
+            aria-hidden
+            className="absolute left-1/2 top-1/2 h-3 w-px -translate-y-1/2 bg-border"
+          />
           <span
             aria-hidden
             className="absolute inset-y-0 rounded-full bg-brand/40"

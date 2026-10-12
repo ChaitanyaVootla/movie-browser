@@ -18,7 +18,9 @@ export function MoodChip({ facet, tinted }: { facet: FacetStat; tinted: boolean 
       className={cn(
         "inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors md:min-h-8",
         "aria-expanded:ring-2 aria-expanded:ring-brand/60",
-        tinted ? "bg-brand/15 text-brand hover:bg-brand/25" : "bg-muted text-muted-foreground hover:text-foreground"
+        tinted
+          ? "bg-brand/15 text-brand hover:bg-brand/25"
+          : "bg-muted text-muted-foreground hover:text-foreground"
       )}
       label={
         <>

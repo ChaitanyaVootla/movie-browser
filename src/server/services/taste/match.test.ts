@@ -20,7 +20,9 @@ const rated = (id: number, score: number, priv = false): TitleSignals => ({
   },
   progress: null,
   watchlistedAt: null,
-  ...(priv ? { entries: { hasPublic: false, hasPrivate: true, publicScored: false, privateScored: true } } : {}),
+  ...(priv
+    ? { entries: { hasPublic: false, hasPrivate: true, publicScored: false, privateScored: true } }
+    : {}),
 });
 
 const h = vi.hoisted(() => ({
@@ -33,7 +35,11 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("./index", () => ({
-  getTasteVectors: vi.fn(async (id: number) => ({ centroid: null, negCentroid: null, ...h.vectors.get(id) })),
+  getTasteVectors: vi.fn(async (id: number) => ({
+    centroid: null,
+    negCentroid: null,
+    ...h.vectors.get(id),
+  })),
   getTasteSpace: vi.fn(async () => RAW_SPACE),
 }));
 vi.mock("@/server/db/postgres/social/taste", () => ({
@@ -46,7 +52,9 @@ vi.mock("@/server/db/postgres/social/taste", () => ({
       ])
   ),
 }));
-vi.mock("@/server/db/postgres/social/blocks", () => ({ getHiddenUserIds: vi.fn(async () => h.hidden) }));
+vi.mock("@/server/db/postgres/social/blocks", () => ({
+  getHiddenUserIds: vi.fn(async () => h.hidden),
+}));
 vi.mock("@/server/db/postgres/social/taste-recs", () => ({
   annCandidates: h.annCandidates,
   fetchCandidateDetails: h.fetchCandidateDetails,
@@ -54,10 +62,24 @@ vi.mock("@/server/db/postgres/social/taste-recs", () => ({
   fetchRecExclusions: vi.fn(async () => ({ movieIds: [1], seriesIds: [] })),
   fetchTitleRefs: vi.fn(
     async (ids: number[]) =>
-      new Map(ids.map((id) => [`m:${id}`, { title: `T${id}`, posterPath: `/p${id}.jpg`, releaseDate: "2020-01-01" }]))
+      new Map(
+        ids.map((id) => [
+          `m:${id}`,
+          { title: `T${id}`, posterPath: `/p${id}.jpg`, releaseDate: "2020-01-01" },
+        ])
+      )
   ),
   fetchTwinCandidates: vi.fn(async () => [
-    { id: 2, username: "bea", name: "Bea", avatarImagePath: null, image: null, isPublic: true, showTaste: true, cos: 0.9 },
+    {
+      id: 2,
+      username: "bea",
+      name: "Bea",
+      avatarImagePath: null,
+      image: null,
+      isPublic: true,
+      showTaste: true,
+      cos: 0.9,
+    },
   ]),
   fetchUserById: vi.fn(async (id: number) => h.users.get(id) ?? null),
   fetchUserByUsername: vi.fn(async () => null),
@@ -106,7 +128,9 @@ beforeEach(() => {
       : []
   );
   h.fetchCandidateDetails.mockImplementation(async (table: string, ids: number[]) =>
-    table === "movies" ? ids.map((id) => (id === 10 ? cand(10, [1, 1, 0]) : cand(11, [1, 0, 0]))) : []
+    table === "movies"
+      ? ids.map((id) => (id === 10 ? cand(10, [1, 1, 0]) : cand(11, [1, 0, 0])))
+      : []
   );
 });
 

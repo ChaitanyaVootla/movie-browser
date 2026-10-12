@@ -12,17 +12,24 @@ const titles = (n: number) => `${n} ${n === 1 ? "title" : "titles"}`;
 
 /** "11 titles, 3.2× the catalog rate" (lift shown only when meaningful). */
 export function moodEvidenceLine(f: Pick<FacetStat, "count" | "lift">): string {
-  return f.lift >= 1.5 ? `${titles(f.count)}, ${f.lift.toFixed(1)}× the catalog rate` : titles(f.count);
+  return f.lift >= 1.5
+    ? `${titles(f.count)}, ${f.lift.toFixed(1)}× the catalog rate`
+    : titles(f.count);
 }
 
 /** "10 titles like Interstellar · 38% of this profile". */
-export function clusterDescription(c: Pick<TasteClusterView, "size" | "importance" | "medoid">): string {
+export function clusterDescription(
+  c: Pick<TasteClusterView, "size" | "importance" | "medoid">
+): string {
   const share = Math.round(c.importance * 100);
   return `${titles(c.size)} like ${c.medoid.title}${share > 0 ? ` · ${share}% of this profile` : ""}`;
 }
 
 /** Axis sheet title + description for one end. */
-export function axisEndTitle(axis: Pick<TasteAxis, "lowLabel" | "highLabel">, end: "low" | "high"): string {
+export function axisEndTitle(
+  axis: Pick<TasteAxis, "lowLabel" | "highLabel">,
+  end: "low" | "high"
+): string {
   return `${end === "low" ? axis.lowLabel : axis.highLabel} end of this profile`;
 }
 
@@ -40,7 +47,10 @@ export const SAME_SPOT_POINTS = 3;
  * axis, in points of the 0–100 strand. "You sit 18 points closer to Niche" /
  * "Same spot". `you` here addresses the viewer about a position, never a trait.
  */
-export function differenceCaption(axis: Pick<TasteAxis, "lowLabel" | "highLabel" | "value">, viewerValue: number): string {
+export function differenceCaption(
+  axis: Pick<TasteAxis, "lowLabel" | "highLabel" | "value">,
+  viewerValue: number
+): string {
   const points = Math.round(Math.abs(viewerValue - axis.value) * 100);
   if (points < SAME_SPOT_POINTS) return "Same spot";
   const toward = viewerValue > axis.value ? axis.highLabel : axis.lowLabel;
@@ -51,7 +61,10 @@ export function differenceCaption(axis: Pick<TasteAxis, "lowLabel" | "highLabel"
  * Web Share payload: the three axes farthest from centre as endpoint labels +
  * the title count. Dimension words and numbers only.
  */
-export function shareText(axes: readonly Pick<TasteAxis, "lowLabel" | "highLabel" | "value">[], positiveCount: number): string {
+export function shareText(
+  axes: readonly Pick<TasteAxis, "lowLabel" | "highLabel" | "value">[],
+  positiveCount: number
+): string {
   const ends = [...axes]
     .sort((a, b) => Math.abs(b.value - 0.5) - Math.abs(a.value - 0.5))
     .slice(0, 3)

@@ -22,6 +22,9 @@ export const LazyClusterExplorer = dynamic(
   { loading: BodySkeleton }
 );
 
-export const LazyAxisTitles = dynamic(() => import("./axis-titles-sheet").then((m) => m.AxisTitlesBody), {
-  loading: BodySkeleton,
-});
+export const LazyAxisTitles = dynamic(
+  () => import("./axis-titles-sheet").then((m) => m.AxisTitlesBody),
+  {
+    loading: BodySkeleton,
+  }
+);

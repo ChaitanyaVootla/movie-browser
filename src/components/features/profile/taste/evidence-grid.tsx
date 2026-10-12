@@ -44,7 +44,11 @@ export function EvidenceGrid({ titles }: { titles: readonly EvidenceTitle[] }) {
             <p className="mt-1 line-clamp-1 text-xs font-medium text-muted-foreground group-hover:text-foreground">
               {t.title}
             </p>
-            {t.value && <p className="line-clamp-1 text-[11px] font-medium tabular-nums text-foreground">{t.value}</p>}
+            {t.value && (
+              <p className="line-clamp-1 text-[11px] font-medium tabular-nums text-foreground">
+                {t.value}
+              </p>
+            )}
           </Link>
         </li>
       ))}

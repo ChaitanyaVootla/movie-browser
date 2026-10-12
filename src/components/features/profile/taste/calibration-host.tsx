@@ -1,19 +1,35 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { useMobile } from "@/hooks/use-mobile";
 import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 
 /** Workstream A's deck, never above the fold → its own chunk, loaded on open. */
 const TasteCalibrationDeck = dynamic(
-  () => import("@/components/features/home/for-you/calibration-deck").then((m) => m.TasteCalibrationDeck),
+  () =>
+    import("@/components/features/home/for-you/calibration-deck").then(
+      (m) => m.TasteCalibrationDeck
+    ),
   { loading: () => <div className="h-64 animate-pulse rounded-xl bg-muted" aria-hidden /> }
 );
 
 const TITLE = "Rate 10 titles";
-const DESCRIPTION = "Loved it, liked it, not for me, or skip. Each answer counts toward the taste profile.";
+const DESCRIPTION =
+  "Loved it, liked it, not for me, or skip. Each answer counts toward the taste profile.";
 
 /**
  * Hosts the calibration deck (taste v2 spec §4.6 / §4.5 compare-insufficient):

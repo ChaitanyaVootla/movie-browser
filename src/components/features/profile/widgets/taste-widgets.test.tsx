@@ -39,8 +39,16 @@ beforeEach(() => {
   h.prompt.mockReset();
 });
 
-const ref = (id: number, title: string) => ({ mediaType: "movie" as const, tmdbId: id, title, posterPath: null });
-const ex = (id: number, title: string, value: string): AxisExample => ({ ...ref(id, title), value });
+const ref = (id: number, title: string) => ({
+  mediaType: "movie" as const,
+  tmdbId: id,
+  title,
+  posterPath: null,
+});
+const ex = (id: number, title: string, value: string): AxisExample => ({
+  ...ref(id, title),
+  value,
+});
 
 const snapshot: TasteSnapshot = {
   v: 2,
@@ -57,7 +65,11 @@ const snapshot: TasteSnapshot = {
       highLabel: "Niche",
       caption: "Favourites average the top 20% by popularity",
       examples: {
-        low: [ex(1, "Inception", "top 1% by popularity"), ex(2, "Arrival", "top 3% by popularity"), ex(3, "Se7en", "top 4% by popularity")],
+        low: [
+          ex(1, "Inception", "top 1% by popularity"),
+          ex(2, "Arrival", "top 3% by popularity"),
+          ex(3, "Se7en", "top 4% by popularity"),
+        ],
         high: [ex(9, "Coherence", "top 80% by popularity")],
       },
     },
@@ -72,22 +84,80 @@ const snapshot: TasteSnapshot = {
     },
   ],
   moods: [
-    { type: "theme", key: "identity", label: "Identity and memory", count: 6, lift: 3.2, score: 1, titles: [ref(1, "Inception"), ref(2, "Arrival")] },
-    { type: "mood", key: "intensity:medium", label: "Medium intensity", count: 12, lift: 1, score: 0.9, titles: [] },
-    { type: "mood", key: "tone:dark", label: "Dark tone", count: 4, lift: 1.2, score: 0.4, titles: [ref(3, "Se7en")] },
+    {
+      type: "theme",
+      key: "identity",
+      label: "Identity and memory",
+      count: 6,
+      lift: 3.2,
+      score: 1,
+      titles: [ref(1, "Inception"), ref(2, "Arrival")],
+    },
+    {
+      type: "mood",
+      key: "intensity:medium",
+      label: "Medium intensity",
+      count: 12,
+      lift: 1,
+      score: 0.9,
+      titles: [],
+    },
+    {
+      type: "mood",
+      key: "tone:dark",
+      label: "Dark tone",
+      count: 4,
+      lift: 1.2,
+      score: 0.4,
+      titles: [ref(3, "Se7en")],
+    },
   ],
   facets: emptyFacets(),
   people: {
     mostWatched: [
-      { tmdbId: 525, name: "Christopher Nolan", profilePath: null, role: "director", count: 4, avgScore: 9.5, shrunkScore: 9, ratedCount: 4, titles: [ref(1, "Inception"), ref(5, "Memento")] },
+      {
+        tmdbId: 525,
+        name: "Christopher Nolan",
+        profilePath: null,
+        role: "director",
+        count: 4,
+        avgScore: 9.5,
+        shrunkScore: 9,
+        ratedCount: 4,
+        titles: [ref(1, "Inception"), ref(5, "Memento")],
+      },
     ],
     highestRated: [
-      { tmdbId: 137427, name: "Denis Villeneuve", profilePath: null, role: "director", count: 3, avgScore: 9.6, shrunkScore: 8.8, ratedCount: 3, titles: [ref(2, "Arrival")] },
+      {
+        tmdbId: 137427,
+        name: "Denis Villeneuve",
+        profilePath: null,
+        role: "director",
+        count: 3,
+        avgScore: 9.6,
+        shrunkScore: 8.8,
+        ratedCount: 3,
+        titles: [ref(2, "Arrival")],
+      },
     ],
   },
   clusters: [
-    { medoid: ref(1, "Inception"), size: 8, importance: 0.6, label: "Science Fiction", topFacets: ["Science Fiction", "Identity and memory"], members: [ref(1, "Inception"), ref(4, "Interstellar")] },
-    { medoid: ref(3, "Se7en"), size: 5, importance: 0.4, label: "Crime", topFacets: ["Crime"], members: [ref(3, "Se7en")] },
+    {
+      medoid: ref(1, "Inception"),
+      size: 8,
+      importance: 0.6,
+      label: "Science Fiction",
+      topFacets: ["Science Fiction", "Identity and memory"],
+      members: [ref(1, "Inception"), ref(4, "Interstellar")],
+    },
+    {
+      medoid: ref(3, "Se7en"),
+      size: 5,
+      importance: 0.4,
+      label: "Crime",
+      topFacets: ["Crime"],
+      members: [ref(3, "Se7en")],
+    },
   ],
 };
 
@@ -97,20 +167,39 @@ function data(taste: ProfileWidgetData["taste"]): ProfileWidgetData {
     username: "ada",
     displayName: "Ada Lovelace",
     ratingsHistogram: new Array(10).fill(0),
-    topGenres: [], topDecades: [], topCountries: [], dailyActivity: [], recentWatches: [],
-    fourFavorites: [], currentlyWatching: [], pinnedLists: [], reviews: [], discussions: [],
-    rewatchCount: 0, counts: { followers: 0, following: 0, filmsWatched: 0, episodesWatched: 0, hoursWatched: 0 },
+    topGenres: [],
+    topDecades: [],
+    topCountries: [],
+    dailyActivity: [],
+    recentWatches: [],
+    fourFavorites: [],
+    currentlyWatching: [],
+    pinnedLists: [],
+    reviews: [],
+    discussions: [],
+    rewatchCount: 0,
+    counts: { followers: 0, following: 0, filmsWatched: 0, episodesWatched: 0, hoursWatched: 0 },
   } as unknown as ProfileWidgetData;
 }
 const ready = () => data({ status: "ready", snapshot });
 
 describe("taste widgets: states + registry", () => {
   it("render nothing unless the public snapshot is ready", () => {
-    for (const t of [null, { status: "hidden" as const }, { status: "insufficient" as const, positiveCount: 3, needed: 10 }]) {
+    for (const t of [
+      null,
+      { status: "hidden" as const },
+      { status: "insufficient" as const, positiveCount: 3, needed: 10 },
+    ]) {
       const { container } = render(<TasteCard data={data(t)} />);
       expect(container.innerHTML).toBe("");
       cleanup();
-      for (const type of ["taste.card", "taste.dna", "taste.moods", "taste.people", "taste.clusters"] as const) {
+      for (const type of [
+        "taste.card",
+        "taste.dna",
+        "taste.moods",
+        "taste.people",
+        "taste.clusters",
+      ] as const) {
         expect(WIDGET_META[type].isAvailable(data(t))).toBe(false);
       }
     }
@@ -135,7 +224,9 @@ describe("taste widgets: states + registry", () => {
     expect(out.map((w) => w.type)).toEqual(["taste.card", "taste.moods"]);
     expect(out[0]).toMatchObject({ id: "a", x: 0, y: 2, w: 12 });
     expect(migrateTasteWidgets(out)).toEqual(out); // idempotent
-    expect(resolveLayout({ v: 1, cols: 12, widgets: saved }, ready()).widgets.map((w) => w.type)).toEqual(["taste.card", "taste.moods"]);
+    expect(
+      resolveLayout({ v: 1, cols: 12, widgets: saved }, ready()).widgets.map((w) => w.type)
+    ).toEqual(["taste.card", "taste.moods"]);
   });
 });
 
@@ -147,7 +238,9 @@ describe("Taste card (public, cacheable)", () => {
     expect(meters[0].getAttribute("aria-valuenow")).toBe("20");
     expect(screen.getByText("Favourites average the top 20% by popularity")).toBeTruthy();
     expect(screen.getByText("14 titles")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Science Fiction: 8 titles like Inception/ })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Science Fiction: 8 titles like Inception/ })
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Compare with me" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Share" })).toBeTruthy();
     // viewer-only content is absent from the server render
@@ -171,7 +264,9 @@ describe("Taste card (public, cacheable)", () => {
 
   it("a cluster poster opens the explorer with its public members and other facets", () => {
     render(<TasteCard data={ready()} />);
-    fireEvent.click(screen.getByRole("button", { name: /Science Fiction: 8 titles like Inception/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Science Fiction: 8 titles like Inception/ })
+    );
     expect(screen.getByText("8 titles like Inception · 60% of this profile")).toBeTruthy();
     expect(screen.getAllByText("Interstellar").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Identity and memory").length).toBeGreaterThan(0);
@@ -187,7 +282,9 @@ describe("Taste card (public, cacheable)", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Compare with me" }));
     });
-    await waitFor(() => expect(container.querySelector("[data-compare-marker='mainstream']")).toBeTruthy());
+    await waitFor(() =>
+      expect(container.querySelector("[data-compare-marker='mainstream']")).toBeTruthy()
+    );
     expect(screen.getByText("You sit 45 points closer to Niche")).toBeTruthy();
     expect(container.querySelector("[data-compare-legend]")?.textContent).toContain("Ada");
     // an axis the viewer lacks keeps the owner's caption, no marker
