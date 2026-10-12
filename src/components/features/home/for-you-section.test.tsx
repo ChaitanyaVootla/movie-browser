@@ -36,7 +36,8 @@ vi.mock("@/components/features/movie/media-card", () => ({
   MediaCardSkeleton: () => <div data-testid="skeleton" />,
 }));
 
-const { ForYouSection } = await import("./for-you-section");
+// The body directly: next/dynamic is mocked to render nothing, and the shell only lazy-loads it.
+const { default: ForYouSection } = await import("./for-you/for-you-body");
 const { TasteTwinChip } = await import("./taste-twins-strip");
 const { tagFor, toListItem, headingTitles, joinTitles, cosBucket } = await import("./for-you/rec-copy");
 const { useTasteUiStore } = await import("@/stores/taste-ui");
