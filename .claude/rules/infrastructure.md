@@ -112,6 +112,16 @@ GitHub Actions (`.github/workflows/deploy-ec2.yml`):
 
 Secrets use `NEXT_EC2_*` prefix to avoid collision with legacy Nuxt secrets.
 
+**Every PM2 cron script must load `.env.local` itself (Oct 12 2026).** PM2 hands a
+cron job ONLY its ecosystem `env` block (`NODE_ENV`, `CRON_HOUR_UTC`); `DATABASE_URL`
+and every secret live in the box's `.env.local`. The existing jobs call
+`config({ path: ".env.local" })` from `dotenv` at the top; `refresh-taste-baseline.ts`
+did not, so the `taste-baseline` job died `Environment variable not found: DATABASE_URL`
+at 19:00 UTC on Oct 10 AND Oct 11 while PM2 kept showing it `waiting restart` (not
+errored) and nothing alerted. Prod taste vectors stayed in RAW space (no catalog mean)
+the whole time. A new cron is not working until you have read its
+`logs/<job>-out.log` from the first real run.
+
 ## AWS IAM (Instance Profile)
 
 Beta EC2 role (`movie-browser-beta-ec2-role`) provides:

@@ -32,6 +32,13 @@ async function main(): Promise<void> {
     console.log(`[taste-baseline] skip: not the ${cronHourUtc}:00 UTC window (set FORCE_RUN=1 to override)`);
     return;
   }
+  // PM2 gives cron jobs only the ecosystem `env` block. DATABASE_URL lives in the
+  // box's .env.local, loaded the same way as sync-popularity / sync-imdb-ratings.
+  // Without it every nightly run died "Environment variable not found: DATABASE_URL"
+  // (Oct 10 + 11 2026) and the taste space stayed raw. Loaded after the hour guard
+  // so the deploy-time autostart stays a no-op; dotenv never overrides a set var.
+  const { config } = await import("dotenv");
+  config({ path: ".env.local" });
   const { refreshTasteBaseline } = await import("../src/server/db/postgres/social/taste-baseline");
   const { prisma } = await import("../src/server/db/postgres");
   try {
