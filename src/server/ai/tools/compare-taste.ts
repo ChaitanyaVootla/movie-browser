@@ -73,6 +73,7 @@ export async function compareTasteHandler(
       viewerPublic: viewer.isPublic,
       targetPublic: target.isPublic,
       targetShowsTaste: target.showTaste,
+      viewerShowsTaste: viewer.showTaste,
       mutualFollow,
     });
     if (gate !== "allow") return JSON.stringify(NOT_AVAILABLE);

@@ -172,6 +172,7 @@ describe("canViewTasteMatch", () => {
     viewerPublic: true,
     targetPublic: true,
     targetShowsTaste: true,
+    viewerShowsTaste: true,
     mutualFollow: false,
     ...over,
   });
@@ -185,6 +186,8 @@ describe("canViewTasteMatch", () => {
     ["target private", g({ targetPublic: false }), "deny"],
     ["target private — a mutual follow does NOT override it", g({ targetPublic: false, mutualFollow: true }), "deny"],
     ["private viewer + mutual, but target hides taste", g({ viewerPublic: false, mutualFollow: true, targetShowsTaste: false }), "deny"],
+    ["viewer hid their own taste (symmetric with Compare)", g({ viewerShowsTaste: false }), "deny"],
+    ["viewer hid their own taste — a mutual follow does NOT override it", g({ viewerShowsTaste: false, mutualFollow: true }), "deny"],
     ["viewer private", g({ viewerPublic: false }), "deny"],
     ["viewer private + mutual", g({ viewerPublic: false, mutualFollow: true }), "allow"],
   ] as const)("%s → %s", (_name, input, expected) => {

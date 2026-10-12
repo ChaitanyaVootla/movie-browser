@@ -258,8 +258,9 @@ Rules:
 6. Gate (`canViewTasteMatch`): no session/self → deny; hidden (BLOCK either way or
    viewer's MUTE, via `getHiddenUserIds`) → deny; target `showTaste=false` or private
    → deny, and a mutual follow NEVER overrides that (review fix — the first version
-   let it); viewer public → allow; private viewer + mutual follow → allow. Twins use the same candidate
-   set minus already-followed (so a private viewer gets no twins).
+   let it); the VIEWER hid their own taste (`viewerShowsTaste=false`) → deny (symmetric with
+   Compare, Oct 12 2026); viewer public → allow; private viewer + mutual follow → allow. Twins use
+   the same candidate set minus already-followed (so a private or taste-hidden viewer gets no twins).
 7. Twins scan `user_taste_profiles` exactly (a few hundred rows). Add a halfvec HNSW
    index on `public_centroid` (hash-gated raw SQL, §19) at ~50k profiles or when the
    scan passes ~20ms.

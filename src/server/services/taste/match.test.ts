@@ -157,6 +157,13 @@ describe("getCommonGroundPicks", () => {
     expect(h.annCandidates).not.toHaveBeenCalled();
   });
 
+  it("a viewer who hid their OWN taste gets nothing either (symmetric with Compare)", async () => {
+    h.users.set(1, { id: 1, isPublic: true, showTaste: false });
+    expect(await getCommonGroundPicks(1, 2, 5)).toEqual([]);
+    expect(await getTasteTwinsFor(1)).toEqual([]);
+    expect(h.annCandidates).not.toHaveBeenCalled();
+  });
+
   it("never compares centroids from different spaces", async () => {
     h.vectors.set(2, { publicCentroid: [0, 1, 0], space: "centered" });
     expect(await getCommonGroundPicks(1, 2, 5)).toEqual([]);

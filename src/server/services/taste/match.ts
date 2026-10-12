@@ -71,6 +71,7 @@ async function matchAllowed(viewer: MatchUser, target: MatchUser): Promise<boole
       viewerPublic: viewer.isPublic,
       targetPublic: target.isPublic,
       targetShowsTaste: target.showTaste,
+      viewerShowsTaste: viewer.showTaste,
       mutualFollow,
     }) === "allow"
   );
@@ -339,7 +340,7 @@ async function sharedLovesFor(
 export async function getTasteTwinsFor(viewerId: number): Promise<TasteTwinDTO[]> {
   try {
     const viewer = await fetchUserById(viewerId);
-    if (!viewer || !viewer.isPublic) return [];
+    if (!viewer || !viewer.isPublic || !viewer.showTaste) return [];
     const vectors = await getTasteVectors(viewerId); // ensures a fresh stored row
     if (!vectors.publicCentroid) return [];
     const [hidden, following] = await Promise.all([getHiddenUserIds(viewerId), fetchFollowingIds(viewerId)]);

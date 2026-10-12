@@ -236,6 +236,8 @@ export interface TasteMatchGateInput {
   targetPublic: boolean;
   /** users.metadata.profile.showTaste !== false */
   targetShowsTaste: boolean;
+  /** The viewer's own showTaste. Symmetric: hide yours and you can't match others. */
+  viewerShowsTaste: boolean;
   mutualFollow: boolean;
 }
 
@@ -248,6 +250,9 @@ export function canViewTasteMatch(g: TasteMatchGateInput): TasteMatchGate {
   // private profile is never overridden by a follow edge. (Private profiles
   // render no body today; revisit with a compare UI that explains the consent.)
   if (!g.targetShowsTaste || !g.targetPublic) return "deny";
+  // Symmetric, like Compare (`getViewerTasteAxes` → hidden): a viewer who hid
+  // their own taste profile doesn't get to compare against anyone else's.
+  if (!g.viewerShowsTaste) return "deny";
   if (g.viewerPublic) return "allow";
   // Private viewer: only with a mutual follow (the target chose to follow them).
   if (g.mutualFollow) return "allow";
