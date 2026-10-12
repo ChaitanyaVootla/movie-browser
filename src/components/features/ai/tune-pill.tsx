@@ -19,7 +19,12 @@ import { cn } from "@/lib/utils";
 import { RECS_TUNE_EVENT, type RecsTuneDetail } from "./types";
 import { extractTuneTag, tuneHref } from "./tune-tag";
 
-/** Message contents already applied this page lifetime (the minimal and expanded views both render a reply). */
+/**
+ * Replies already applied this page lifetime, keyed by message id (or the text
+ * up to the tag) + the tag — NOT the whole content, which keeps growing while
+ * the reply streams on past the tag (that re-dispatched on every chunk). The
+ * minimal and expanded views both render a reply; the key dedupes them too.
+ */
 const applied = new Set<string>();
 
 function dispatchTune(tokens: string[]) {
@@ -32,11 +37,14 @@ const PILL =
 
 export const TunePill = memo(function TunePill({
   content,
+  messageId,
   live = false,
   className,
 }: {
   /** The raw assistant message (tag included). */
   content: string;
+  /** The chat message id — the dedupe key across views and streamed chunks. */
+  messageId?: string;
   /** The reply streamed while the chat view was mounted (auto-apply allowed). */
   live?: boolean;
   className?: string;
@@ -46,13 +54,16 @@ export const TunePill = memo(function TunePill({
   const { trackAction } = useAnalytics();
   const match = useMemo(() => extractTuneTag(content), [content]);
   const tokensKey = match?.tokens.join(",") ?? "";
+  const replyKey = match
+    ? `${messageId ?? content.slice(0, content.indexOf(match.raw))}|${match.raw}`
+    : "";
   useEffect(() => {
-    if (!tokensKey || !onHome || !live || applied.has(content)) return;
-    applied.add(content);
+    if (!tokensKey || !onHome || !live || applied.has(replyKey)) return;
+    applied.add(replyKey);
     const tokens = tokensKey.split(",");
     trackAction({ action: "cue_tune_applied", metadata: { tokens, via: "auto" } });
     dispatchTune(tokens);
-  }, [tokensKey, onHome, live, content, trackAction]);
+  }, [tokensKey, onHome, live, replyKey, trackAction]);
 
   if (!match) return null;
   const { tokens } = match;

@@ -174,7 +174,7 @@ export function ExpandedChat({
                         <PulsingSpark size={18} />
                       </span>
                     ) : (
-                      <RichMessageContent content={msg.content} showPosterRow isStreaming={msg.isStreaming} />
+                      <RichMessageContent content={msg.content} messageId={msg.id} showPosterRow isStreaming={msg.isStreaming} />
                     )
                   ) : (
                     <p className="text-sm">{msg.content}</p>

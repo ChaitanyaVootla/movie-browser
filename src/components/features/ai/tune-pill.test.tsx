@@ -39,6 +39,23 @@ describe("TunePill", () => {
     expect(events).toHaveLength(1);
   });
 
+  it("text streaming on AFTER the tag dispatches once (keyed on message + tag, not content)", () => {
+    const head = "Here you go. [TUNE:series,lighter]";
+    const { rerender } = render(<TunePill content={head} messageId="m-42" live />);
+    rerender(<TunePill content={`${head} Also`} messageId="m-42" live />);
+    rerender(<TunePill content={`${head} Also try the`} messageId="m-42" live />);
+    rerender(<TunePill content={`${head} Also try the first one.`} messageId="m-42" live />);
+    expect(events).toEqual([["series", "lighter"]]);
+    expect(trackAction).toHaveBeenCalledTimes(1);
+    // without an id, the text up to the tag is the key — still once
+    cleanup();
+    const head2 = "Sure. [TUNE:movies,under100]";
+    const r2 = render(<TunePill content={head2} live />);
+    r2.rerender(<TunePill content={`${head2} Enjoy`} live />);
+    r2.rerender(<TunePill content={`${head2} Enjoy it.`} live />);
+    expect(events).toEqual([["series", "lighter"], ["movies", "under100"]]);
+  });
+
   it("never auto-applies restored history, but a tap applies it", () => {
     render(<TunePill content="Old reply [TUNE:movies,classic]" />);
     expect(events).toEqual([]);

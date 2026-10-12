@@ -28,6 +28,8 @@ interface RichMessageContentProps {
   postersOnly?: boolean;
   /** The reply is still streaming (lets a `[TUNE:…]` tag auto-apply only for live replies). */
   isStreaming?: boolean;
+  /** Chat message id — the `[TUNE]` pill's apply-once key. */
+  messageId?: string;
   className?: string;
 }
 
@@ -48,11 +50,12 @@ export const RichMessageContent = memo(function RichMessageContent({
   showPosterRow = true,
   postersOnly = false,
   isStreaming = false,
+  messageId,
   className,
 }: RichMessageContentProps) {
   // `[TUNE:…]` renders as its own pill (tune-pill.tsx), never as text.
   const content = useMemo(() => stripTuneTag(rawContent), [rawContent]);
-  const tunePill = postersOnly ? null : <TuneTagSlot content={rawContent} isStreaming={isStreaming} />;
+  const tunePill = postersOnly ? null : <TuneTagSlot content={rawContent} messageId={messageId} isStreaming={isStreaming} />;
   const parsed = useMemo(() => parseContent(content), [content]);
   const dataFetchIds = useMemo(() => getDataFetchIds(content), [content]);
 
