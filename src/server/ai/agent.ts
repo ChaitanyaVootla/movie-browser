@@ -19,6 +19,7 @@ import { createChatModel, getCurrentModelId as getProviderModelId } from "./prov
 import { allTools } from "./tools";
 import { buildNavigationPath } from "./tools/navigation";
 import { getSystemPrompt } from "./prompts/system";
+import { clearInvocationBudget } from "./invocation-budget";
 import { aiLogger, usageLogger, aiToolLogger } from "@/lib/logger";
 import { calculateUsageStats, type UsageStats } from "@/lib/model-pricing";
 import { trackAIUsage } from "@/lib/analytics/track";
@@ -117,6 +118,8 @@ function getInvocationContext(invocationId: string): InvocationContext {
 
 function cleanupInvocationContext(invocationId: string) {
   invocationContexts.delete(invocationId);
+  // Per-turn write budgets (record_rec_feedback ≤ 5) are part of the invocation.
+  clearInvocationBudget(invocationId);
 }
 
 function logTurn(invocationId: string, log: Omit<TurnLog, "turn" | "timestamp">) {
