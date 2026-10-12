@@ -78,6 +78,7 @@ typography:
     lineHeight: 1.625
 rounded:
   none: 0px
+  thumb-xs: 2px
   sm: 6px
   md: 8px
   lg: 10px
@@ -307,6 +308,8 @@ Base radius is 10px (`--radius: 0.625rem`). Cards and modals use {rounded.xl}
 (`rounded-xl`); buttons, inputs, and menu items use {rounded.md} (`rounded-md`);
 poster/backdrop images use `rounded-lg`; pills, chips, badges, and avatars are
 {rounded.full}. Never introduce arbitrary radii (`rounded-[Npx]`) outside the scale.
+The one sub-scale radius is {rounded.thumb-xs} (`rounded-[2px]`) for the 14×21 poster
+thumb inside a rec card's anchor tag — at that size `rounded-md` turns it into a pill.
 
 ## Social signals
 
@@ -504,20 +507,65 @@ colors.
 
 ## Recommendations (home)
 
-- Signed-in only, client island under Up Next; guests see nothing (no prompt — the
-  Getting Started strip already covers new accounts).
-- **For you** — `SectionHeading` with a `Sparkles` brand icon, standard poster
-  scroller (`MediaCard`, same card widths as `MovieCarousel`). Each card's subtitle
-  is the explanation in ≤ ~20 characters: `Like {title}` or a facet label ("Korean
-  thrillers") — the card clamps it to one line at 150px.
-- **Because you loved {title}** — up to two rows; the heading's icon slot holds the
-  anchor's own poster thumb (`h-8 w-[22px] rounded-md`) instead of a glyph — the one
-  distinctive touch, it shows WHICH title the row grows from.
-- Cold start (thin history) — the row is titled "Popular in your genres" with one
-  metadata-recipe line under it pointing to the diary.
+Taste v2 (spec `docs/superpowers/specs/2026-10-12-taste-experience-v2-design.md` §3).
+Signed-in only, client island under Up Next; guests see nothing. Order: For you →
+seeded "More like" rows (under the row they came from) → ≤ 2 "Because you loved"
+rows → Taste twins. Rhythm is the home `space-y-10`.
+
+- **The one-why model.** A row heading names a SET of anchors; the small tag under a
+  card names WHICH one. Nothing under a card may name a title that is not in its row's
+  heading. The `MediaCard` `subtitle` prop is not used by rec rows.
+- **For you** — `SectionHeading` + `Sparkles` brand icon; sub-line (metadata recipe)
+  "Built from {N} titles you rated, hearted or logged" (`no_index`: "Based on your
+  favourites"). Trailing: the Cue pill "Ask Cue" (`CueEntryButton variant="pill"`,
+  passed through `MediaScroller headingAction`). Under it the **Tune bar** (below).
+- **Because you loved A, B & C** — the heading icon slot holds the anchors' poster
+  thumbs OVERLAPPED (`h-8 w-[22px] rounded-md ring-2 ring-background`, `-ml-2` after
+  the first) so the plural reads before the text; mobile (`sm:hidden`) copy is
+  "Because you loved A & 2 more". The thumbs are one button → the row-level Why sheet.
+- **More like {title}** — same heading with the seed's thumb; trailing `X` "Remove
+  row" (`size-10 md:size-8` ghost icon button). Grows in with `grid-rows 0fr → 1fr`
+  260ms + fade; max two at once.
+- **Anchor tag** (under a card, `for-you/anchor-tag.tsx`) — a button: 14×21 poster
+  thumb ({rounded.thumb-xs}, `bg-muted`) + title, `text-xs font-medium
+  text-muted-foreground line-clamp-1`; facet labels use a `Tag` glyph, popular top-ups
+  a `TrendingUp` glyph. Hit area `min-h-10` on mobile (`py-2 -my-2`). In because rows
+  the tag renders only when the card's anchor is NOT the first heading anchor; seed rows
+  never tag. Tap → Why sheet.
+- **Not for me** — the documented exception to "cards are display-only": it acts on the
+  RECOMMENDATION, not the title, and is rendered by the rec wrapper, never by the card.
+  `size-7 rounded-full bg-black/60 text-white/90 hover:bg-black/80` (over imagery) in a
+  40px hit area at the card's top-left; fine pointers reveal it on wrapper hover /
+  focus-within (120ms opacity), touch shows it always. Dismiss collapses the card
+  (WAAPI width/opacity 220ms ease-out; instant with reduced motion) and toasts "Removed
+  from your picks · Undo" (8s).
+- **Why sheet** — Popover `w-80` (md+) / Vaul Drawer (mobile, Back dismisses). Item:
+  anchor row (36×54 thumb, title, "very close / close / near to this pick · 0.61" —
+  bucket + the number, `tabular-nums`), "Also near" (≤ 2 small thumbs), "Shares" (≤ 2
+  muted chips), then `More like this` (secondary) + `Not for me` (ghost,
+  `text-destructive`), then the Cue link "Why would I like this?". Row: the ≤ 3 anchors,
+  "and N more titles in this group", "Show all N" → 4-column member poster grid.
+- **Tune bar** — the ONE tinted interactive surface on home: a horizontally scrolling
+  chip row (`ScrollContainer gap-2`), chips `rounded-full bg-muted text-muted-foreground
+  text-xs font-medium px-3 min-h-10 md:min-h-8`; **selected = `bg-brand/15 text-brand
+  ring-1 ring-brand/40`**; a chip with zero survivors is disabled (`opacity-40`). Fixed
+  chips (Movies, Series, Under 100 min, Lighter, Darker, Before 2000, 2020s) + the
+  user's own (top-3 lifted genres, lifted non-English languages, top-2 lifted
+  moods/themes) + "Surprise me" (`Shuffle`, spins 360° once, 400ms, motion-safe) +
+  "Reset" (when a chip is on) + the Cue link "Steer with words". The row cross-fades
+  (`opacity-60` while pending, skeleton cards only after 300ms).
+- **Calibration deck** (cold start, replaces the old "Popular in your genres" row) —
+  heading "Start your taste profile" + sub-line; a `bg-card border rounded-xl` panel:
+  poster `aspect-[2/3]` (`w-[60vw] max-w-[240px]`), progress dots (`size-2`, brand =
+  answered) + "4 of 10", title (year) + ≤ 2 genres, three buttons (Not for me /
+  Liked it secondary, Loved it primary) and a "Haven't seen it" link. Buttons are the
+  accessible path; swipe (60px) and arrow keys are enhancements. Exit: `translateX(±40px)`
+  / down + fade 200ms; the next card scales `0.96 → 1`; reduced motion = fades only.
 - **Taste twins** — `SectionHeading` + one metadata line, horizontal chips: `bg-card
-  border rounded-xl p-3 min-h-12 w-[220px]`, `size-10` round avatar (initials
-  fallback), name + "{NN}% taste match" (number in `text-foreground tabular-nums`).
+  border rounded-xl p-3 min-h-12 w-[260px]`, `size-10` round avatar (initials
+  fallback), name + "{NN}% taste match" (number in `text-foreground tabular-nums`), then
+  up to two 28×42 shared-love poster thumbs (`rounded-md`) when the DTO carries them.
+- Copy is numbers and titles only — never a sentence about the person (Fable rule).
 
 ## Components
 
