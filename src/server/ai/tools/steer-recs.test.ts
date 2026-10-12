@@ -117,13 +117,13 @@ describe("steer_recs", () => {
       maxRuntime: 100,
       tone: "dark",
       era: "recent",
-      genres: ["878"],
+      genres: ["science-fiction"],
       languages: ["ko"],
       moods: ["identity"],
     });
     expect(opts).toEqual({});
-    expect(out.tune).toEqual(["series", "under100", "darker", "recent", "g:878", "l:ko", "m:identity"]);
-    expect(out.tuneTag).toBe("[TUNE:series,under100,darker,recent,g:878,l:ko,m:identity]");
+    expect(out.tune).toEqual(["series", "under100", "darker", "recent", "g:science-fiction", "l:ko", "m:identity"]);
+    expect(out.tuneTag).toBe("[TUNE:series,under100,darker,recent,g:science-fiction,l:ko,m:identity]");
     expect(out.ignored).toEqual(["Western", "Dark tone"]); // not lifted / not a valid token
     expect(out.picks.map((p: { id: number }) => p.id)).toEqual([1, 2, 3]); // for-you first, deduped
     expect(out.picks[0]).toMatchObject({ mediaType: "series", year: "2021", rating: 8, reason: "Dark dramas" });

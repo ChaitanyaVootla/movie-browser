@@ -13,10 +13,10 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import type { RunnableConfig } from "@langchain/core/runnables";
-import { MOVIE_GENRES, TV_GENRES } from "@/lib/constants";
 import type { TasteSnapshot } from "@/lib/taste/profile";
 import type { RecItemDTO, TuneParams } from "@/lib/taste/recommend-types";
 import { tokensToTune, tuneToTokens } from "@/lib/taste/tune-tokens";
+import { tuneValue } from "@/lib/taste/tune-filter";
 import { getHomeRecsForUser, getMoreLikeThisForUser } from "@/server/services/taste/recommend";
 import { getTasteProfile } from "@/server/services/taste";
 import { aiToolLogger } from "@/lib/logger";
@@ -41,10 +41,6 @@ export const SteerRecsSchema = z.object({
 
 type SteerInput = z.infer<typeof SteerRecsSchema>;
 
-const GENRE_IDS = new Map<string, string>(
-  [...Object.entries(MOVIE_GENRES), ...Object.entries(TV_GENRES)].map(([id, name]) => [name.toLowerCase(), id])
-);
-
 const norm = (s: string) => s.trim().toLowerCase();
 
 /** A single prefixed token survives the shared converter (well-formed value). */
@@ -62,22 +58,26 @@ function resolveTune(input: SteerInput, snapshot: TasteSnapshot | null): { tune:
   const liftedGenres = snapshot?.facets.genre ?? [];
   for (const name of input.genres ?? []) {
     const hit = liftedGenres.find((f) => norm(f.label) === norm(name) || f.key === norm(name));
-    const id = hit ? GENRE_IDS.get(norm(hit.label)) : undefined;
-    if (id && tokenOk(`g:${id}`)) tune.genres = [...(tune.genres ?? []), id];
+    // Same slug the home Tune bar chips use (`userTuneChips`): g:science-fiction.
+    const v = hit ? tuneValue(hit.label) : "";
+    if (v && tokenOk(`g:${v}`)) tune.genres = [...(tune.genres ?? []), v];
     else ignored.push(name);
   }
 
   const liftedLanguages = snapshot?.facets.language ?? [];
   for (const name of input.languages ?? []) {
     const hit = liftedLanguages.find((f) => norm(f.label) === norm(name) || norm(f.key) === norm(name));
-    if (hit && tokenOk(`l:${norm(hit.key)}`)) tune.languages = [...(tune.languages ?? []), norm(hit.key)];
+    const v = hit ? tuneValue(hit.key) : "";
+    if (v && tokenOk(`l:${v}`)) tune.languages = [...(tune.languages ?? []), v];
     else ignored.push(name);
   }
 
   const liftedMoods = snapshot?.moods ?? [];
   for (const name of input.moods ?? []) {
     const hit = liftedMoods.find((f) => norm(f.label) === norm(name) || f.key === norm(name));
-    if (hit && tokenOk(`m:${hit.key}`)) tune.moods = [...(tune.moods ?? []), hit.key];
+    // tone:* moods are the `tone` param, not mood chips (mirrors userTuneChips).
+    const v = hit && !hit.key.startsWith("tone:") ? tuneValue(hit.key) : "";
+    if (v && tokenOk(`m:${v}`)) tune.moods = [...(tune.moods ?? []), v];
     else ignored.push(name);
   }
 
