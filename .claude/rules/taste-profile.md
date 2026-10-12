@@ -199,6 +199,13 @@ handle `local_tester` so an E2E session can view its own profile. Recompute is
   percentile axes are absent. Run it once by hand after the first deploy:
   `FORCE_RUN=1 nice -n 19 npx tsx scripts/refresh-taste-baseline.ts`, then check
   `logs/taste-baseline-out.log` per-type timings against the spec §6 estimate.
+  **Measured on prod Oct 12 2026 (first successful run, all inserts): 302s total**, far over
+  the 10-30s estimate — cast 189s (47,826 keys), director 49s, theme 24s (367k keys),
+  embedding mean 18s over 17,471 titles. Site stayed responsive (load ~5 on 2 vCPU, home
+  0.1s, detail 1s), and the job runs at 19:00 UTC under `nice`, so it is acceptable for a
+  nightly job. Postgres itself is NOT niced, so the cast/director aggregation is the first
+  thing to optimise if it grows. The Oct 10 and 11 runs never executed at all (missing
+  `.env.local` load, see `infrastructure.md`).
 - The first public-profile render per user after deploy recomputes both stats
   projections (public_stats NULL) and the taste row — bounded queries, but expect a
   slightly slower first render per profile. Baseline cache is per process and
