@@ -367,6 +367,12 @@ export type ProfileTasteDTO =
   | { status: "insufficient"; positiveCount: number; needed: number }
   | { status: "hidden" };
 
+/**
+ * What the owner hint (a CLIENT island) needs — never the snapshot: a client
+ * prop is serialized into every visitor's cached HTML.
+ */
+export type TasteHintState = { status: "ready" } | Exclude<ProfileTasteDTO, { status: "ready" }>;
+
 export interface ProfileViewerStateDTO {
   isOwner: boolean;
   isFollowing: boolean;

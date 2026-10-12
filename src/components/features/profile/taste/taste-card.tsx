@@ -8,9 +8,8 @@ import type { ProfileWidgetData } from "../widgets/types";
 import { WidgetCard } from "../widgets/widget-card";
 import { AxisStrand } from "./axis-strand";
 import { TasteCompareProvider } from "./compare-overlay";
-import { EvidenceGrid } from "./evidence-grid";
 import { ExploreTrigger } from "./explore-trigger";
-import { LazyClusterExplorer } from "./lazy-bodies";
+import { LazyClusterExplorer, LazyEvidenceGrid } from "./lazy-bodies";
 import { MoodChip } from "./mood-chip";
 import { TasteCardActions } from "./taste-card-actions";
 import { clusterDescription } from "./taste-copy";
@@ -121,7 +120,7 @@ function FavoritePosters({ favorites }: { favorites: TitleRef[] }) {
               className="group block w-full rounded-lg text-left"
               label={<Poster t={t} />}
             >
-              <EvidenceGrid titles={shown} />
+              <LazyEvidenceGrid titles={shown} />
             </ExploreTrigger>
           </li>
         ))}

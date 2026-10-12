@@ -21,7 +21,8 @@ const OwnerFreshBody = dynamic(
  * `ProfileDashboardSwitch`.
  */
 export function ProfileBodySwitch({ children }: { children: ReactNode }) {
-  const { resolved, isOwner } = useProfileViewer();
-  if (resolved && isOwner) return <OwnerFreshBody />;
+  const { resolved, isOwner, profile } = useProfileViewer();
+  // Until the fresh profile lands the owner keeps the server body (no flash).
+  if (resolved && isOwner && profile) return <OwnerFreshBody profile={profile} />;
   return <>{children}</>;
 }

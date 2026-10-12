@@ -5,7 +5,7 @@ import { Check, Dna, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProfileViewer } from "./profile-viewer-context";
 import { CalibrationHost } from "./taste/calibration-host";
-import type { ProfileTasteDTO } from "@/types/social";
+import type { TasteHintState } from "@/types/social";
 
 /**
  * Owner-only taste hint (taste v2 spec §4.6). Under the threshold it IS the
@@ -15,7 +15,7 @@ import type { ProfileTasteDTO } from "@/types/social";
  * for the owner at once; visitors see it within the ISR TTL. Visitors never
  * see this hint. ISR-safe: renders nothing until the viewer resolves as owner.
  */
-export function TasteOwnerHint({ taste }: { taste: ProfileTasteDTO | null }) {
+export function TasteOwnerHint({ taste }: { taste: TasteHintState | null }) {
   const { resolved, isOwner, refreshProfile } = useProfileViewer();
   const [deckOpen, setDeckOpen] = useState(false);
   const [done, setDone] = useState(false);

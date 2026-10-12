@@ -124,7 +124,7 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
   // fresh, uncached re-render so they see their own edits immediately. The JSON-LD
   // stays server-rendered (SEO) with the cached profile.
   return (
-    <ProfileViewerProvider username={profile.username} initialProfile={profile}>
+    <ProfileViewerProvider username={profile.username}>
       <ProfileJsonLd profile={profile} />
       <ProfileBodySwitch>
         <ProfileBodyContent profile={profile} />

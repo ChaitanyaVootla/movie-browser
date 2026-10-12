@@ -7,7 +7,13 @@ import { ProfileVisitorEmpty } from "./profile-visitor-empty";
 import { TasteOwnerHint } from "./taste-owner-hint";
 import { TasteMatch } from "./taste-match";
 import { PAGE_PADDING_X, OVERLINE } from "@/lib/design";
-import type { PublicProfileDTO } from "@/types/social";
+import type { PublicProfileDTO, TasteHintState } from "@/types/social";
+
+/** The owner hint is a client island: hand it the status, not the snapshot. */
+function hintState(taste: PublicProfileDTO["taste"]): TasteHintState | null {
+  if (!taste) return null;
+  return taste.status === "ready" ? { status: "ready" } : taste;
+}
 
 /**
  * The full profile body (accent scope + hero + dashboard grid). Pure
@@ -50,10 +56,10 @@ export function ProfileBodyContent({ profile }: { profile: PublicProfileDTO }) {
             }}
           />
           <ProfileVisitorEmpty displayName={profile.displayName} isEmpty={isEmptyProfile} />
-          <ProfileDashboardSwitch profile={profile}>
+          <ProfileDashboardSwitch>
             <ProfileDashboard profile={profile} />
           </ProfileDashboardSwitch>
-          <TasteOwnerHint taste={profile.taste} />
+          <TasteOwnerHint taste={hintState(profile.taste)} />
 
           <p className={OVERLINE}>
             Member since{" "}

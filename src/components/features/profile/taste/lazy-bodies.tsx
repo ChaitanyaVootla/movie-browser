@@ -22,6 +22,17 @@ export const LazyClusterExplorer = dynamic(
   { loading: BodySkeleton }
 );
 
+/**
+ * The plain evidence grid as a lazy CLIENT body. Server parents (MoodChip, the
+ * Four-Favourites fallback) must pass data, not a rendered <EvidenceGrid/>: a
+ * server element handed to a client island is rendered on the server and
+ * shipped in the RSC payload — every closed chip carried its full poster grid
+ * (~half the /u/* page weight).
+ */
+export const LazyEvidenceGrid = dynamic(() => import("./evidence-grid").then((m) => m.EvidenceGrid), {
+  loading: BodySkeleton,
+});
+
 export const LazyAxisTitles = dynamic(
   () => import("./axis-titles-sheet").then((m) => m.AxisTitlesBody),
   {

@@ -20,7 +20,8 @@ vi.mock("../taste/calibration-host", () => ({ CalibrationHost: () => null }));
 vi.mock("../taste/lazy-bodies", async () => {
   const c = await import("../taste/cluster-explorer");
   const a = await import("../taste/axis-titles-sheet");
-  return { LazyClusterExplorer: c.ClusterExplorerBody, LazyAxisTitles: a.AxisTitlesBody };
+  const e = await import("../taste/evidence-grid");
+  return { LazyClusterExplorer: c.ClusterExplorerBody, LazyAxisTitles: a.AxisTitlesBody, LazyEvidenceGrid: e.EvidenceGrid };
 });
 vi.mock("next/image", () => ({
   // eslint-disable-next-line @next/next/no-img-element

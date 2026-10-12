@@ -26,26 +26,20 @@ interface ViewerContextValue {
   editMode: boolean;
   setEditMode: (value: boolean) => void;
   /**
-   * Effective profile: the fresh, uncached profile once it loads for the owner,
-   * otherwise the cached `initialProfile`. The owner-fresh body renders from
-   * this so the owner sees their own edits despite the page being CDN-cached.
+   * Owner only: the fresh, uncached profile once it loads (null for visitors and
+   * until then). The owner-fresh body and the layout editor render from it, so
+   * the owner sees their own edits despite the page being CDN-cached. The cached
+   * profile is NOT passed in as a fallback: as a client prop it serialized the
+   * whole DTO (incl. the taste snapshot, ~49KB) into every visitor's HTML.
    */
-  profile: PublicProfileDTO;
+  profile: PublicProfileDTO | null;
   /** Owner only: re-pull the fresh profile (e.g. after the calibration deck wrote ratings). */
   refreshProfile: () => Promise<void>;
 }
 
 const ViewerContext = createContext<ViewerContextValue | null>(null);
 
-export function ProfileViewerProvider({
-  username,
-  initialProfile,
-  children,
-}: {
-  username: string;
-  initialProfile: PublicProfileDTO;
-  children: ReactNode;
-}) {
+export function ProfileViewerProvider({ username, children }: { username: string; children: ReactNode }) {
   const { status } = useSession();
   // Single state object so the effect performs at most ONE synchronous
   // setState per run (avoids cascading-render lint + extra renders).
@@ -109,7 +103,7 @@ export function ProfileViewerProvider({
         setIsFollowing,
         editMode,
         setEditMode,
-        profile: freshProfile ?? initialProfile,
+        profile: freshProfile,
         refreshProfile,
       }}
     >

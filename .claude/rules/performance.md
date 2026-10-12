@@ -525,6 +525,21 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    privacy 240.2→165.2KB. Movie/series/person were flat (−0.4/−0.5/−1.3KB) because the
    detail action bar ships those primitives anyway.
 
+15b. **RSC payload: what a client island RECEIVES ships in every cached page (Oct 12 2026).**
+   `/u/*` HTML was 912KB in dev (79KB gz); half of it was the taste section. Two causes,
+   both invisible to tests: (a) a client provider and the owner-only editor switch took
+   the WHOLE profile DTO as a prop "for the owner" — it serialized for every visitor
+   (49KB, 43KB of it the taste snapshot). The owner now reads its fresh profile from
+   context only; client islands get slim props (`TasteHintState`, not the snapshot).
+   (b) server components passed a rendered `<EvidenceGrid/>` as `children` of a
+   client `ExploreTrigger` that mounts children only when OPEN — but a server element
+   handed to a client island is rendered on the server anyway, so every closed mood
+   chip shipped its full poster grid in the payload. Pass data and render a lazy client
+   body (`LazyEvidenceGrid`). Result 912KB → 650KB (taste share 430KB → 167KB).
+   **Measure it:** curl the page, join the `self.__next_f.push([1,"…"])` strings, count
+   a distinctive token (`"title":"Interstellar"` appeared 34× for one title), and diff
+   against the same page with the section turned off.
+
 16. **A hardcoded lookup id made a whole feature silently inert — and fixing it
    would have been a perf regression (Oct 8 2026).** `smart-discover.ts` used
    `source_id = 1` for TMDB ratings, but `data_sources` ids are autoincrement

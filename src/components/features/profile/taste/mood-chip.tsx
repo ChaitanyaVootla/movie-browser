@@ -1,6 +1,6 @@
 import type { FacetStat } from "@/lib/taste/lift";
 import { cn } from "@/lib/utils";
-import { EvidenceGrid } from "./evidence-grid";
+import { LazyEvidenceGrid } from "./lazy-bodies";
 import { ExploreTrigger } from "./explore-trigger";
 import { moodEvidenceLine } from "./taste-copy";
 
@@ -29,7 +29,7 @@ export function MoodChip({ facet, tinted }: { facet: FacetStat; tinted: boolean 
         </>
       }
     >
-      <EvidenceGrid titles={facet.titles} />
+      <LazyEvidenceGrid titles={facet.titles} />
     </ExploreTrigger>
   );
 }

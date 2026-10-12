@@ -11,8 +11,9 @@ export type EvidenceTitle = TitleRef & { value?: string };
  * The titles behind a taste number: 3-column poster grid, title (and the
  * per-title value when given) under each. Shared by the Moods popover, the
  * cluster explorer, the axis titles sheet and the People titles sheet — the
- * one evidence recipe (DESIGN.md → Taste profile). No "use client": renders in
- * both server and client trees.
+ * one evidence recipe (DESIGN.md → Taste profile). No "use client", but from a
+ * SERVER parent use `LazyEvidenceGrid` (lazy-bodies.tsx) — never pass a rendered
+ * grid into a client island's children.
  */
 export function EvidenceGrid({ titles }: { titles: readonly EvidenceTitle[] }) {
   if (titles.length === 0) return null;
