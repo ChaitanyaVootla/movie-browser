@@ -440,6 +440,10 @@ async function loadEntry(
   const cached = cacheGet(key);
   if (cached) return { entry: cached, exclusions: await fetchRecExclusions(userId), snapshot };
   const entry = await computeRecsOnce(key, userId, snapshot);
+  // Re-read AFTER the computation, even on a miss: an in-flight joiner may have
+  // started before a dismissal, and the popular top-up (a NEW catalog query)
+  // needs the real ids — empty exclusions here let it surface watched titles.
+  const exclusions = await fetchRecExclusions(userId);
   dataLogger.debug({
     action: "taste.recs",
     userId,
@@ -447,8 +451,7 @@ async function loadEntry(
     rows: entry.recs.rows.map((r) => r.items.length),
     ms: Math.round(performance.now() - t0),
   });
-  // Freshly computed: its exclusions were read moments ago.
-  return { entry, exclusions: { movieIds: [], seriesIds: [] }, snapshot };
+  return { entry, exclusions, snapshot };
 }
 
 function logFailure(userId: number, error: unknown): void {

@@ -20,6 +20,7 @@ const h = vi.hoisted(() => ({
   getTmdbRecommendations: vi.fn(),
   fetchCandidateDetails: vi.fn(),
   fetchPopularTuned: vi.fn(),
+  fetchRecExclusions: vi.fn(),
   signals: [] as TitleSignals[],
 }));
 
@@ -47,7 +48,7 @@ vi.mock("@/server/db/postgres/social/taste-recs", () => ({
   fetchCandidateDetails: h.fetchCandidateDetails,
   fetchPopularCandidates: vi.fn(async () => []),
   fetchPopularTuned: h.fetchPopularTuned,
-  fetchRecExclusions: vi.fn(async () => ({ movieIds: [1, 2, 3], seriesIds: [] })),
+  fetchRecExclusions: h.fetchRecExclusions,
 }));
 vi.mock("@/server/db/postgres/vector-index", () => ({ hasVectorIndex: vi.fn(async () => true) }));
 vi.mock("@/server/services/tmdb", () => ({ getRecommendations: h.getTmdbRecommendations }));
@@ -82,6 +83,7 @@ beforeEach(() => {
   h.getTmdbRecommendations.mockReset().mockResolvedValue({ results: [] });
   h.fetchCandidateDetails.mockReset().mockResolvedValue([]);
   h.fetchPopularTuned.mockReset().mockResolvedValue([]);
+  h.fetchRecExclusions.mockReset().mockResolvedValue({ movieIds: [1, 2, 3], seriesIds: [] });
 });
 
 const cand = (id: number, mediaType: "movie" | "series", embedding: number[]) => ({
@@ -147,6 +149,39 @@ describe("home recs: tune re-ranks the cached pool", () => {
       label: "Popular lighter picks",
     });
   });
+
+  it("a cache MISS + selective tune still passes the user's exclusions to the popular top-up", async () => {
+    // Review finding: a fresh compute returned EMPTY exclusions, so the new
+    // popular query could surface watched / just-dismissed titles.
+    h.fetchRecExclusions.mockResolvedValue({ movieIds: [1, 2, 3, 777], seriesIds: [888] });
+    await getHomeRecsForUser(1, { maxRuntime: 100, tone: "light" });
+    expect(h.fetchPopularTuned).toHaveBeenCalled();
+    const ids = h.fetchPopularTuned.mock.calls.flatMap(
+      (c) => (c[1] as { excludeIds: number[] }).excludeIds
+    );
+    expect(ids).toContain(777);
+    expect(ids).toContain(888);
+  });
+
+  it("an in-flight joiner re-reads exclusions (a dismissal mid-compute is honoured)", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const ann = h.annCandidates.getMockImplementation();
+    h.annCandidates.mockImplementation(async (...a: unknown[]) => {
+      await gate; // hold the computation after it has read exclusions
+      return ann?.(...a);
+    });
+    const first = getHomeRecsForUser(1);
+    await vi.waitFor(() => expect(h.annCandidates).toHaveBeenCalled());
+    h.fetchRecExclusions.mockResolvedValue({ movieIds: [1, 2, 3, 111], seriesIds: [] });
+    const joinerP = getHomeRecsForUser(1);
+    release();
+    const results = await Promise.all([first, joinerP]);
+    for (const out of results) {
+      expect(out.rows[0].items.length).toBeGreaterThan(0);
+      expect(out.rows.flatMap((r) => r.items).some((i) => i.mediaType === "movie" && i.id === 111)).toBe(false);
+    }
+  });
 });
 
 describe("recs: never compare across embedding spaces", () => {
@@ -188,8 +223,8 @@ describe("recs: in-flight dedupe", () => {
     const results = await Promise.all(calls);
     expect(h.getTasteVectors).toHaveBeenCalledTimes(1);
     expect(h.annCandidates).toHaveBeenCalledTimes(2); // one per table, once
-    expect(results[1]).toBe(results[0]);
-    expect(results[2]).toBe(results[0]);
+    expect(results[1]).toEqual(results[0]); // same computation; each read re-filters by fresh exclusions
+    expect(results[2]).toEqual(results[0]);
   });
 
   it("different users are not merged", async () => {
