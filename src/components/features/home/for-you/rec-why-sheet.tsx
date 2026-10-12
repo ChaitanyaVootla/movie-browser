@@ -39,7 +39,13 @@ function Poster({ a, w, h }: { a: RecThumbRef; w: string; h: string }) {
   );
 }
 
-function ItemBody({ item, row, onMoreLikeThis, onDismiss }: { item: RecItemDTO; row: RecRowDTO } & Pick<RecWhySheetProps, "onMoreLikeThis" | "onDismiss">) {
+function ItemBody({
+  item,
+  row,
+  onMoreLikeThis,
+  onDismiss,
+  onClose,
+}: { item: RecItemDTO; row: RecRowDTO } & Pick<RecWhySheetProps, "onMoreLikeThis" | "onDismiss" | "onClose">) {
   const e = item.explanation;
   return (
     <div className="space-y-4">
@@ -102,7 +108,11 @@ function ItemBody({ item, row, onMoreLikeThis, onDismiss }: { item: RecItemDTO; 
           Not for me
         </Button>
       </div>
-      <CueEntryButton entry="why_sheet" variant="link" label="Why would I like this?" message={whyCueMessage(item)} />
+      {/* Hand off to Cue: close this sheet first, or on mobile the chat drawer
+          stacks on top of it and Back has to peel two layers. */}
+      <div onClick={onClose}>
+        <CueEntryButton entry="why_sheet" variant="link" label="Why would I like this?" message={whyCueMessage(item)} />
+      </div>
     </div>
   );
 }
@@ -168,7 +178,7 @@ export default function RecWhySheet({ target, anchorEl, onClose, onMoreLikeThis,
     target?.kind === "row" ? "The titles this row grows from" : target ? `About ${target.item.title}` : "";
   const body: ReactNode =
     target?.kind === "item" ? (
-      <ItemBody item={target.item} row={target.row} onMoreLikeThis={onMoreLikeThis} onDismiss={onDismiss} />
+      <ItemBody item={target.item} row={target.row} onMoreLikeThis={onMoreLikeThis} onDismiss={onDismiss} onClose={onClose} />
     ) : target?.kind === "row" ? (
       <RowBody row={target.row} />
     ) : null;
