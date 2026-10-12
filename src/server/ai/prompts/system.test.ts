@@ -14,6 +14,13 @@ describe("system prompt — taste tools (taste v2 §5.3)", () => {
     expect(table.match(/^\| `[a-z_]+` \|/gm)).toHaveLength(18);
   });
 
+  it("guests are not shown the taste tools in the quick reference", () => {
+    expect(guest).toContain("Tools Quick Reference (13 tools)");
+    const table = guest.slice(guest.indexOf("Tools Quick Reference"), guest.indexOf("## `navigate_to`"));
+    for (const n of TASTE_TOOLS) expect(table).not.toContain(`| \`${n}\` |`);
+    expect(table.match(/^\| `[a-z_]+` \|/gm)).toHaveLength(13);
+  });
+
   it("guest prompt lists all five taste tools as never-call, in the final guest section too", () => {
     const neverCall = guest.split("\n").filter((l) => /NEVER call|don't call them/i.test(l));
     for (const n of TASTE_TOOLS) {

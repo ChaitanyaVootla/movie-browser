@@ -49,6 +49,14 @@ function buildContextString(userContext?: UserContext | null): string {
   return `\n\n## Current Context\n${parts.join(" | ")}`;
 }
 
+/** Signed-in-only rows of the quick reference (guests are never shown these tools — see tools/audience.ts). */
+const TASTE_TOOL_ROWS = `| \`steer_recs\` | "Shorter / darker / only series / surprise me" — re-rank their picks, returns the [TUNE] tag (logged-in ONLY) |
+| \`explain_title_fit\` | "Would I like X?" — the title vs their taste, as numbers (logged-in ONLY) |
+| \`get_taste_detail\` | "What's my taste like?" — clusters, facets, axes, people in detail (logged-in ONLY) |
+| \`compare_taste\` | "{name} and I" — taste match + picks for both, public data (logged-in ONLY) |
+| \`record_rec_feedback\` | "Don't show me X again" — hide it from their picks, explicit ask only (logged-in ONLY) |
+`;
+
 /**
  * Core system prompt - streamlined and focused.
  * Built per-request: the open-ended-recs guidance flips on auth (guests have
@@ -269,7 +277,7 @@ Talk about the titles and the numbers; never label the person (no "you're a…",
 - For open-ended recs: ask one sharp question, or lead with a confident knowledge/smart_discover pick`
 }
 
-# Tools Quick Reference (18 tools)
+# Tools Quick Reference (${isAuthenticated ? 18 : 13} tools)
 
 | Tool | Use When |
 |------|----------|
@@ -282,12 +290,7 @@ Talk about the titles and the numbers; never label the person (no "you're a…",
 | \`get_page_context\` | When user says "this", "current page" — returns media info + user status |
 | \`get_user_profile\` | Open-ended recs — taste, recent watches, series they're MID-WAY through (logged-in ONLY) |
 | \`recommend_for_me\` | "What should I watch?" — personal picks with reasons, nothing they've seen (logged-in ONLY) |
-| \`steer_recs\` | "Shorter / darker / only series / surprise me" — re-rank their picks, returns the [TUNE] tag (logged-in ONLY) |
-| \`explain_title_fit\` | "Would I like X?" — the title vs their taste, as numbers (logged-in ONLY) |
-| \`get_taste_detail\` | "What's my taste like?" — clusters, facets, axes, people in detail (logged-in ONLY) |
-| \`compare_taste\` | "{name} and I" — taste match + picks for both, public data (logged-in ONLY) |
-| \`record_rec_feedback\` | "Don't show me X again" — hide it from their picks, explicit ask only (logged-in ONLY) |
-| \`get_community_buzz\` | "What do people think of X?" — OUR community's ratings, reviews, discussion (free!) |
+${isAuthenticated ? TASTE_TOOL_ROWS : ""}| \`get_community_buzz\` | "What do people think of X?" — OUR community's ratings, reviews, discussion (free!) |
 | \`navigate_to\` | Take user anywhere: detail pages, discussions, their watchlist/diary/stats, search results |
 | \`web_search\` | Box office, awards, news, external reviews, post-June-2025 info (costs 1-2 credits!) |
 | \`web_extract\` | Full article/review content from a URL found via web_search |

@@ -17,6 +17,7 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { AgentState, type AgentStateType } from "./state";
 import { createChatModel, getCurrentModelId as getProviderModelId } from "./provider";
 import { allTools } from "./tools";
+import { toolsForAudience } from "./tools/audience";
 import { buildNavigationPath } from "./tools/navigation";
 import { getSystemPrompt } from "./prompts/system";
 import { clearInvocationBudget } from "./invocation-budget";
@@ -243,10 +244,10 @@ async function agentNode(
 ): Promise<Partial<AgentStateType>> {
   const invocationId = (config?.configurable?.invocationId as string) || "unknown";
   const ctx = getInvocationContext(invocationId);
-  const model = createChatModel().bindTools(allTools);
-
   // Build messages with system prompt including user context
   const isAuthenticated = !!state.userId;
+  // Guests never SEE the signed-in-only taste tools (the prompt alone did not stop Kimi).
+  const model = createChatModel().bindTools(toolsForAudience(allTools, isAuthenticated));
   const systemPrompt = getSystemPrompt(isAuthenticated, state.userContext);
 
   // Check if system message already exists
