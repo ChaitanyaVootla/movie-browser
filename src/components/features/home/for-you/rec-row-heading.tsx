@@ -64,11 +64,18 @@ export function BecauseHeading({
       icon={<ThumbStack ref={thumbsRef} anchors={row.anchors} onOpen={onOpenRow} label="Why this row" />}
       className="min-w-0"
     >
-      <span className="line-clamp-1 hidden sm:inline">Because you loved {joinTitles(all)}</span>
-      <span className="line-clamp-1 sm:hidden">
-        Because you loved {first}
-        {more > 0 ? ` & ${more} more` : ""}
-      </span>
+      {more < 2 ? (
+        // One or two titles read in full everywhere ("A & 1 more" says less in the same space).
+        <span className="line-clamp-2 sm:line-clamp-1">Because you loved {joinTitles(all)}</span>
+      ) : (
+        <>
+          <span className="line-clamp-1 hidden sm:inline">Because you loved {joinTitles(all)}</span>
+          {/* Two lines on mobile so the count is never the part that gets clamped. */}
+          <span className="line-clamp-2 sm:hidden">
+            Because you loved {first} &amp; {more} more
+          </span>
+        </>
+      )}
     </SectionHeading>
   );
 }

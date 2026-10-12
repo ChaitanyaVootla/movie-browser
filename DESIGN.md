@@ -578,8 +578,10 @@ rows → Taste twins. Rhythm is the home `space-y-10`.
   passed through `MediaScroller headingAction`). Under it the **Tune bar** (below).
 - **Because you loved A, B & C** — the heading icon slot holds the anchors' poster
   thumbs OVERLAPPED (`h-8 w-[22px] rounded-md ring-2 ring-background`, `-ml-2` after
-  the first) so the plural reads before the text; mobile (`sm:hidden`) copy is
-  "Because you loved A & 2 more". The thumbs are one button → the row-level Why sheet.
+  the first) so the plural reads before the text; with 3 anchors the mobile
+  (`sm:hidden`) copy is "Because you loved A & 2 more", and 1–2 anchors read in full.
+  Mobile clamps at 2 lines (`line-clamp-2 sm:line-clamp-1`) so the count is never the
+  clamped part. The thumbs are one button → the row-level Why sheet.
 - **More like {title}** — same heading with the seed's thumb; trailing `X` "Remove
   row" (`size-10 md:size-8` ghost icon button). Grows in with `grid-rows 0fr → 1fr`
   260ms + fade; max two at once.
