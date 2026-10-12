@@ -42,11 +42,15 @@ function Poster({ t, className }: { t: TitleRef; className?: string }) {
   );
 }
 
-/** Overlap on desktop only when 3–4 posters share the 280px column; 2 fill it side by side. */
+/**
+ * Posters always fill the 280px column on desktop: 2 sit side by side
+ * (134 + 12 + 134), 3–4 overlap by ~25% (3 × 112 − 2 × 28, 4 × 88 − 3 × 24).
+ */
 function posterLayout(n: number) {
   return {
     grid: n >= 4 ? "grid-cols-4" : n === 3 ? "grid-cols-3" : "grid-cols-2",
-    width: n >= 3 ? "md:w-[88px]" : "md:w-[134px]",
+    width: n >= 4 ? "md:w-[88px]" : n === 3 ? "md:w-28" : "md:w-[134px]",
+    overlapClass: n >= 4 ? "md:-ml-6" : "md:-ml-7",
     overlap: n >= 3,
   };
 }
@@ -66,7 +70,7 @@ function ClusterPosters({
         {shown.map((c, i) => (
           <li
             key={`${c.medoid.mediaType}-${c.medoid.tmdbId}`}
-            className={cn("relative min-w-0", l.width, l.overlap && i > 0 && "md:-ml-6")}
+            className={cn("relative min-w-0", l.width, l.overlap && i > 0 && l.overlapClass)}
             style={{ zIndex: shown.length - i }}
           >
             <ExploreTrigger
@@ -106,7 +110,7 @@ function FavoritePosters({ favorites }: { favorites: TitleRef[] }) {
         {shown.map((t, i) => (
           <li
             key={`${t.mediaType}-${t.tmdbId}`}
-            className={cn("relative min-w-0", l.width, l.overlap && i > 0 && "md:-ml-6")}
+            className={cn("relative min-w-0", l.width, l.overlap && i > 0 && l.overlapClass)}
             style={{ zIndex: shown.length - i }}
           >
             <ExploreTrigger

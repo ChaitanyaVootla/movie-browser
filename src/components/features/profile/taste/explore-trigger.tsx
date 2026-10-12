@@ -30,6 +30,7 @@ export function ExploreTrigger({
   description,
   tap,
   disabled,
+  disabledHint,
   className,
   children,
 }: {
@@ -39,6 +40,8 @@ export function ExploreTrigger({
   description?: string;
   tap: TasteTapPart;
   disabled?: boolean;
+  /** Why a disabled door doesn't open (tooltip + accessible description). */
+  disabledHint?: string;
   className?: string;
   children: ReactNode;
 }) {
@@ -50,8 +53,13 @@ export function ExploreTrigger({
 
   if (disabled) {
     return (
-      <span aria-disabled="true" className={cn(className, "cursor-default opacity-60")}>
+      <span
+        aria-disabled="true"
+        title={disabledHint}
+        className={cn(className, "cursor-default opacity-60")}
+      >
         {label}
+        {disabledHint && <span className="sr-only"> ({disabledHint})</span>}
       </span>
     );
   }

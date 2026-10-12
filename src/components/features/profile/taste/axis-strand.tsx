@@ -34,6 +34,7 @@ function EndLabel({ axis, end, near }: { axis: TasteAxis; end: "low" | "high"; n
     <ExploreTrigger
       tap={end === "low" ? "axis_low" : "axis_high"}
       disabled={disabled}
+      disabledHint={`Needs ${AXIS_EXAMPLES_MIN_TO_OPEN}+ titles at this end`}
       ariaLabel={`Titles at the ${label} end`}
       title={axisEndTitle(axis, end)}
       description={axisEndDescription(axis, end)}

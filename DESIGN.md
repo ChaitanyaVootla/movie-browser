@@ -492,9 +492,9 @@ below (`h-2` strand track).
   posters in a `md:w-[280px]` column on the left, strand + moods on the right;
   mobile stacks posters → strand → moods → buttons.
   - **Cluster posters**: medoid posters `aspect-[2/3] rounded-lg ring-1 ring-border`
-    (hover `ring-2 ring-brand/60`). 3–4 posters overlap on desktop (`md:w-[88px]`,
-    `-ml-6` after the first, earlier posters on top); 2 sit side by side
-    (`md:w-[134px]`) so the column has no empty half. Mobile: a 2–4-column grid with
+    (hover `ring-2 ring-brand/60`). Posters always fill the 280px column on desktop:
+    4 overlap at `md:w-[88px]` + `-ml-6`, 3 at `md:w-28` + `-ml-7` (earlier posters on
+    top); 2 sit side by side (`md:w-[134px]`) so the column has no empty half. Mobile: a 2–4-column grid with
     the cluster label under each poster (`text-xs font-semibold line-clamp-2`);
     desktop shows the labels as one metadata line (`line-clamp-2`). Labels never
     truncate to one line. A poster is a button → **cluster explorer** (title = the
@@ -511,7 +511,7 @@ below (`h-2` strand track).
     titles sheet**: "{End} end of this profile", "{n} favourites toward {End}", the
     favourites at that end with each one's number (popularity rank, year, genre
     count, "Rated 9 · TMDB 7.1", mood words). Fewer than 3 examples → the end is
-    inert. Caption beside the track on desktop (`md:grid-cols-[1fr_14rem]`,
+    inert: muted, no dotted underline, `title` + sr-only "Needs 3+ titles at this end". Caption beside the track on desktop (`md:grid-cols-[1fr_14rem]`,
     `line-clamp-2`), below it on mobile. Tracks are `role="meter"` with the caption
     as `aria-valuetext`. The marker itself is never a target.
   - **Top moods**: the three strongest lifted moods/themes as tinted chips (the Moods
@@ -554,13 +554,17 @@ below (`h-2` strand track).
   (`text-3xl sm:text-4xl font-bold tracking-tight tabular-nums`), one evidence line
   in the metadata recipe ("7 titles both rated · 6 shared loves · favourites 28%
   alike"), then ONE `h-2 rounded-full bg-muted` bar filled to the score and
-  segmented by each component's weighted contribution (`bg-brand` / `bg-brand/70` /
-  `bg-brand/40` — the parts sum to the headline, never three competing
+  segmented by each component's weighted contribution (`bg-brand` / `bg-brand/60` /
+  `bg-brand/25`, split by a 2px `border-card` hairline — /70 vs /40 read as one colour
+  on the dark canvas; the parts sum to the headline, never three competing
   percentages), a legend of the three labels, and a "How it adds up" toggle that
   shows the honest component numbers. Right column: "You both loved" poster row and
-  "You'd argue about" rows. Footer row: Follow (card variant: `bg-brand` → following
-  `bg-muted border`), the Cue pill "Find something for both of us", and "Compare on
-  the strand" (scrolls to the Taste card and turns Compare on).
+  "You'd argue about" rows, then the action row (in the right column, not a
+  full-width footer — the left column is the taller one, so a footer left the right
+  half empty): Follow (card variant: `bg-brand` → following `bg-muted border`), the
+  Cue pill "Find something for both of us", and "Compare on the strand" (scrolls to
+  the Taste card and turns Compare on). A viewer who hid their own taste gets no card
+  (the gate is symmetric with Compare).
 
 ## Recommendations (home)
 

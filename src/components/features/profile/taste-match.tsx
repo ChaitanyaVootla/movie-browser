@@ -23,11 +23,15 @@ function stars(score: number | null): string | null {
   return Number.isInteger(s) ? String(s) : s.toFixed(1);
 }
 
-/** Brand steps for the three contributions (one accent, three lightness steps). */
+/**
+ * Brand steps for the three contributions (one accent, three lightness steps).
+ * /70 vs /40 were indistinguishable on the dark canvas; the steps are wider and
+ * the segments are split by a card-coloured hairline.
+ */
 const SEGMENT_FILL: Record<MatchComponentKey, string> = {
   scoreSim: "bg-brand",
-  likedSim: "bg-brand/70",
-  tasteSim: "bg-brand/40",
+  likedSim: "bg-brand/60",
+  tasteSim: "bg-brand/25",
 };
 
 function Poster({ t }: { t: TasteMatchTitleDTO }) {
@@ -92,7 +96,7 @@ function MatchBar({ match }: { match: TasteMatchDTO }) {
         {segments.map((s) => (
           <span
             key={s.key}
-            className={cn("h-full", SEGMENT_FILL[s.key])}
+            className={cn("h-full [&+&]:border-l-2 [&+&]:border-card", SEGMENT_FILL[s.key])}
             style={{ width: `${s.width}%` }}
             title={`${s.label}: ${s.value}%`}
           />
@@ -231,28 +235,29 @@ export function TasteMatch({ username, displayName }: { username: string; displa
               No titles in common yet. Rate a few of {firstName}&apos;s favourites to sharpen this.
             </p>
           )}
+          {/* Actions sit in the right column: the left column (score + bar) is
+              the taller one, so a full-width footer left the right half empty. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <FollowButton username={username} variant="card" className="w-full sm:w-auto" />
+            <CueEntryButton
+              entry="match_card"
+              variant="pill"
+              label="Find something for both of us"
+              message={`Find something ${firstName} and I would both enjoy tonight`}
+              className="w-full justify-center sm:w-auto"
+            />
+            {hasCard && (
+              <button
+                type="button"
+                onClick={compareOnStrand}
+                className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-8"
+              >
+                Compare on the strand
+                <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-
-      <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <FollowButton username={username} variant="card" className="w-full sm:w-auto" />
-        <CueEntryButton
-          entry="match_card"
-          variant="pill"
-          label="Find something for both of us"
-          message={`Find something ${firstName} and I would both enjoy tonight`}
-          className="w-full justify-center sm:w-auto"
-        />
-        {hasCard && (
-          <button
-            type="button"
-            onClick={compareOnStrand}
-            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-8"
-          >
-            Compare on the strand
-            <ArrowDown className="h-3.5 w-3.5" aria-hidden />
-          </button>
-        )}
       </div>
     </section>
   );
