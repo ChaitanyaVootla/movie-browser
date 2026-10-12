@@ -4,7 +4,7 @@ import { WidgetCard } from "./widget-card";
 import type { ProfileWidgetData } from "./types";
 
 /**
- * "Where your films are from" — a flag + bar breakdown of production/origin
+ * "Where the films are from" — a flag + bar breakdown of production/origin
  * countries. Borderless and uncontroversial (no map), instantly recognizable
  * via flags, fully server-rendered. (Replaced an abstract dot-bubble map that
  * read as a blank grid.)
@@ -40,7 +40,7 @@ export function CountryMapWidget({ data }: { data: ProfileWidgetData }) {
   const max = Math.max(...countries.map((c) => c.count), 1);
 
   return (
-    <WidgetCard title="Where your films are from" icon={<Globe className="h-4 w-4" />}>
+    <WidgetCard title="Where the films are from" icon={<Globe className="h-4 w-4" />}>
       <ul className="space-y-2.5">
         {countries.slice(0, 8).map((c) => (
           <li key={c.code} className="flex items-center gap-2.5">
