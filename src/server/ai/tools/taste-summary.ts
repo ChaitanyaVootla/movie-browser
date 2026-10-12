@@ -4,7 +4,7 @@
  * agent phrases it (and must not tell the user what kind of person they are).
  */
 import type { TasteCluster, TasteSnapshot } from "@/lib/taste/profile";
-import type { RecItemDTO } from "@/lib/taste/recommend-types";
+import type { RecExplanation, RecItemDTO } from "@/lib/taste/recommend-types";
 import { isAdultKeyword } from "@/server/db/postgres/social/taste";
 
 export interface CueTasteSummary {
@@ -51,6 +51,12 @@ export function buildCueTasteSummary(
   };
 }
 
+function cueReason(e: RecExplanation): string {
+  if (e.kind === "because") return `because they loved ${e.anchor.title}`;
+  if (e.kind === "seed") return `similar to ${e.seed.title}`;
+  return e.label;
+}
+
 /** One recommendation as the agent sees it (ids exact, reason pre-phrased). */
 export function toCueRec(it: RecItemDTO) {
   const e = it.explanation;
@@ -61,6 +67,6 @@ export function toCueRec(it: RecItemDTO) {
     year: it.releaseDate ? it.releaseDate.slice(0, 4) : null,
     rating: it.voteAverage != null ? Math.round(it.voteAverage * 10) / 10 : null,
     genres: it.genres.slice(0, 3),
-    reason: e ? (e.kind === "because" ? `because they loved ${e.anchor.title}` : e.label) : null,
+    reason: e ? cueReason(e) : null,
   };
 }

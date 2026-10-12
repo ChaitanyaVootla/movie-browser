@@ -96,7 +96,28 @@ export type ActionType =
   | "rec_impression"
   | "rec_click"
   | "taste_match_view"
-  | "taste_twin_click";
+  | "taste_twin_click"
+  // Taste v2 (spec 2026-10-12 §6.5). rec_impression also gains metadata.tune +
+  // metadata.anchors[]. Metadata per event: rec_tune/cue_tune_applied → tokens[];
+  // rec_why_open → kind; taste_calibration_answer → answer, position, mode;
+  // taste_calibration_complete → positives, mode; taste_card_tap → part
+  // ("cluster"|"axis_low"|"axis_high"|"mood"); taste_compare_toggle → on;
+  // taste_share → method; cue_taste_entry → entry.
+  | "rec_dismiss"
+  | "rec_undo"
+  | "rec_more_like_this"
+  | "rec_tune"
+  | "rec_shuffle"
+  | "rec_why_open"
+  | "rec_seed_row_remove"
+  | "taste_calibration_answer"
+  | "taste_calibration_complete"
+  | "taste_card_tap"
+  | "taste_compare_toggle"
+  | "taste_share"
+  | "taste_people_titles_open"
+  | "cue_taste_entry"
+  | "cue_tune_applied";
 
 // =============================================================================
 // Query Types (AI)

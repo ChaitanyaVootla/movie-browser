@@ -97,3 +97,29 @@ export interface ExpandedChatProps {
 export const CARD_WIDTH = 150;
 export const CARD_HEIGHT = 225;
 export const TRANSITION_EASE = [0.4, 0, 0.2, 1] as const;
+
+// =============================================================================
+// Window events (taste v2 spec 2026-10-12 §5.1–5.2)
+// =============================================================================
+
+/** Opens Cue with a message. Listened to by AssistantFloaty. */
+export const AI_CHAT_TRIGGER_EVENT = "ai-chat-trigger";
+
+export interface AiChatTriggerDetail {
+  /** Sent as the user's message (or prefilled, see `prefill`). */
+  message: string;
+  /**
+   * true → open the chat with `message` in the input and focus set, NOT sent
+   * ("Steer with words"). Absent/false → send immediately (existing behaviour).
+   * Honoured once workstream C wires it in assistant-floaty.
+   */
+  prefill?: boolean;
+}
+
+/** `[TUNE:…]` chat pill → For-you island (re-validates every token). */
+export const RECS_TUNE_EVENT = "recs-tune";
+
+export interface RecsTuneDetail {
+  /** Raw tokens; the listener drops anything not in TUNE_TOKENS / its own g:/l:/m: sets. */
+  tokens: string[];
+}

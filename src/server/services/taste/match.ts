@@ -15,7 +15,7 @@ import {
   tasteSim,
   type SharedTitle,
 } from "@/lib/taste/compatibility";
-import type { TasteMatchDTO, TasteMatchTitleDTO, TasteTwinDTO } from "@/lib/taste/recommend-types";
+import type { CommonGroundPickDTO, TasteMatchDTO, TasteMatchTitleDTO, TasteTwinDTO } from "@/lib/taste/recommend-types";
 import { cosineSimilarity } from "@/lib/taste/vector";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import { fetchTasteSignals } from "@/server/db/postgres/social/taste";
@@ -121,6 +121,22 @@ export async function getTasteMatchFor(viewerId: number, username: string): Prom
     });
     return null;
   }
+}
+
+/**
+ * Titles both users would likely enjoy (taste v2 §5.3 `compare_taste` picks):
+ * PUBLIC centroids of both sides averaged in one space, ANN per table, minus the
+ * viewer's exclusions + dismissals and the target's PUBLIC watched/rated titles.
+ * Callers gate with `canViewTasteMatch` first. Never throws (→ []).
+ *
+ * TODO(workstream B): implement. Today: always [].
+ */
+export async function getCommonGroundPicks(
+  _viewerId: number,
+  _targetId: number,
+  _limit: number
+): Promise<CommonGroundPickDTO[]> {
+  return [];
 }
 
 /**

@@ -27,6 +27,7 @@ import {
 } from "./recommend-constants";
 import { dot, l2Normalize } from "./vector";
 import type { TasteMediaType, TitleKey } from "./types";
+import type { RecExplanation } from "./recommend-types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -89,9 +90,8 @@ export interface ScoredCandidate extends RecCandidate {
   nearestCluster: number | null;
 }
 
-export type RecExplanation =
-  | { kind: "because"; anchor: RecTitleRef }
-  | { kind: "facet"; label: string };
+/** v2 union lives with the DTOs (client-safe); re-exported for the pure layer. */
+export type { RecExplanation };
 
 // ---------------------------------------------------------------------------
 // Scoring

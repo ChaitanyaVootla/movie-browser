@@ -270,6 +270,7 @@ model Movie {
   recentViews           RecentItem[]
   continueWatching      ContinueWatching[]
   watchEvents           WatchEvent[]
+  recFeedback           RecFeedback[]
   userReviews           UserReview[]
   comments              Comment[]
   listItems             ListItem[]
@@ -451,6 +452,7 @@ model Series {
   continueWatching      ContinueWatching[]
   watchEvents           WatchEvent[]
   seriesProgress        SeriesProgress[]
+  recFeedback           RecFeedback[]
   userReviews           UserReview[]
   comments              Comment[]
   listItems             ListItem[]
@@ -1024,6 +1026,7 @@ model User {
   seriesProgress     SeriesProgress[]
   userStats          UserStats?
   tasteProfile       UserTasteProfile?
+  recFeedback        RecFeedback[]
   userReviews       UserReview[]
   comments           Comment[]
   reactions          Reaction[]
@@ -1365,6 +1368,41 @@ model TasteBaselineMeta {
   embeddingCount      Int       @default(0) @map("embedding_count")
 
   @@map("taste_baseline_meta")
+}
+
+// Explicit feedback on a RECOMMENDATION (spec docs/superpowers/specs/2026-10-12-taste-experience-v2-design.md §6.1).
+// DISMISS = "Not for me" (forever, until undone; feeds exclusions + the negative
+// centroid at W_DISMISS); SKIP = calibration "Haven't seen it" (expires_at +90d,
+// calibration deck only). Undo = DELETE. Raw-SQL integrity in
+// 04-ugc-constraints.sql (one anchor, media_type agrees, NULLS NOT DISTINCT unique).
+// NOT audited (preference signal, high churn, no moderation value). New table,
+// every column nullable/defaulted -> `db push` needs no --accept-data-loss.
+model RecFeedback {
+  id        Int             @id @default(autoincrement())
+  userId    Int             @map("user_id")
+  mediaType MediaType       @map("media_type")
+  movieId   Int?            @map("movie_id")
+  seriesId  Int?            @map("series_id")
+  kind      RecFeedbackKind
+  rowId     String?         @map("row_id") // "for-you" | "cluster-1" | "seed-m:603" | "calibration"
+  anchorKey String?         @map("anchor_key") // "m:603" — the anchor shown when dismissed (for eval)
+  source    String          @default("ui") // "ui" | "cue"
+  createdAt DateTime        @default(now()) @map("created_at")
+  expiresAt DateTime?       @map("expires_at") // SKIP: +90d; DISMISS: null
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie  Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  series Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([movieId])
+  @@index([seriesId])
+  @@map("rec_feedback")
+}
+
+enum RecFeedbackKind {
+  DISMISS
+  SKIP
 }
 
 // Derived taste profile (spec docs/superpowers/specs/2026-10-09-taste-profile-design.md).

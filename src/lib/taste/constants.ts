@@ -6,7 +6,7 @@
  * profiles with a different version are recomputed on their next read, so no
  * migration or backfill is needed.
  */
-export const TASTE_ALGO_VERSION = 3; // v3: vectors in the mean-centered embedding space (2026-10-10 spec); v2: privacy over all entry kinds, uncapped privacy, public-finish rule, adult filter
+export const TASTE_ALGO_VERSION = 4; // v4: rec_feedback DISMISS signal (W_DISMISS) + public snapshot v2 (taste v2 spec 2026-10-12 §6.2); v3: vectors in the mean-centered embedding space (2026-10-10 spec); v2: privacy over all entry kinds, uncapped privacy, public-finish rule, adult filter
 
 /** Signal weights (spec §4). */
 export const W_FAVORITE = 3;
@@ -19,6 +19,8 @@ export const W_REWATCH_CAP = 1.5;
 export const W_SERIES_FINISHED = 0.75;
 export const W_SERIES_DROPPED = -1;
 export const W_WATCHLIST = 0.3;
+/** "Not for me" on a recommendation (rec_feedback DISMISS), decayed; FULL scope only — never public. */
+export const W_DISMISS = -0.75;
 export const SCORE_CLIP = 2;
 /** Neutral 1-10 mean used until a user has MIN_SCORES_FOR_MEAN scores. */
 export const DEFAULT_MEAN_SCORE = 5.5;

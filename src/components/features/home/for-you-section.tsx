@@ -39,7 +39,9 @@ export function toListItem(it: RecItemDTO): MovieListItem | SeriesListItem {
 export function explanationText(it: RecItemDTO, row: RecRowDTO): string | undefined {
   const e = it.explanation;
   if (!e) return undefined;
-  if (e.kind === "facet") return e.label;
+  if (e.kind === "facet" || e.kind === "popular") return e.label;
+  // A seeded row's heading already names the seed.
+  if (e.kind === "seed") return undefined;
   // In a "Because you loved X" row the heading already names X.
   if (row.anchor && e.anchor.id === row.anchor.id && e.anchor.mediaType === row.anchor.mediaType) {
     return undefined;

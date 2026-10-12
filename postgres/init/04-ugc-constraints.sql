@@ -173,3 +173,20 @@ ALTER TABLE blocks ADD CONSTRAINT chk_blocks_not_self
 -- ---------------------------------------------------------------------------
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username_lower
   ON users (lower(username));
+
+-- ---------------------------------------------------------------------------
+-- rec_feedback (taste v2 §6.1): exactly one anchor; media_type agrees; ONE row
+-- per (user, title, kind). NULLS NOT DISTINCT so the NULL movie_id/series_id
+-- half of each row still collides (same shape as user_ratings).
+-- ---------------------------------------------------------------------------
+ALTER TABLE rec_feedback DROP CONSTRAINT IF EXISTS chk_rec_feedback_one_anchor;
+ALTER TABLE rec_feedback ADD CONSTRAINT chk_rec_feedback_one_anchor
+  CHECK (num_nonnulls(movie_id, series_id) = 1);
+
+ALTER TABLE rec_feedback DROP CONSTRAINT IF EXISTS chk_rec_feedback_media_type;
+ALTER TABLE rec_feedback ADD CONSTRAINT chk_rec_feedback_media_type
+  CHECK ((media_type = 'MOVIE' AND movie_id IS NOT NULL)
+      OR (media_type = 'SERIES' AND series_id IS NOT NULL));
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_rec_feedback_unit
+  ON rec_feedback (user_id, media_type, movie_id, series_id, kind) NULLS NOT DISTINCT;

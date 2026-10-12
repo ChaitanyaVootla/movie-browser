@@ -17,7 +17,7 @@ import { IdleCircle } from "./idle-circle";
 import { MinimalView } from "./minimal-view";
 import { ExpandedChat } from "./expanded-chat";
 import { getContextualPrompts, IDLE_PROMPTS } from "./prompts";
-import { type FloatyState, type PromptConfig, type PostWatchContext, TRANSITION_EASE } from "./types";
+import { type AiChatTriggerDetail, type FloatyState, type PromptConfig, type PostWatchContext, TRANSITION_EASE } from "./types";
 
 // =============================================================================
 // Main Component
@@ -67,7 +67,7 @@ export function AssistantFloaty({ className }: { className?: string }) {
 
   // Listen for external chat trigger events (from AIQuestionsSection)
   useEffect(() => {
-    const handleChatTrigger = (event: CustomEvent<{ message: string }>) => {
+    const handleChatTrigger = (event: CustomEvent<AiChatTriggerDetail>) => {
       const { message } = event.detail;
       if (message) {
         sendMessage(message);

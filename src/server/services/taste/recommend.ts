@@ -34,7 +34,17 @@ import {
   type RecCluster,
   type ScoredCandidate,
 } from "@/lib/taste/recommend";
-import type { RecItemDTO, RecReason, RecRowDTO, RecSource, RecsDTO } from "@/lib/taste/recommend-types";
+import type {
+  GetHomeRecsOptions,
+  HomeRecsDTO,
+  RecItemDTO,
+  RecReason,
+  RecRowDTO,
+  RecSeedInput,
+  RecSource,
+  RecsDTO,
+  TuneParams,
+} from "@/lib/taste/recommend-types";
 import { MIN_POSITIVES_FOR_CENTROID } from "@/lib/taste/constants";
 import { l2Normalize, weightedMean } from "@/lib/taste/vector";
 import { RAW_SPACE, projectAll, resolveStoredSpace, type TasteSpace } from "@/lib/taste/space";
@@ -517,6 +527,39 @@ export async function getRecommendationsForUser(userId: number): Promise<RecsDTO
     });
     return { rows: [], reason: "error", algo: REC_ALGO_VERSION };
   }
+}
+
+/**
+ * Home rows + Tune metadata (taste v2 §6.3) — the service behind the
+ * `getHomeRecs` action and Cue's `steer_recs`. Never throws.
+ *
+ * TODO(workstream A): apply `tune` / `opts.shuffle` (re-rank the cached pool via
+ * services/taste/tune.ts) and fill `tuneAvailable`. Today: untuned rows.
+ */
+export async function getHomeRecsForUser(
+  userId: number,
+  _tune?: TuneParams,
+  _opts: GetHomeRecsOptions = {}
+): Promise<HomeRecsDTO> {
+  const recs = await getRecommendationsForUser(userId);
+  let positiveCount = 0;
+  try {
+    positiveCount = (await getTasteProfile(userId, { scope: "full" }))?.positiveCount ?? 0;
+  } catch {
+    // Rows already degrade to { reason: "error" }; the count is display-only.
+  }
+  return { ...recs, tuneAvailable: {}, positiveCount };
+}
+
+/**
+ * "More like {seed}" row (taste v2 §3.4) — the service behind `getMoreLikeThis`
+ * and `steer_recs({ seedTitle })`. null = nothing to show. Never throws.
+ *
+ * TODO(workstream A): annSearch(similarTo seed) ×2 tables + exclusions +
+ * dismissals, blendQueryTaste 0.65/0.35, 10-min cache. Today: always null.
+ */
+export async function getMoreLikeThisForUser(_userId: number, _seed: RecSeedInput): Promise<RecRowDTO | null> {
+  return null;
 }
 
 /** Drop titles the user has engaged with since the result was computed. */

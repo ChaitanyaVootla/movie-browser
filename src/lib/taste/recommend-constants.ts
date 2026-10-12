@@ -3,7 +3,7 @@
  * docs/superpowers/specs/2026-10-09-taste-recommendations-design.md §3).
  * Bump REC_ALGO_VERSION on any change: it is part of the in-process cache key.
  */
-export const REC_ALGO_VERSION = 3; // v3: series ANN capped at k=500 (planner seq-scan crossover); v2: centered taste space, exact re-rank of an over-fetched ANN pool
+export const REC_ALGO_VERSION = 4; // v4: taste v2 (in-cluster explanations, alsoNear/facets, tune, dismissals — spec 2026-10-12); v3: series ANN capped at k=500 (planner seq-scan crossover); v2: centered taste space, exact re-rank of an over-fetched ANN pool
 
 /** Query vectors: top clusters by importance (plus one centroid query). */
 export const REC_MAX_CLUSTER_QUERIES = 3;
