@@ -4,8 +4,7 @@ import { ProfileDashboard } from "./profile-dashboard";
 import { ProfileDashboardSwitch } from "./profile-dashboard-switch";
 import { ProfileSetupCard } from "./profile-setup-card";
 import { ProfileVisitorEmpty } from "./profile-visitor-empty";
-import { TasteOwnerHint } from "./taste-owner-hint";
-import { TasteMatch } from "./taste-match";
+import { TasteMatchSlot, TasteOwnerHintSlot } from "./taste-viewer-slots";
 import { PAGE_PADDING_X, OVERLINE } from "@/lib/design";
 import type { PublicProfileDTO, TasteHintState } from "@/types/social";
 
@@ -45,7 +44,7 @@ export function ProfileBodyContent({ profile }: { profile: PublicProfileDTO }) {
           {/* Taste match (viewer ↔ owner) — the first thing a signed-in visitor
               sees (taste v2 §4.9). Client island: renders nothing in the cached
               HTML; gated + PUBLIC-scope server-side. */}
-          <TasteMatch username={profile.username} displayName={profile.displayName} />
+          <TasteMatchSlot username={profile.username} displayName={profile.displayName} />
           <ProfileSetupCard
             flags={{
               hasBackdrop: profile.backdrop !== null,
@@ -59,7 +58,7 @@ export function ProfileBodyContent({ profile }: { profile: PublicProfileDTO }) {
           <ProfileDashboardSwitch>
             <ProfileDashboard profile={profile} />
           </ProfileDashboardSwitch>
-          <TasteOwnerHint taste={hintState(profile.taste)} />
+          <TasteOwnerHintSlot taste={hintState(profile.taste)} />
 
           <p className={OVERLINE}>
             Member since{" "}
