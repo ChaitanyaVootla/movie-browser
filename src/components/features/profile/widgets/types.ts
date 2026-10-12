@@ -25,6 +25,7 @@ export type WidgetType =
   | "showcase.lists"
   | "showcase.reviews"
   | "showcase.discussions"
+  | "taste.card"
   | "taste.dna"
   | "taste.moods"
   | "taste.people"

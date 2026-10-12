@@ -7,9 +7,18 @@ import { Star, Users } from "lucide-react";
 import { cn, getMediaPath } from "@/lib/utils";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import type { PersonStat } from "@/lib/taste/lift";
+import { EvidenceGrid } from "../taste/evidence-grid";
+import { ExploreTrigger } from "../taste/explore-trigger";
 import { WidgetCard } from "./widget-card";
 
 type Mode = "watched" | "rated";
+
+/** Sheet line: numbers about the titles only. */
+function peopleDescription(p: PersonStat, mode: Mode): string {
+  const seen = `${p.count} ${p.count === 1 ? "title" : "titles"}`;
+  if (mode === "watched" || p.avgScore === null) return seen;
+  return `${seen} · ${p.ratedCount} rated, ${(p.avgScore / 2).toFixed(1)} stars on average`;
+}
 
 const initials = (name: string) =>
   name
@@ -61,11 +70,11 @@ export function TastePeopleWidget({
       </div>
       <ul className="space-y-1">
         {list.map((p) => (
-          <li key={`${p.role}-${p.tmdbId}`}>
+          <li key={`${p.role}-${p.tmdbId}`} className="-mx-2 flex min-h-12 items-center gap-2 rounded-lg px-2 transition-colors hover:bg-muted/50">
             <Link
               href={getMediaPath("person", p.tmdbId, p.name)}
               prefetch={false}
-              className="-mx-2 flex min-h-12 items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-lg py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="relative size-10 flex-shrink-0 overflow-hidden rounded-full bg-muted">
                 {p.profilePath ? (
@@ -89,21 +98,40 @@ export function TastePeopleWidget({
                   {p.role === "director" ? "Director" : "Cast"}
                 </span>
               </span>
-              {mode === "watched" ? (
-                <span className="text-xs font-semibold tabular-nums text-muted-foreground">
-                  {p.count} {p.count === 1 ? "title" : "titles"}
-                </span>
-              ) : (
-                <span
-                  className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums text-foreground"
-                  title={`Average ${((p.avgScore ?? 0) / 2).toFixed(1)} stars over ${p.ratedCount} rated titles`}
-                >
-                  <Star className="h-3.5 w-3.5 fill-current text-brand" aria-hidden />
-                  {((p.shrunkScore ?? 0) / 2).toFixed(1)}
-                  <span className="font-medium text-muted-foreground">({p.ratedCount})</span>
-                </span>
-              )}
             </Link>
+            <ExploreTrigger
+              tap="people"
+              disabled={(p.titles ?? []).length === 0}
+              ariaLabel={`${p.name}: ${p.count} ${p.count === 1 ? "title" : "titles"}`}
+              title={p.name}
+              description={peopleDescription(p, mode)}
+              className="-mr-1 flex min-h-12 flex-shrink-0 flex-col items-end justify-center rounded-md px-1 text-right"
+              label={
+                mode === "watched" ? (
+                  <span className="text-xs font-semibold tabular-nums text-muted-foreground underline decoration-dotted underline-offset-4">
+                    {p.count} {p.count === 1 ? "title" : "titles"}
+                  </span>
+                ) : (
+                  <>
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums text-foreground"
+                      title={`Average ${((p.avgScore ?? 0) / 2).toFixed(1)} stars over ${p.ratedCount} rated titles`}
+                    >
+                      <Star className="h-3.5 w-3.5 fill-current text-brand" aria-hidden />
+                      <span className="underline decoration-dotted underline-offset-4">
+                        {((p.shrunkScore ?? 0) / 2).toFixed(1)}
+                      </span>
+                      <span className="hidden font-medium text-muted-foreground md:inline">({p.ratedCount})</span>
+                    </span>
+                    <span className="text-[11px] font-medium tabular-nums text-muted-foreground md:hidden">
+                      {((p.avgScore ?? 0) / 2).toFixed(1)} · {p.ratedCount} rated
+                    </span>
+                  </>
+                )
+              }
+            >
+              <EvidenceGrid titles={p.titles ?? []} />
+            </ExploreTrigger>
           </li>
         ))}
       </ul>

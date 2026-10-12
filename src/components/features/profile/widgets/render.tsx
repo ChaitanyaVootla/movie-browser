@@ -24,7 +24,7 @@ import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import { WidgetCard, StatTile } from "./widget-card";
 import { CountryMapWidget } from "./country-map";
 import { WatchActivityWidget } from "./watch-activity";
-import { TasteClustersWidget, TasteDnaWidget, readyTaste } from "./taste-widgets";
+import { TasteCard, readyTaste } from "./taste-widgets";
 import { TasteMoodsWidget } from "./taste-moods";
 import { TastePeopleWidget } from "./taste-people";
 import type { ProfileWidgetData, WidgetType } from "./types";
@@ -236,7 +236,9 @@ export const WIDGET_RENDER: Record<WidgetType, RenderFn> = {
       </WidgetCard>
     ) : null,
 
-  "taste.dna": TasteDnaWidget,
+  // Legacy saved layouts: both v1 taste widgets render the v2 Taste card.
+  "taste.card": TasteCard,
+  "taste.dna": TasteCard,
   "taste.moods": ({ data }) => {
     const taste = readyTaste(data);
     return taste && taste.moods.length > 0 ? <TasteMoodsWidget moods={taste.moods} /> : null;
@@ -249,7 +251,7 @@ export const WIDGET_RENDER: Record<WidgetType, RenderFn> = {
       <TastePeopleWidget mostWatched={mostWatched} highestRated={highestRated} />
     ) : null;
   },
-  "taste.clusters": TasteClustersWidget,
+  "taste.clusters": TasteCard,
 
   "text.note": ({ config }) => {
     const text = typeof config?.text === "string" ? config.text.trim() : "";
