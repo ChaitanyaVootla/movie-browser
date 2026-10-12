@@ -25,6 +25,10 @@ interface MediaScrollerProps {
   contentPadding?: string;
   /** Gap between items - use Tailwind gap class e.g. "gap-4" (default: "gap-4") */
   gap?: string;
+  /** Optional trailing heading content (e.g. an "Ask Cue" pill), before the arrows. */
+  headingAction?: ReactNode;
+  /** Optional content between the header and the scroll area (e.g. a sub-line + tune bar). */
+  subheader?: ReactNode;
 }
 
 /**
@@ -53,6 +57,8 @@ export function MediaScroller({
   showControls = true,
   contentPadding = "px-4 md:px-8 lg:px-12",
   gap = "gap-4",
+  headingAction,
+  subheader,
 }: MediaScrollerProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { trackAction } = useAnalytics();
@@ -76,10 +82,10 @@ export function MediaScroller({
   return (
     <section className={cn("space-y-4", className)}>
       {/* Header */}
-      {(title || showControls || seeAllHref) && (
-        <div className={cn("flex items-center justify-between", contentPadding)}>
+      {(title || showControls || seeAllHref || headingAction) && (
+        <div className={cn("flex items-center justify-between gap-3", contentPadding)}>
           {/* Title */}
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             {titleIcon}
             {title &&
               (typeof title === "string" ? (
@@ -90,7 +96,8 @@ export function MediaScroller({
           </div>
 
           {/* Controls + See All */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2">
+            {headingAction}
             {/* Arrow controls - desktop only */}
             {showControls && (
               <div className="hidden md:flex gap-1">
@@ -128,6 +135,8 @@ export function MediaScroller({
           </div>
         </div>
       )}
+
+      {subheader}
 
       {/* Scroll area - use ScrollContainer but share the ref for header controls */}
       <ScrollContainer
