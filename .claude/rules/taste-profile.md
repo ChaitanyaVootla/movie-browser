@@ -8,6 +8,8 @@ paths:
   - "src/server/db/postgres/social/stats.ts"
   - "src/components/features/profile/widgets/taste-*.tsx"
   - "src/components/features/profile/taste-owner-hint.tsx"
+  - "src/components/features/profile/taste/**"
+  - "src/server/actions/taste-explore.ts"
   - "scripts/seed-taste-demo.ts"
   - "scripts/refresh-taste-baseline.ts"
   - "src/server/db/postgres/social/taste-baseline.ts"
@@ -43,7 +45,7 @@ thresholds): `docs/superpowers/specs/2026-10-09-taste-profile-design.md`. Plan:
 | SQL | `src/server/db/postgres/social/taste.ts` (+ `taste-dirty.ts`) |
 | Service / interface | `src/server/services/taste/` — `index.ts` (public API), `compute.ts`, `baseline-cache.ts` |
 | Table | `user_taste_profiles` (`UserTasteProfile`) — derived, NOT audited |
-| UI | `profile/widgets/taste-{widgets,moods,people}.tsx`, `profile/taste-owner-hint.tsx`; DESIGN.md → Taste profile |
+| UI | `profile/taste/` (Taste card, axis strand, `ExploreTrigger` + `EvidenceGrid`, compare overlay, copy templates), `profile/widgets/taste-{widgets,moods,people}.tsx`, `profile/taste-owner-hint.tsx`; DESIGN.md → Taste profile |
 
 Interface for consumers: `getTasteProfile(userId, {scope})`, `getTasteClusters`,
 `getTasteVectors` (centroid / negCentroid / publicCentroid + the `space` they live in —
@@ -96,6 +98,38 @@ never throws), plus `cosineSimilarity` / `l2Normalize`.
    `taste-baseline` cron (19:00 UTC, `nice -n 19`, CRON_HOUR_UTC guard). Empty
    tables → uniform prior. Recomputes: per-user dedupe, global `p-limit(2)`, 20s
    cap, 1.5s reader wait then stale, failure backoff 5 min→1 h.
+
+## Snapshot v2 (taste v2, Oct 12 2026 — spec `2026-10-12-taste-experience-v2-design.md` §4.7)
+
+`TasteSnapshot.v = 2` (rides `TASTE_ALGO_VERSION` 4). Additive fields, all computed
+inside `computeTasteProfile` FROM THE SCOPE'S OWN SIGNALS — so the public snapshot is
+public by construction (no redaction step):
+
+- `clusters[].members: TitleRef[]` — ≤12 (`CLUSTER_MEMBERS_SHOWN`), medoid first, then
+  heaviest. `topFacets` = `[label, …other lifted facets]` (≤3).
+- `clusters[].label` — `clusterLabel()`: top lifted GENRE facet, else top theme, else the
+  medoid's first genre, else its title. (A bare keyword like "Scientist" read as a bug.)
+- `axes[].examples: { low, high }` — ≤6 per end, ONLY titles on that side of the
+  midpoint, extreme-first, each `TitleRef & { value }` (per-title number). The UI
+  disables an end under `AXIS_EXAMPLES_MIN_TO_OPEN` (3).
+- `people.*[].titles: TitleRef[]` — ≤6, heaviest first.
+- `NEUTRAL_MOOD_VALUES` (`lift.ts`, `isNeutralMoodFacet`): mid-scale mood/theme values
+  (`medium|mixed|moderate|balanced|neutral|steady`) never reach `moods`, `facets.mood`
+  or `facets.theme` — so Cue's summary doesn't get them either. The UI filters again
+  for stale v1 rows.
+- `parseTasteSnapshot` still accepts stored v1 rows (new fields `.default([])`) and
+  normalises them to v2, so a reader that loses the 1.5s recompute race still renders.
+
+Surfaces built on it: the Taste card (`profile/taste/taste-card.tsx`) + Compare overlay
+(`getViewerTasteAxes`, `actions/taste-explore.ts` — the VIEWER's **PUBLIC** axes only;
+hidden → `hidden`, so a viewer who hid their profile can't compare — symmetric with
+`canViewTasteMatch`). `getCommonGroundPicks` (`services/taste/match.ts`) averages BOTH
+public centroids (same stored space, `resolveStoredSpace`), runs one `annCandidates`
+per table, excludes the viewer's exclusions and the target's PUBLIC watched/rated
+titles only (never their private ones — not ours to use), and is behind the same gate
+as the match card. Twins carry `shared` (≤2 shared PUBLIC loves). Pinned by
+`taste-privacy.integration.test.ts` ("public snapshot v2 + compare axes") and
+`match.test.ts`.
 
 ## Gotchas (each cost time)
 
