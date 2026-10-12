@@ -367,7 +367,7 @@ export function MinimalView({
                           </m.p>
                         )}
                         {lastAssistantMessage && (
-                          <TuneTagSlot content={lastAssistantMessage.content} messageId={lastAssistantMessage.id} isStreaming={lastAssistantMessage.isStreaming ?? false} />
+                          <TuneTagSlot content={lastAssistantMessage.content} messageId={lastAssistantMessage.id} isStreaming={lastAssistantMessage.isStreaming ?? false} fresh={lastAssistantMessage.live ?? false} />
                         )}
                         {hasInlineTags && parsedContent && (
                           <div className="flex flex-wrap items-center justify-center gap-2">

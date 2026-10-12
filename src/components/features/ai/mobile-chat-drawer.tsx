@@ -380,7 +380,7 @@ export function MobileChatDrawer({
                       </m.p>
                     )}
                     {lastAssistantMessage && (
-                      <TuneTagSlot content={lastAssistantMessage.content} messageId={lastAssistantMessage.id} isStreaming={lastAssistantMessage.isStreaming ?? false} />
+                      <TuneTagSlot content={lastAssistantMessage.content} messageId={lastAssistantMessage.id} isStreaming={lastAssistantMessage.isStreaming ?? false} fresh={lastAssistantMessage.live ?? false} />
                     )}
                     {hasInlineTags && parsedContent && (
                       <div className="flex flex-wrap items-center gap-2">

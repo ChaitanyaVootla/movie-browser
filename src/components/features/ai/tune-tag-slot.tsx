@@ -15,16 +15,19 @@ export function TuneTagSlot({
   content,
   messageId,
   isStreaming = false,
+  fresh = false,
 }: {
   content: string;
   messageId?: string;
   isStreaming?: boolean;
+  /** `ChatMessage.live`: answered this page lifetime → live even if never seen streaming. */
+  fresh?: boolean;
 }) {
   // "Live" = this reply streamed while the view was mounted. Derived during
   // render (not in an effect) so a reply that finishes before the pill chunk
   // loads still counts as live.
-  const [live, setLive] = useState(isStreaming);
-  if (isStreaming && !live) setLive(true);
+  const [live, setLive] = useState(isStreaming || fresh);
+  if ((isStreaming || fresh) && !live) setLive(true);
   if (!content.includes("[TUNE:")) return null;
   return <TunePill content={content} messageId={messageId} live={live} />;
 }

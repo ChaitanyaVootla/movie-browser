@@ -30,6 +30,13 @@ describe("TuneTagSlot", () => {
     expect(seen.at(-1)).toEqual({ content: "Here [TUNE:series]", live: true });
   });
 
+  it("a reply answered this session is live even when first mounted after streaming ended", () => {
+    // Short replies can land in one chunk with `done`: the minimal view shows a
+    // spinner while content is empty, so the slot never sees isStreaming=true.
+    render(<TuneTagSlot content="Darker series. [TUNE:series,darker]" isStreaming={false} fresh />);
+    expect(seen.at(-1)?.live).toBe(true);
+  });
+
   it("restored history is never live", () => {
     render(<TuneTagSlot content="Old [TUNE:series]" />);
     expect(seen.at(-1)?.live).toBe(false);

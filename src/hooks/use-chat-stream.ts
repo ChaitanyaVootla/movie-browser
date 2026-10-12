@@ -15,6 +15,13 @@ export interface ChatMessage {
   /** Thinking/reasoning content from the model (for display) */
   thinking?: string;
   isStreaming?: boolean;
+  /**
+   * Sent and answered in this page lifetime (not restored history). Lets a
+   * `[TUNE:…]` reply auto-apply even when the view that renders its pill only
+   * mounts after streaming ended (a short reply can arrive in one chunk with
+   * `done`, so `isStreaming` is never observed as true there).
+   */
+  live?: boolean;
   /** Whether we're currently receiving thinking content */
   isThinking?: boolean;
   toolCalls?: string[];
@@ -210,6 +217,7 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
           content: "",
           thinking: "",
           isStreaming: true,
+          live: true,
           isThinking: true, // Start with thinking state
           toolCalls: [],
         },
