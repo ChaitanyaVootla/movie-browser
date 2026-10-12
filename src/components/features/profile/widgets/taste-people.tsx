@@ -28,9 +28,10 @@ const initials = (name: string) =>
     .join("");
 
 /**
- * Your people: directors/creators and top-billed cast. "Most watched" counts
- * public titles seen; "Highest rated" ranks by the shrunk mean score (pulled
- * toward the person's overall mean so two lucky 10s can't top the list). The
+ * People: directors/creators and top-billed cast. Titled neutrally — visitors
+ * read it on someone else's profile. "Most watched" counts public titles seen;
+ * "Highest rated" ranks by the shrunk mean score (pulled toward the person's
+ * overall mean so two lucky 10s can't top the list). The
  * star value shown is that shrunk mean on the site's 5-star scale.
  */
 export function TastePeopleWidget({
@@ -48,7 +49,7 @@ export function TastePeopleWidget({
   ];
 
   return (
-    <WidgetCard title="Your people" icon={<Users className="h-4 w-4" />}>
+    <WidgetCard title="People" icon={<Users className="h-4 w-4" />}>
       <div role="radiogroup" aria-label="Rank people by" className="mb-3 inline-flex rounded-full bg-muted p-1">
         {options.map((o) => (
           <button

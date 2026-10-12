@@ -537,7 +537,8 @@ below (`h-2` strand track).
   count; the three strongest use the AI-tag tint (`bg-brand/15 text-brand`), the
   rest `bg-muted text-muted-foreground`. Neutral mid-scale values ("Medium
   intensity", "Mixed tone", "Steady pacing", "Emotionally balanced") never display.
-- **Your people** (`taste.people`, w6) — segmented toggle (`rounded-full bg-muted
+- **People** (`taste.people`, w6; titled neutrally like its siblings — "Your
+  people" read as the VISITOR's people on someone else's profile) — segmented toggle (`rounded-full bg-muted
   p-1`, active segment `bg-card`), rows `min-h-12`: portrait + name link to the
   person page; the right-aligned metric is a button that opens that person's titles.
   "Highest rated" shows the `text-brand` star + shrunk mean; on mobile the raw

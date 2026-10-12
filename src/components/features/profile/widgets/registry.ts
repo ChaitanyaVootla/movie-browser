@@ -37,7 +37,7 @@ export const WIDGET_META: Record<WidgetType, WidgetMeta> = {
   "taste.card": { type: "taste.card", category: "taste", title: "Taste", defaultSize: { w: 12, h: 3 }, minSize: { w: 6, h: 3 }, mobileSpan: 2, isAvailable: (d) => hasTasteCard(d.taste?.status === "ready" ? d.taste.snapshot : null) },
   "taste.dna": { type: "taste.dna", category: "taste", title: "Taste", defaultSize: { w: 12, h: 3 }, minSize: { w: 6, h: 3 }, mobileSpan: 2, isAvailable: () => false },
   "taste.moods": { type: "taste.moods", category: "taste", title: "Moods & themes", defaultSize: { w: 6, h: 2 }, minSize: { w: 3, h: 2 }, mobileSpan: 2, isAvailable: (d) => d.taste?.status === "ready" && d.taste.snapshot.moods.some((m) => !isNeutralMoodFacet(m)) },
-  "taste.people": { type: "taste.people", category: "taste", title: "Your people", defaultSize: { w: 6, h: 3 }, minSize: { w: 3, h: 3 }, mobileSpan: 2, isAvailable: (d) => d.taste?.status === "ready" && (d.taste.snapshot.people.mostWatched.length > 0 || d.taste.snapshot.people.highestRated.length > 0) },
+  "taste.people": { type: "taste.people", category: "taste", title: "People", defaultSize: { w: 6, h: 3 }, minSize: { w: 3, h: 3 }, mobileSpan: 2, isAvailable: (d) => d.taste?.status === "ready" && (d.taste.snapshot.people.mostWatched.length > 0 || d.taste.snapshot.people.highestRated.length > 0) },
   "taste.clusters": { type: "taste.clusters", category: "taste", title: "Taste", defaultSize: { w: 12, h: 3 }, minSize: { w: 6, h: 3 }, mobileSpan: 2, isAvailable: () => false },
 
   "text.note": { type: "text.note", category: "text", title: "Note", defaultSize: { w: 4, h: 1 }, minSize: { w: 3, h: 1 }, mobileSpan: 2, isAvailable: () => true },
