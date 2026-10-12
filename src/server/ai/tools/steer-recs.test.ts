@@ -31,7 +31,7 @@ const facet = (type: FacetStat["type"], key: string, label: string): FacetStat =
 });
 
 const snapshot = {
-  v: 1,
+  v: 2,
   computedAt: "2026-10-12T00:00:00Z",
   scope: "full",
   positiveCount: 20,

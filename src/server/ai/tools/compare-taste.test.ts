@@ -54,7 +54,7 @@ const facet = (type: FacetStat["type"], label: string): FacetStat => ({
 });
 
 const snap = (genres: string[], moods: string[]): TasteSnapshot => ({
-  v: 1,
+  v: 2,
   computedAt: "2026-10-12T00:00:00Z",
   scope: "public",
   positiveCount: 10,

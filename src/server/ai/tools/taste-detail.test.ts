@@ -31,12 +31,12 @@ const facet = (type: FacetStat["type"], label: string, titles = [ref(1, "One")])
 });
 
 const snapshot: TasteSnapshot = {
-  v: 1,
+  v: 2,
   computedAt: "2026-10-12T00:00:00Z",
   scope: "full",
   positiveCount: 18,
   signalCount: 20,
-  axes: [{ key: "era", value: 0.7123, support: 9, lowLabel: "Classic", highLabel: "New", caption: "Median release year 2014" }],
+  axes: [{ key: "era", value: 0.7123, support: 9, lowLabel: "Classic", highLabel: "New", caption: "Median release year 2014", examples: { low: [], high: [] } }],
   moods: [facet("mood", "Dark tone"), facet("theme", "Erotic awakening")],
   facets: {
     genre: [facet("genre", "Science Fiction", Array.from({ length: 9 }, (_, i) => ref(i + 1, `T${i}`)))],
@@ -51,7 +51,7 @@ const snapshot: TasteSnapshot = {
   },
   people: {
     mostWatched: [
-      { tmdbId: 5, name: "Some Actor", profilePath: null, role: "cast", count: 4, avgScore: 8.25, shrunkScore: 7.9, ratedCount: 3 },
+      { tmdbId: 5, name: "Some Actor", profilePath: null, role: "cast", count: 4, avgScore: 8.25, shrunkScore: 7.9, ratedCount: 3, titles: [] },
     ],
     highestRated: [],
   },
@@ -66,6 +66,7 @@ const cluster = (label: string, importance: number, memberKeys: string[]): Taste
   importance,
   label,
   topFacets: [],
+  members: [],
 });
 
 beforeEach(() => {

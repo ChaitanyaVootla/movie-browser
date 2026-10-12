@@ -20,16 +20,16 @@ const facet = (type: FacetStat["type"], key: string, label = key): FacetStat => 
 });
 
 const snapshot = (over: Partial<TasteSnapshot> = {}): TasteSnapshot => ({
-  v: 1,
+  v: 2,
   computedAt: "2026-10-12T00:00:00Z",
   scope: "full",
   positiveCount: 12,
   signalCount: 14,
   axes: [
-    { key: "mainstream", value: 0.3, support: 10, lowLabel: "Mainstream", highLabel: "Niche", caption: "" },
-    { key: "era", value: 0.8, support: 10, lowLabel: "Classic", highLabel: "New", caption: "" },
-    { key: "weight", value: 0.9, support: 10, lowLabel: "Light", highLabel: "Heavy", caption: "" },
-    { key: "range", value: 0.5, support: 10, lowLabel: "Focused", highLabel: "Eclectic", caption: "" },
+    { key: "mainstream", value: 0.3, support: 10, lowLabel: "Mainstream", highLabel: "Niche", caption: "", examples: { low: [], high: [] } },
+    { key: "era", value: 0.8, support: 10, lowLabel: "Classic", highLabel: "New", caption: "", examples: { low: [], high: [] } },
+    { key: "weight", value: 0.9, support: 10, lowLabel: "Light", highLabel: "Heavy", caption: "", examples: { low: [], high: [] } },
+    { key: "range", value: 0.5, support: 10, lowLabel: "Focused", highLabel: "Eclectic", caption: "", examples: { low: [], high: [] } },
   ],
   moods: [facet("mood", "tone:dark", "Dark tone"), facet("theme", "grief", "Grief")],
   facets: {
