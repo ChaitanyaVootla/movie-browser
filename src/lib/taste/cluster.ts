@@ -247,3 +247,25 @@ export function wardClusters(
     })
     .sort((a, b) => b.importance - a.importance || b.size - a.size || a.medoidKey.localeCompare(b.medoidKey));
 }
+
+/** Max member refs a public cluster carries (the explorer's poster grid). */
+export const CLUSTER_MEMBERS_SHOWN = 12;
+
+/**
+ * Cluster name (taste v2 spec §4.7). A bare keyword ("Scientist") next to a
+ * genre read as a bug, so: the top lifted GENRE facet when the cluster has
+ * one, else the top theme, else the medoid's first genre, else its title.
+ * `facets` = the cluster's lifted facets, strongest first.
+ */
+export function clusterLabel(
+  facets: ReadonlyArray<{ type: string; label: string }>,
+  medoidFirstGenre: string | null | undefined,
+  medoidTitle: string
+): string {
+  return (
+    facets.find((f) => f.type === "genre")?.label ??
+    facets.find((f) => f.type === "theme")?.label ??
+    medoidFirstGenre ??
+    medoidTitle
+  );
+}

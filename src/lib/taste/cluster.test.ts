@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cutTree, silhouette, wardClusters, wardLinkage } from "./cluster";
+import { clusterLabel, cutTree, silhouette, wardClusters, wardLinkage } from "./cluster";
 import { l2Normalize } from "./vector";
 
 /** Deterministic PRNG (mulberry32) so tests never flake. */
@@ -54,6 +54,18 @@ describe("wardLinkage + cutTree", () => {
     const assign = cutTree(wardLinkage(units), units.length, 2);
     expect(silhouette(units, assign)).toBeGreaterThan(0.5);
     expect(silhouette(units, new Array(units.length).fill(0))).toBe(0);
+  });
+});
+
+describe("clusterLabel", () => {
+  it("prefers a genre facet, then a theme, then the medoid genre, then its title", () => {
+    const k = { type: "keyword", label: "Scientist" };
+    const t = { type: "theme", label: "Identity and memory" };
+    const g = { type: "genre", label: "Science Fiction" };
+    expect(clusterLabel([k, t, g], "Drama", "Arrival")).toBe("Science Fiction");
+    expect(clusterLabel([k, t], "Drama", "Arrival")).toBe("Identity and memory");
+    expect(clusterLabel([k], "Drama", "Arrival")).toBe("Drama");
+    expect(clusterLabel([k], null, "Arrival")).toBe("Arrival");
   });
 });
 

@@ -16,6 +16,28 @@ import {
 } from "./constants";
 import type { FacetBaseline, FacetType, FacetValue, PersonInfo, TitleRef } from "./types";
 
+/**
+ * Mid-scale AI mood values ("Medium intensity", "Mixed tone", "Steady pacing",
+ * "Emotionally balanced"): the middle of a scale says nothing about a taste, yet
+ * their high counts took the top mood slots (taste v2 spec §1.4 / §4.7). They
+ * never enter `snapshot.moods` (so Cue's summary never sees them either).
+ */
+export const NEUTRAL_MOOD_VALUES: ReadonlySet<string> = new Set([
+  "medium",
+  "mixed",
+  "moderate",
+  "balanced",
+  "neutral",
+  "steady",
+]);
+
+/** A mood (`sub:value`) or free-text theme whose value is a scale midpoint. */
+export function isNeutralMoodFacet(f: { type: FacetType; key: string }): boolean {
+  if (f.type !== "mood" && f.type !== "theme") return false;
+  const value = f.key.includes(":") ? f.key.slice(f.key.indexOf(":") + 1) : f.key;
+  return NEUTRAL_MOOD_VALUES.has(value.trim().toLowerCase());
+}
+
 export function shrink(v: number, r: number, m: number, c: number): number {
   if (v + m <= 0) return c;
   return (v / (v + m)) * r + (m / (v + m)) * c;
@@ -114,6 +136,8 @@ export function liftFacets(
 
 export interface PeopleInput {
   key: string;
+  /** Display ref, for `PersonStat.titles` (snapshot v2). */
+  ref?: TitleRef;
   weight: number;
   watched: boolean;
   score: number | null;
@@ -133,6 +157,8 @@ export interface PersonStat {
   /** Shrunk mean toward the user's mean (ranking key for "highest rated"). */
   shrunkScore: number | null;
   ratedCount: number;
+  /** The person's titles in this scope, heaviest first (<= FACET_SUPPORT_TITLES). */
+  titles: TitleRef[];
 }
 
 export function rankPeople(
@@ -147,7 +173,13 @@ export function rankPeople(
 
   const acc = new Map<
     string,
-    { role: "director" | "cast"; seen: number; mass: number; scores: number[] }
+    {
+      role: "director" | "cast";
+      seen: number;
+      mass: number;
+      scores: number[];
+      titles: Array<{ ref: TitleRef; weight: number; key: string }>;
+    }
   >();
   for (const it of items) {
     const seenTitle = it.watched || it.score !== null;
@@ -158,8 +190,9 @@ export function rankPeople(
       const id = `${f.type}:${f.key}`;
       if (seen.has(id)) continue;
       seen.add(id);
-      const e = acc.get(id) ?? { role: f.type, seen: 0, mass: 0, scores: [] };
+      const e = acc.get(id) ?? { role: f.type, seen: 0, mass: 0, scores: [], titles: [] };
       e.seen += 1;
+      if (it.ref) e.titles.push({ ref: it.ref, weight: it.weight, key: it.key });
       e.mass += Math.max(0, it.weight);
       if (it.score !== null) e.scores.push(it.score);
       acc.set(id, e);
@@ -182,6 +215,10 @@ export function rankPeople(
       avgScore: avg === null ? null : Math.round(avg * 10) / 10,
       shrunkScore: avg === null ? null : Math.round(shrink(ratedCount, avg, m, userMean) * 100) / 100,
       ratedCount,
+      titles: [...e.titles]
+        .sort((a, b) => b.weight - a.weight || a.key.localeCompare(b.key))
+        .slice(0, FACET_SUPPORT_TITLES)
+        .map((t) => t.ref),
       mass: e.mass,
     });
   }

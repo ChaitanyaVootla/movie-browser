@@ -8,8 +8,8 @@
 import { z } from "zod";
 import { computeAxes, type AxisPositive, type AxisRated, type TasteAxis } from "./axes";
 import { rocchioCentroid } from "./centroid";
-import { wardClusters } from "./cluster";
-import { liftFacets, rankPeople, type FacetStat, type PersonStat } from "./lift";
+import { CLUSTER_MEMBERS_SHOWN, clusterLabel, wardClusters } from "./cluster";
+import { isNeutralMoodFacet, liftFacets, rankPeople, type FacetStat, type PersonStat } from "./lift";
 import { MOODS_TOP_K } from "./constants";
 import { foldSignals } from "./weights";
 import {
@@ -40,7 +40,10 @@ export interface TasteClusterView {
   size: number;
   importance: number;
   label: string;
+  /** The cluster's lifted facet labels, `label` first (<= 3). */
   topFacets: string[];
+  /** Member titles, heaviest first, medoid first (<= CLUSTER_MEMBERS_SHOWN). Scope-projected. */
+  members: TitleRef[];
 }
 
 /** FULL cluster detail for the recs path (member keys are private). */
@@ -51,8 +54,14 @@ export interface TasteCluster extends TasteClusterView {
 
 export type TasteFacets = Record<FacetType, FacetStat[]>;
 
+/**
+ * v2 (taste v2 spec 2026-10-12 §4.7): `clusters[].members`, `axes[].examples`,
+ * `people[].titles`, neutral moods dropped, genre-first cluster labels. Stored
+ * v1 rows still parse (new fields default to empty) until they recompute on the
+ * TASTE_ALGO_VERSION bump.
+ */
 export interface TasteSnapshot {
-  v: 1;
+  v: 2;
   computedAt: string;
   scope: TasteScope;
   positiveCount: number;
@@ -99,6 +108,7 @@ const PersonStatSchema = z.object({
   avgScore: z.number().nullable(),
   shrunkScore: z.number().nullable(),
   ratedCount: z.number(),
+  titles: z.array(TitleRefSchema).default([]),
 });
 const AxisSchema = z.object({
   key: z.enum(["mainstream", "era", "range", "rating", "weight"]),
@@ -107,6 +117,12 @@ const AxisSchema = z.object({
   lowLabel: z.string(),
   highLabel: z.string(),
   caption: z.string(),
+  examples: z
+    .object({
+      low: z.array(TitleRefSchema.extend({ value: z.string() })),
+      high: z.array(TitleRefSchema.extend({ value: z.string() })),
+    })
+    .default({ low: [], high: [] }),
 });
 const ClusterViewSchema = z.object({
   medoid: TitleRefSchema,
@@ -114,10 +130,11 @@ const ClusterViewSchema = z.object({
   importance: z.number(),
   label: z.string(),
   topFacets: z.array(z.string()),
+  members: z.array(TitleRefSchema).default([]),
 });
 
 export const TasteSnapshotSchema = z.object({
-  v: z.literal(1),
+  v: z.union([z.literal(1), z.literal(2)]),
   computedAt: z.string(),
   scope: z.enum(["full", "public"]),
   positiveCount: z.number(),
@@ -141,7 +158,7 @@ export function parseTasteSnapshot(raw: unknown): TasteSnapshot | null {
   const facets = Object.fromEntries(
     FACET_TYPES.map((t) => [t, parsed.data.facets[t] ?? []])
   ) as TasteFacets;
-  return { ...parsed.data, facets };
+  return { ...parsed.data, v: 2, facets };
 }
 
 export function emptyFacets(): TasteFacets {
@@ -155,7 +172,7 @@ function clusterFacets(
   weights: ReadonlyMap<string, number>,
   meta: ReadonlyMap<TitleKey, TitleMeta>,
   baseline: FacetBaseline
-): string[] {
+): FacetStat[] {
   const items = memberKeys
     .map((k) => {
       const m = meta.get(k);
@@ -163,15 +180,13 @@ function clusterFacets(
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
   const minSupport = Math.min(2, items.length);
-  const stats = (["genre", "theme", "keyword"] as const).flatMap((t) =>
-    liftFacets(t, items, baseline, { minSupport, k: 3 })
-  );
+  const stats = (["genre", "theme", "keyword"] as const)
+    .flatMap((t) => liftFacets(t, items, baseline, { minSupport, k: 3 }))
+    .filter((f) => !isNeutralMoodFacet(f));
   const seen = new Set<string>();
   return stats
     .sort((a, b) => b.score - a.score)
-    .map((s) => s.label)
-    .filter((l) => (seen.has(l.toLowerCase()) ? false : (seen.add(l.toLowerCase()), true)))
-    .slice(0, 3);
+    .filter((f) => (seen.has(f.label.toLowerCase()) ? false : (seen.add(f.label.toLowerCase()), true)));
 }
 
 export function computeTasteProfile(input: TasteComputeInput, scope: TasteScope): TasteComputeResult {
@@ -203,6 +218,9 @@ export function computeTasteProfile(input: TasteComputeInput, scope: TasteScope)
   }
   facets.director = liftFacets("director", liftItems, baseline, { k: 6 });
   facets.cast = liftFacets("cast", liftItems, baseline, { k: 6 });
+  // Neutral mid-scale values never display (and never reach Cue's summary).
+  facets.mood = facets.mood.filter((f) => !isNeutralMoodFacet(f));
+  facets.theme = facets.theme.filter((f) => !isNeutralMoodFacet(f));
   const moods = [...facets.theme, ...facets.mood]
     .sort((a, b) => b.score - a.score || b.count - a.count)
     .slice(0, MOODS_TOP_K);
@@ -211,6 +229,7 @@ export function computeTasteProfile(input: TasteComputeInput, scope: TasteScope)
   const people = rankPeople(
     titles.map((t) => ({
       key: t.key,
+      ref: meta.get(t.key)?.ref,
       weight: t.weight,
       watched: t.watched,
       score: t.score,
@@ -224,7 +243,9 @@ export function computeTasteProfile(input: TasteComputeInput, scope: TasteScope)
   const axisPositives: AxisPositive[] = positives
     .map((t) => meta.get(t.key) && { t, m: meta.get(t.key) as TitleMeta })
     .filter((x): x is { t: (typeof positives)[number]; m: TitleMeta } => Boolean(x))
+    .sort((x, y) => y.t.weight - x.t.weight || x.t.key.localeCompare(y.t.key))
     .map(({ t, m }) => ({
+      ref: m.ref,
       weight: t.weight,
       popularity: m.popularity,
       year: m.year,
@@ -233,7 +254,8 @@ export function computeTasteProfile(input: TasteComputeInput, scope: TasteScope)
     }));
   const rated: AxisRated[] = titles
     .filter((t) => t.score !== null)
-    .map((t) => ({ score: t.score as number, tmdbAvg: meta.get(t.key)?.tmdbAvg ?? null }));
+    .sort((x, y) => y.weight - x.weight || x.key.localeCompare(y.key))
+    .map((t) => ({ ref: meta.get(t.key)?.ref, score: t.score as number, tmdbAvg: meta.get(t.key)?.tmdbAvg ?? null }));
   const axes = computeAxes(axisPositives, rated, catalog);
 
   // Clusters over positives with embeddings.
@@ -242,22 +264,30 @@ export function computeTasteProfile(input: TasteComputeInput, scope: TasteScope)
     .map((c) => {
       const medoidMeta = meta.get(c.medoidKey);
       if (!medoidMeta) return null;
-      const topFacets = clusterFacets(c.memberKeys, weights, meta, baseline);
+      const facetStats = clusterFacets(c.memberKeys, weights, meta, baseline);
       const firstGenre = medoidMeta.facets.find((f) => f.type === "genre")?.label;
+      const label = clusterLabel(facetStats, firstGenre, medoidMeta.ref.title);
+      const topFacets = [label, ...facetStats.map((f) => f.label).filter((l) => l.toLowerCase() !== label.toLowerCase())].slice(0, 3);
+      // memberKeys arrive heaviest first; the medoid leads the explorer grid.
+      const members = [c.medoidKey, ...c.memberKeys.filter((k) => k !== c.medoidKey)]
+        .map((k) => meta.get(k)?.ref)
+        .filter((r): r is TitleRef => r !== undefined)
+        .slice(0, CLUSTER_MEMBERS_SHOWN);
       return {
         medoid: medoidMeta.ref,
         medoidKey: c.medoidKey,
         memberKeys: c.memberKeys,
         size: c.size,
         importance: c.importance,
-        label: topFacets[0] ?? firstGenre ?? medoidMeta.ref.title,
+        label,
         topFacets,
+        members,
       };
     })
     .filter((c): c is TasteCluster => c !== null);
 
   const snapshot: TasteSnapshot = {
-    v: 1,
+    v: 2,
     computedAt: now.toISOString(),
     scope,
     positiveCount: positives.length,

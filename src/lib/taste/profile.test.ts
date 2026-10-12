@@ -100,6 +100,68 @@ describe("computeTasteProfile", () => {
     expect(JSON.stringify(snapshot.clusters)).not.toContain("memberKeys");
   });
 
+  it("v2: public clusters carry ≤12 PUBLIC members (medoid first), axes carry public examples, people carry titles", () => {
+    const { snapshot } = computeTasteProfile(fixture(), "public");
+    expect(snapshot.v).toBe(2);
+    expect(snapshot.clusters.length).toBeGreaterThan(0);
+    for (const c of snapshot.clusters) {
+      expect(c.members.length).toBeGreaterThan(0);
+      expect(c.members.length).toBeLessThanOrEqual(12);
+      expect(c.members[0]).toEqual(c.medoid);
+      for (const m of c.members) expect(m.tmdbId).toBeLessThan(100);
+    }
+    const examples = snapshot.axes.flatMap((a) => [...a.examples.low, ...a.examples.high]);
+    expect(examples.length).toBeGreaterThan(0);
+    for (const e of examples) expect(e.tmdbId).toBeLessThan(100);
+    const dirOne = snapshot.people.mostWatched.find((p) => p.name === "Dir One");
+    expect(dirOne?.titles.length).toBeGreaterThan(0);
+    for (const t of dirOne?.titles ?? []) expect(t.tmdbId).toBeLessThanOrEqual(6);
+  });
+
+  it("v2: neutral mid-scale moods never reach snapshot.moods or facets", () => {
+    const input = fixture();
+    for (const m of input.meta.values()) {
+      m.facets.push(
+        { type: "mood", key: "intensity:medium", label: "Medium intensity" },
+        { type: "mood", key: "tone:mixed", label: "Mixed tone" },
+        { type: "mood", key: "pacing:steady", label: "Steady pacing" },
+        { type: "mood", key: "emotional:medium", label: "Emotionally balanced" },
+        { type: "mood", key: "pacing:fast", label: "Fast-paced" }
+      );
+    }
+    for (const scope of ["public", "full"] as const) {
+      const { snapshot } = computeTasteProfile(input, scope);
+      const labels = [...snapshot.moods, ...snapshot.facets.mood].map((f) => f.label);
+      expect(labels).toContain("Fast-paced");
+      for (const bad of ["Medium intensity", "Mixed tone", "Steady pacing", "Emotionally balanced"]) {
+        expect(labels).not.toContain(bad);
+      }
+    }
+  });
+
+  it("v2: a cluster is named by its top GENRE, never a bare keyword", () => {
+    const input = fixture();
+    for (const m of input.meta.values()) m.facets.push({ type: "keyword", key: "scientist", label: "Scientist" });
+    const { snapshot } = computeTasteProfile(input, "public");
+    for (const c of snapshot.clusters) {
+      expect(c.label).not.toBe("Scientist");
+      expect(c.topFacets[0]).toBe(c.label);
+    }
+  });
+
+  it("parses a stored v1 snapshot (new fields default empty)", () => {
+    const { snapshot } = computeTasteProfile(fixture(), "public");
+    const v1 = JSON.parse(JSON.stringify(snapshot));
+    v1.v = 1;
+    for (const a of v1.axes) delete a.examples;
+    for (const c of v1.clusters) delete c.members;
+    for (const p of v1.people.mostWatched) delete p.titles;
+    const parsed = parseTasteSnapshot(v1);
+    expect(parsed?.v).toBe(2);
+    expect(parsed?.axes[0].examples).toEqual({ low: [], high: [] });
+    expect(parsed?.clusters[0]?.members ?? []).toEqual([]);
+  });
+
   it("round-trips through the stored-snapshot schema", () => {
     const { snapshot } = computeTasteProfile(fixture(), "public");
     const parsed = parseTasteSnapshot(JSON.parse(JSON.stringify(snapshot)));
