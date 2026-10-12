@@ -73,6 +73,8 @@ export interface MinimalViewProps {
   onPromptClick: (message: string) => void;
   pendingNavigation: ReturnType<typeof useChatStream>["pendingNavigation"];
   onNavigate: () => void;
+  /** Changes when an entry point prefilled the input → focus it (cursor at the end). */
+  focusSignal?: number;
 }
 
 export interface ExpandedChatProps {
@@ -88,6 +90,8 @@ export interface ExpandedChatProps {
   onReset: () => void;
   pendingNavigation: ReturnType<typeof useChatStream>["pendingNavigation"];
   onNavigate: () => void;
+  /** Changes when an entry point prefilled the input → focus it (cursor at the end). */
+  focusSignal?: number;
 }
 
 // =============================================================================

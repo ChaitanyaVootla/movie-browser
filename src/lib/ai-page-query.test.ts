@@ -30,6 +30,11 @@ describe("pickPageQuery", () => {
     });
   });
 
+  it("forwards only the tune state on home", () => {
+    expect(pickPageQuery("/", "?tune=series,darker&utm_source=x")).toEqual({ tune: "series,darker" });
+    expect(pickPageQuery("/", "?utm_source=x")).toBeUndefined();
+  });
+
   it("ignores prototype keys on records", () => {
     const rec = Object.create({ tab: "inherited" }) as Record<string, string>;
     expect(pickPageQuery("/library", rec)).toBeUndefined();

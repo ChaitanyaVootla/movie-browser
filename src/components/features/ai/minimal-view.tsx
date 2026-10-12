@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo, type KeyboardEvent } from "react";
+import { useFocusOnSignal } from "./use-chat-trigger";
 import { m, AnimatePresence } from "framer-motion";
 import { X, ArrowUp, ArrowRight, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,8 @@ import {
   getDataFetchIds,
   type ParsedMediaTag,
 } from "@/lib/ai/parse-media-tags";
+import { TuneTagSlot } from "./tune-tag-slot";
+import { stripTuneTag } from "./tune-tag-text";
 import { ChatRatings, ChatWatchOptions, PersonChip, useTagData } from "./chat-tags";
 import { GlowContainer, PulsingSpark, BottomGlow } from "./ai-animations";
 import { PosterCardLarge } from "./poster-card-large";
@@ -48,9 +51,11 @@ export function MinimalView({
   onPromptClick,
   pendingNavigation,
   onNavigate,
+  focusSignal,
 }: MinimalViewProps) {
   const { trackAIChatSubmit } = useAnalytics();
   const inputRef = useRef<HTMLInputElement>(null);
+  useFocusOnSignal(inputRef, focusSignal);
 
   const lastAssistantMessage = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -62,7 +67,8 @@ export function MinimalView({
   const isWaitingForResponse = lastAssistantMessage?.isStreaming && !lastAssistantMessage?.content;
 
   const { mediaTags, cleanText, parsedContent, dataFetchIds, isReceivingTag } = useMemo(() => {
-    const content = lastAssistantMessage?.content || "";
+    // `[TUNE:…]` renders as its own pill (tune-pill.tsx), never as text.
+    const content = stripTuneTag(lastAssistantMessage?.content || "");
     if (!content) {
       return {
         mediaTags: [],
@@ -359,6 +365,9 @@ export function MinimalView({
                           >
                             {cleanText}
                           </m.p>
+                        )}
+                        {lastAssistantMessage && (
+                          <TuneTagSlot content={lastAssistantMessage.content} isStreaming={lastAssistantMessage.isStreaming ?? false} />
                         )}
                         {hasInlineTags && parsedContent && (
                           <div className="flex flex-wrap items-center justify-center gap-2">

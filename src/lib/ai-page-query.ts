@@ -10,6 +10,9 @@
  */
 
 const ALLOWED: Record<string, readonly string[]> = {
+  // Home: the For-you Tune state (`/?tune=series,darker`, taste v2 §5.2) so Cue
+  // knows how the row is currently steered.
+  "": ["tune"],
   library: ["tab", "type", "rating", "sort", "genre", "q"],
   discussions: ["tab"],
   search: ["q", "type"],

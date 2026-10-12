@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useMemo, type KeyboardEvent } from "react";
+import { useFocusOnSignal } from "./use-chat-trigger";
 import Image from "next/image";
 import Link from "next/link";
 import { m, AnimatePresence } from "framer-motion";
@@ -17,6 +18,8 @@ import {
   getDataFetchIds,
   type ParsedMediaTag,
 } from "@/lib/ai/parse-media-tags";
+import { TuneTagSlot } from "./tune-tag-slot";
+import { stripTuneTag } from "./tune-tag-text";
 import type { useChatStream } from "@/hooks/use-chat-stream";
 import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { ChatRatings, ChatWatchOptions, PersonChip, useTagData } from "./chat-tags";
@@ -115,6 +118,8 @@ interface MobileChatDrawerProps {
   onPromptClick: (message: string) => void;
   pendingNavigation: ReturnType<typeof useChatStream>["pendingNavigation"];
   onNavigate: () => void;
+  /** Bumped when an entry point prefilled the input → focus it after the open animation. */
+  focusSignal?: number;
 }
 
 export function MobileChatDrawer({
@@ -132,8 +137,10 @@ export function MobileChatDrawer({
   onPromptClick,
   pendingNavigation,
   onNavigate,
+  focusSignal,
 }: MobileChatDrawerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  useFocusOnSignal(inputRef, focusSignal, 520);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Mobile Back button dismisses the chat to the idle bubble (never navigates
@@ -150,7 +157,8 @@ export function MobileChatDrawer({
   const isWaitingForResponse = lastAssistantMessage?.isStreaming && !lastAssistantMessage?.content;
 
   const { mediaTags, cleanText, parsedContent, dataFetchIds, isReceivingTag } = useMemo(() => {
-    const content = lastAssistantMessage?.content || "";
+    // `[TUNE:…]` renders as its own pill (tune-pill.tsx), never as text.
+    const content = stripTuneTag(lastAssistantMessage?.content || "");
     if (!content) {
       return {
         mediaTags: [],
@@ -370,6 +378,9 @@ export function MobileChatDrawer({
                       >
                         {cleanText}
                       </m.p>
+                    )}
+                    {lastAssistantMessage && (
+                      <TuneTagSlot content={lastAssistantMessage.content} isStreaming={lastAssistantMessage.isStreaming ?? false} />
                     )}
                     {hasInlineTags && parsedContent && (
                       <div className="flex flex-wrap items-center gap-2">

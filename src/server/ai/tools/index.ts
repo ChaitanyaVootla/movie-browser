@@ -3,7 +3,7 @@
  *
  * Export all tools for the movie recommendation agent.
  *
- * Consolidated tool set (13 tools total):
+ * Consolidated tool set (18 tools total):
  * 1. search - Find movies/series/people by name (TMDB multi-search)
  * 2. smart_discover - Unified discovery with filters + semantic search + user library (PostgreSQL)
  * 3. get_trending - What's popular right now
@@ -17,6 +17,11 @@
  * 11. get_user_profile - Compact taste profile for personalized recommendations
  * 12. get_community_buzz - This site's community ratings/reviews/discussion for a title
  * 13. recommend_for_me - Personal taste-based picks with reasons (signed-in only)
+ * 14. get_taste_detail - The user's own taste profile in detail (signed-in only)
+ * 15. explain_title_fit - "Would I like X?" against their taste, as numbers (signed-in only)
+ * 16. compare_taste - Taste match with another member, PUBLIC both sides (signed-in only)
+ * 17. steer_recs - Re-rank their picks with tune constraints / more like X (signed-in only)
+ * 18. record_rec_feedback - Hide a title from their recs on explicit request (signed-in only)
  */
 
 // Core tools
@@ -42,6 +47,13 @@ export { getUserProfileTool } from "./user-profile";
 export { getCommunityBuzzTool } from "./community";
 export { recommendForMeTool } from "./recommend-for-me";
 
+// Taste tools (taste v2 §5.3) — deterministic, signed-in only
+export { getTasteDetailTool } from "./taste-detail";
+export { explainTitleFitTool } from "./explain-fit";
+export { compareTasteTool } from "./compare-taste";
+export { steerRecsTool } from "./steer-recs";
+export { recordRecFeedbackTool } from "./rec-feedback";
+
 // Web tools (Tavily)
 export { webSearchTool } from "./web-search";
 export { webExtractTool } from "./web-extract";
@@ -61,11 +73,16 @@ import { getPageContextTool } from "./context";
 import { getUserProfileTool } from "./user-profile";
 import { getCommunityBuzzTool } from "./community";
 import { recommendForMeTool } from "./recommend-for-me";
+import { getTasteDetailTool } from "./taste-detail";
+import { explainTitleFitTool } from "./explain-fit";
+import { compareTasteTool } from "./compare-taste";
+import { steerRecsTool } from "./steer-recs";
+import { recordRecFeedbackTool } from "./rec-feedback";
 import { webSearchTool } from "./web-search";
 import { webExtractTool } from "./web-extract";
 
 /**
- * All available tools for the movie agent (13 tools)
+ * All available tools for the movie agent (18 tools)
  */
 export const allTools = [
   // Search & Discovery
@@ -84,6 +101,11 @@ export const allTools = [
   navigateTool, // Navigate to any page (detail, discussions, search, user pages)
   getCommunityBuzzTool, // Site-native community ratings/reviews/discussion for a title
   recommendForMeTool, // Personal taste-based picks with explanations (signed-in only)
+  getTasteDetailTool, // Their own taste profile in detail (signed-in only)
+  explainTitleFitTool, // "Would I like X?" as numbers (signed-in only)
+  compareTasteTool, // Taste match with another member, PUBLIC both sides (signed-in only)
+  steerRecsTool, // Tune / more-like-this re-rank of their picks → [TUNE:…] (signed-in only)
+  recordRecFeedbackTool, // Hide a title from their recs, explicit request only (signed-in only)
 
   // Web tools (Tavily)
   webSearchTool, // Search live web for news, awards, box office, reviews

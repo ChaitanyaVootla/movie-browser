@@ -17,8 +17,10 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { AgentState, type AgentStateType } from "./state";
 import { createChatModel, getCurrentModelId as getProviderModelId } from "./provider";
 import { allTools } from "./tools";
+import { toolsForAudience } from "./tools/audience";
 import { buildNavigationPath } from "./tools/navigation";
 import { getSystemPrompt } from "./prompts/system";
+import { clearInvocationBudget } from "./invocation-budget";
 import { aiLogger, usageLogger, aiToolLogger } from "@/lib/logger";
 import { calculateUsageStats, type UsageStats } from "@/lib/model-pricing";
 import { trackAIUsage } from "@/lib/analytics/track";
@@ -117,6 +119,8 @@ function getInvocationContext(invocationId: string): InvocationContext {
 
 function cleanupInvocationContext(invocationId: string) {
   invocationContexts.delete(invocationId);
+  // Per-turn write budgets (record_rec_feedback ≤ 5) are part of the invocation.
+  clearInvocationBudget(invocationId);
 }
 
 function logTurn(invocationId: string, log: Omit<TurnLog, "turn" | "timestamp">) {
@@ -240,10 +244,10 @@ async function agentNode(
 ): Promise<Partial<AgentStateType>> {
   const invocationId = (config?.configurable?.invocationId as string) || "unknown";
   const ctx = getInvocationContext(invocationId);
-  const model = createChatModel().bindTools(allTools);
-
   // Build messages with system prompt including user context
   const isAuthenticated = !!state.userId;
+  // Guests never SEE the signed-in-only taste tools (the prompt alone did not stop Kimi).
+  const model = createChatModel().bindTools(toolsForAudience(allTools, isAuthenticated));
   const systemPrompt = getSystemPrompt(isAuthenticated, state.userContext);
 
   // Check if system message already exists
