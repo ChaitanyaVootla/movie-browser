@@ -11,6 +11,7 @@
 import type { SpaceKind } from "@/lib/taste/space";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
+import { fetchDismissals } from "./rec-feedback";
 import { SOURCE_ROW_CAP } from "@/lib/taste/constants";
 import {
   titleKey,
@@ -70,7 +71,7 @@ function emptySignals(mediaType: TasteMediaType, id: number): TitleSignals {
  * scope (so one fetch serves both projections).
  */
 export async function fetchTasteSignals(userId: number): Promise<TitleSignals[]> {
-  const [ratings, watches, progress, favorites, watchlist] = await Promise.all([
+  const [ratings, watches, progress, favorites, watchlist, dismissals] = await Promise.all([
     prisma.$queryRaw<RatingRaw[]>`
       SELECT movie_id, series_id, score, rating AS thumb, liked,
              COALESCE(rated_at, created_at) AS rated_at
@@ -112,6 +113,8 @@ export async function fetchTasteSignals(userId: number): Promise<TitleSignals[]>
       take: SOURCE_ROW_CAP,
       select: { movieId: true, seriesId: true, addedAt: true },
     }),
+    // "Not for me" on a rec (FULL-scope negative, W_DISMISS) — taste v2 §6.2.
+    fetchDismissals(userId, SOURCE_ROW_CAP),
   ]);
 
   const map = new Map<TitleKey, TitleSignals>();
@@ -159,6 +162,10 @@ export async function fetchTasteSignals(userId: number): Promise<TitleSignals[]>
   for (const w of watchlist) {
     const s = get(w.movieId, w.seriesId);
     if (s) s.watchlistedAt = w.addedAt;
+  }
+  for (const d of dismissals) {
+    const s = get(d.movieId, d.seriesId);
+    if (s) s.dismissedAt = d.createdAt;
   }
 
   // Titles that reached the map via ratings/progress/favorites/watchlist but

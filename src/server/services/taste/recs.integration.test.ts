@@ -102,6 +102,52 @@ describe("taste recs (live dev DB)", () => {
     createdWatchlistId = null;
   });
 
+  it("because rows: every card's anchor is in the heading set (one-why model)", async (ctx) => {
+    if (!ready) return ctx.skip();
+    const { getRecommendationsForUser } = await import("./recommend");
+    const recs = await getRecommendationsForUser(ada);
+    for (const row of recs.rows.filter((r) => r.kind === "because")) {
+      const heading = new Set(row.anchors.map((a) => `${a.mediaType}:${a.id}`));
+      expect(row.anchors.length).toBeGreaterThan(0);
+      expect(row.anchors.length).toBeLessThanOrEqual(3);
+      for (const it of row.items) {
+        expect(it.explanation?.kind).toBe("because");
+        if (it.explanation?.kind === "because") {
+          expect(heading.has(`${it.explanation.anchor.mediaType}:${it.explanation.anchor.id}`)).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("Not for me persists, hides the title from every row, and Undo brings it back", async (ctx) => {
+    if (!ready) return ctx.skip();
+    const { getHomeRecsForUser } = await import("./recommend");
+    const { recordRecFeedbackFor, undoRecFeedbackFor } = await import("./rec-feedback");
+    const before = await getHomeRecsForUser(ada);
+    const first = before.rows[0]?.items[0];
+    if (!first) return ctx.skip();
+    const input = { mediaType: first.mediaType, id: first.id, kind: "DISMISS" as const, rowId: "for-you" };
+    const key = `${first.mediaType}:${first.id}`;
+    try {
+      expect(await recordRecFeedbackFor(ada, input, "ui")).toEqual({ ok: true });
+      const stored = await prisma.recFeedback.count({
+        where: { userId: ada, kind: "DISMISS", ...(first.mediaType === "movie" ? { movieId: first.id } : { seriesId: first.id }) },
+      });
+      expect(stored).toBe(1);
+      const after = await getHomeRecsForUser(ada);
+      expect(after.rows.flatMap((r) => r.items).map((i) => `${i.mediaType}:${i.id}`)).not.toContain(key);
+      // A tuned / shuffled row never resurrects it either.
+      const shuffled = await getHomeRecsForUser(ada, {}, { shuffle: 7 });
+      expect(shuffled.rows.flatMap((r) => r.items).map((i) => `${i.mediaType}:${i.id}`)).not.toContain(key);
+    } finally {
+      expect(await undoRecFeedbackFor(ada, input)).toEqual({ ok: true });
+    }
+    const restored = await prisma.recFeedback.count({
+      where: { userId: ada, kind: "DISMISS", ...(first.mediaType === "movie" ? { movieId: first.id } : { seriesId: first.id }) },
+    });
+    expect(restored).toBe(0);
+  });
+
   it("heavy persona: the ANN pool does not collapse when most neighbours are excluded", async (ctx) => {
     if (!ready) return ctx.skip();
     const { annCandidates, fetchRecExclusions } = await import("@/server/db/postgres/social/taste-recs");
