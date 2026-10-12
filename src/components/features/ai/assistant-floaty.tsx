@@ -8,7 +8,6 @@ import { useSession } from "next-auth/react";
 import { useChatStream } from "@/hooks/use-chat-stream";
 import { useMobile } from "@/hooks/use-mobile";
 import { useMediaContextState } from "@/stores/media-context";
-import { useTasteUiStore } from "@/stores/taste-ui";
 import { useLoginDialog, LoginDialog } from "@/components/features/auth/login-dialog";
 import { MobileChatDrawer } from "./mobile-chat-drawer";
 import { WakeUpBorder } from "./ai-animations";
@@ -20,6 +19,7 @@ import { ExpandedChat } from "./expanded-chat";
 import { getContextualPrompts, IDLE_PROMPTS } from "./prompts";
 import { type FloatyState, type PromptConfig, type PostWatchContext, TRANSITION_EASE } from "./types";
 import { useChatTrigger } from "./use-chat-trigger";
+import { useHasTasteProfile } from "./use-has-taste-profile";
 
 // =============================================================================
 // Main Component
@@ -44,8 +44,8 @@ export function AssistantFloaty({ className }: { className?: string }) {
   const mediaContext = useMediaContextState();
   const { isOpen: loginOpen, message: loginMessage, openLoginDialog, setIsOpen: setLoginOpen } = useLoginDialog();
 
-  // Taste-aware prompts need a signed-in viewer whose For-you row is taste-based.
-  const hasTasteProfile = useTasteUiStore((s) => s.hasProfile) && isAuthenticated;
+  // Taste-aware prompts need a signed-in viewer with a taste profile.
+  const hasTasteProfile = useHasTasteProfile(isAuthenticated, pathname);
 
   // Generate contextual prompts based on page and media context
   const contextualPrompts = useMemo(

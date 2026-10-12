@@ -9,7 +9,8 @@ import { auth } from "@/lib/auth";
 import { requirePgUserId } from "@/lib/user-id";
 import { dataLogger } from "@/lib/logger";
 import type { TasteAxis } from "@/lib/taste/axes";
-import { getProfileTaste } from "@/server/services/taste";
+import { MIN_POSITIVES_FOR_CENTROID } from "@/lib/taste/constants";
+import { getProfileTaste, getTasteProfile } from "@/server/services/taste";
 import { fetchUserById } from "@/server/db/postgres/social/taste-recs";
 
 export type ViewerTasteAxesResult =
@@ -48,5 +49,27 @@ export async function getViewerTasteAxes(): Promise<ViewerTasteAxesResult> {
       error: error instanceof Error ? error.message : String(error),
     });
     return { status: "insufficient" };
+  }
+}
+
+/**
+ * Does the signed-in viewer have a usable (FULL) taste profile? Lets Cue offer
+ * "Would I like this?" on a directly-loaded detail page, where the home For-you
+ * island never ran to publish `stores/taste-ui.ts` (taste v2 spec §5.1). Called
+ * once per session, only when the chat opens on a detail page. Fails closed.
+ */
+export async function getViewerHasTasteProfile(): Promise<boolean> {
+  try {
+    const session = await auth();
+    if (!session?.user) return false;
+    const uid = await requirePgUserId();
+    const snapshot = await getTasteProfile(uid, { scope: "full" });
+    return (snapshot?.positiveCount ?? 0) >= MIN_POSITIVES_FOR_CENTROID;
+  } catch (error: unknown) {
+    dataLogger.warn({
+      action: "getViewerHasTasteProfile",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
   }
 }
