@@ -27,6 +27,11 @@ paths:
 - `rich-message-content.tsx` - Rich content rendering
 - `poster-card-large.tsx` - Large poster cards in chat
 - `media-chip.tsx` - Compact media chips
+- `tune-tag-text.ts` / `tune-tag.ts` / `tune-tag-slot.tsx` / `tune-pill.tsx` - `[TUNE:…]` tag: strip from text (eager, no imports), validate + pill + `recs-tune` bridge (lazy). See `ai-agent.md` → `[TUNE:…]` contract
+
+**Entry points:**
+- `cue-entry.tsx` - `CueEntryButton` (+ `openCue`) — the ONE way a surface opens Cue (`ai-chat-trigger`, `cue_taste_entry` analytics, optional `prefill`)
+- `use-chat-trigger.ts` - floaty's `ai-chat-trigger` listener (send vs prefill) + `useFocusOnSignal`
 
 **Utilities:**
 - `ai-icon.tsx` - Animated AI icon component
