@@ -648,6 +648,50 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    height unclipped). Reproduce cold data by delaying `next-action` POSTs in
    `page.route` (~1.2s): a warm PG answers in milliseconds and hides it.
 
+21. **One never-settling render wedges an ISR URL FOREVER (Oct 18 2026).** Symptom:
+   ONE title is a Cloudflare 524 every time while the rest of the site is fine;
+   the origin sends 0 bytes (not slow, nothing), and `curl localhost:3002` hangs
+   identically. Cause: Next's `ResponseCache` coalesces requests per cache key in
+   a `Batcher` (`getBatcher` key `<path>-0`, `revalidateBatcher` key `<path>`)
+   with NO timeout. If the first render's await never settles, every later
+   request for that URL joins it for the life of the process. On a cache miss
+   nothing is served stale, so a valid ISR entry written to disk by another
+   process does not help either. Measured: 36 series URLs wedged in a 6-day-old
+   process, about 6 new ones a day (one had 524 failures), each stuck from its
+   first request. Bursts of concurrent requests for one series all wedged
+   together. A fresh process rendered every one in 1-3s.
+   - **Remediation = `pm2 restart next`** (clears all entries). The fix is a
+     client-side deadline on every Prisma operation (`operation-deadline.ts` via a
+     `$extends` query extension, 30s, `PRISMA_OP_TIMEOUT_MS`, Next server only;
+     crons default to none). A hung render then errors, the Batcher releases the
+     key, and the next request retries. `prisma_op_timeout` log lines name the
+     model and operation. **Grep for them when this recurs. That is the culprit
+     this investigation could not observe directly.**
+   - **Why Prisma, by elimination (no direct observation):** `process._getActiveHandles()`
+     showed ZERO outbound sockets, so no TMDB, AWS or YouTube call was in flight.
+     No in-process dedup Map held a pending promise for the id (only the Batcher
+     did). A stuck hydration `pLimit` would have hung every cold page, which was
+     not happening. Postgres showed every connection idle in `ClientRead`, and
+     `statement_timeout` is 0 globally. Prisma's engine sockets are native and
+     invisible to `_getActiveHandles`, and nothing bounded a lost engine response
+     (`pool_timeout` only covers checkout).
+   - **Live-process diagnosis recipe (prod-safe parts):** `kill -USR1 <next pid>`
+     opens the inspector on 127.0.0.1:9229 (localhost only). Drive it with a
+     ~20-line CDP client over Node 22's global `WebSocket`. Cheap:
+     `Runtime.evaluate` of `process._getActiveHandles()` grouped by remote
+     address. **EXPENSIVE: `Runtime.queryObjects(Map.prototype)` walks the whole
+     heap and FROZE prod for 91s.** Run it once, stash the hits on `globalThis`,
+     then inspect those handles with cheap evaluates. A heap snapshot is unsafe
+     here while next-server has hundreds of MB in swap (it pages everything in and
+     needs about heap-size of native memory; swap thrash was the Sep 3 outage).
+   - **Discriminate in 2 minutes:** start a throwaway `next start -p 3111` from the
+     same build dir (`NODE_ENV=production`, same env) and request the wedged URL.
+     A fresh process rendering it means stuck in-process state, not a broken page.
+     **`pkill -f "next start -p 3111"` also matches your own `ssh … bash -c`
+     command line**. Kill by PID instead.
+   - `ps -o pcpu` is the lifetime average, not instantaneous CPU. It reads the
+     same "48%" every sample and tells you nothing about a hang.
+
 ## Testing a fix
 
 - **App perf:** re-run the Playwright TTFB / POST-timing scripts above against beta after deploy; compare before/after. Confirm load average dropped via SSH.
