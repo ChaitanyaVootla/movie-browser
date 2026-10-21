@@ -281,3 +281,57 @@ beta.themoviebrowser.com {
 www.themoviebrowser.com {
 	redir https://themoviebrowser.com{uri} permanent
 }
+
+# ---------------------------------------------------------------------------
+# Kosh (stocks.vootlachaitanya.com): a SEPARATE app riding this box, deployed
+# from the stocks repo (deploy/deploy.sh --shared-host). Loopback-only systemd
+# services: kosh-api 127.0.0.1:3010, kosh-web 127.0.0.1:3009, memory-capped so
+# they can never be the reason this box OOMs. Source of truth for this block:
+# stocks repo deploy/caddy/site.caddy.template (rendered). Keep identical.
+# Removing it is safe for movie-browser; it only takes Kosh offline.
+# ---------------------------------------------------------------------------
+stocks.vootlachaitanya.com {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Liveness probe (excluded from the API's /api/v1 prefix).
+	handle /healthz {
+		reverse_proxy 127.0.0.1:3010
+	}
+
+	# API: path is passed through unchanged (/api/v1/...).
+	handle /api/* {
+		reverse_proxy 127.0.0.1:3010 {
+			# Long syncs/backfills are explicit POSTs; don't cut them off at 30s.
+			transport http {
+				read_timeout 10m
+				write_timeout 10m
+			}
+		}
+	}
+
+	# RESERVED for a future MCP server (Streamable HTTP) for remote Claude Code
+	# sessions. When it exists, bind it to 127.0.0.1:3011 and swap the respond
+	# line for:   reverse_proxy 127.0.0.1:3011 { flush_interval -1 }
+	# It must enforce the same Bearer API tokens as /api.
+	handle /mcp* {
+		respond "MCP endpoint reserved; not yet deployed" 404
+	}
+
+	# Everything else: the Next.js production server.
+	handle {
+		reverse_proxy 127.0.0.1:3009
+	}
+
+	log {
+		output stderr
+		format console
+	}
+}
