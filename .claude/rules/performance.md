@@ -648,47 +648,109 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    height unclipped). Reproduce cold data by delaying `next-action` POSTs in
    `page.route` (~1.2s): a warm PG answers in milliseconds and hides it.
 
-21. **One never-settling render wedges an ISR URL FOREVER (Oct 18 2026).** Symptom:
-   ONE title is a Cloudflare 524 every time while the rest of the site is fine;
-   the origin sends 0 bytes (not slow, nothing), and `curl localhost:3002` hangs
-   identically. Cause: Next's `ResponseCache` coalesces requests per cache key in
-   a `Batcher` (`getBatcher` key `<path>-0`, `revalidateBatcher` key `<path>`)
-   with NO timeout. If the first render's await never settles, every later
-   request for that URL joins it for the life of the process. On a cache miss
-   nothing is served stale, so a valid ISR entry written to disk by another
-   process does not help either. Measured: 36 series URLs wedged in a 6-day-old
-   process, about 6 new ones a day (one had 524 failures), each stuck from its
-   first request. Bursts of concurrent requests for one series all wedged
-   together. A fresh process rendered every one in 1-3s.
-   - **Remediation = `pm2 restart next`** (clears all entries). The fix is a
-     client-side deadline on every Prisma operation (`operation-deadline.ts` via a
-     `$extends` query extension, 30s, `PRISMA_OP_TIMEOUT_MS`, Next server only;
-     crons default to none). A hung render then errors, the Batcher releases the
-     key, and the next request retries. `prisma_op_timeout` log lines name the
-     model and operation. **Grep for them when this recurs. That is the culprit
-     this investigation could not observe directly.**
-   - **Why Prisma, by elimination (no direct observation):** `process._getActiveHandles()`
-     showed ZERO outbound sockets, so no TMDB, AWS or YouTube call was in flight.
-     No in-process dedup Map held a pending promise for the id (only the Batcher
-     did). A stuck hydration `pLimit` would have hung every cold page, which was
-     not happening. Postgres showed every connection idle in `ClientRead`, and
-     `statement_timeout` is 0 globally. Prisma's engine sockets are native and
-     invisible to `_getActiveHandles`, and nothing bounded a lost engine response
-     (`pool_timeout` only covers checkout).
+21. **One never-settling render wedges an ISR URL FOREVER (Oct 18 + Oct 29 2026).**
+   Symptom: ONE title is a Cloudflare 524 every time while the rest of the site is
+   fine. The origin sends 0 bytes (not slow, nothing), and `curl localhost:3002`
+   hangs the same way. Cause: Next's `ResponseCache` coalesces requests per cache
+   key in a `Batcher` (`getBatcher` key `<path>-0`, `revalidateBatcher` key
+   `<path>`) with NO timeout. If the first render's await never settles, every
+   later request for that URL joins it for the life of the process. On a cache
+   miss nothing is served stale. An ISR render also never streams: it waits for
+   EVERY Suspense boundary, so one hung await anywhere in the tree is enough.
+   - **Scale.** Oct 18: 36 series URLs in a 6-day-old process. **Oct 29: ~150
+     movie/person/series URLs still pending across two samples 2 minutes apart**
+     (198 in the first), in an 11-day-old process. They included Frankenstein
+     (stuck since 03:54:58Z, inside the fleet window), Avengers: Endgame, Toy
+     Story 5, Super Mario, Good Will Hunting, Slow Horses, and Future Man AGAIN.
+     Some keys cleared between the samples, so slow multi-minute renders exist
+     alongside the permanent ones. Clusters per series id (30 `discuss/sXeY` pages
+     of one show) = a crawler burst that all joined the stall at the same moment.
+   - **The Oct 18 conclusion ("a Prisma op that never settles") was WRONG, or at
+     least not the whole story.** The 30s per-op Prisma deadline shipped then
+     (`operation-deadline.ts`) fired 16 times in 11 days (all
+     `$queryRaw`/`$executeRawUnsafe`, clustered at 19:00/20:00 UTC = the
+     taste-baseline and IMDb crons loading PG). Every one of those rejected
+     cleanly, and wedges kept accumulating at ~14/day anyway. **The hanging await is
+     still UNIDENTIFIED.** Ruled out on Oct 29: the DB (0 ungranted locks, no long
+     transactions, the title's rows intact, and a fresh process renders every
+     wedged URL), outbound sockets (only transient TMDB/Lambda TLS), cache-service
+     and Next's fetch lock (no permanent path; Next only takes the IncrementalCache
+     fetch lock for explicitly cached fetches, and ours are `auto no cache`).
+     Interactive `prisma.$transaction(async tx => …)` begin/commit are NOT covered
+     by the per-op deadline, but none is on a detail render path.
+   - **The strongest clue so far points INTO Next/React, not our data layer.** In
+     the FRESH process, two person pages wedged within 31 minutes
+     (`/person/3655877/hyein`, `/person/2715237/tui-thiraphat-sajakul`). Their
+     TMDB payloads were already in the L2 file cache (one written by the OLD
+     process, so the new render read it synchronously). The person render tree
+     has no other server awaits: the layout and every person component are client
+     or sync. Slug variants of the same ids rendered and 308'd in 0.1s. Neither had
+     an ISR entry on disk, so they hung inside the render, not in `set()`.
+     Rejected locally against a prod build: a client abort mid-render, HEAD, RSC,
+     prefetch, and RSC-without-`_rsc`. None wedges. Next suspects: Next 16.1.0
+     internals (Kosh on the same box runs 16.2.x), and client-component SSR
+     suspending on something that never resolves.
+   - **The structural fix (Oct 29): a RENDER deadline, whichever await hangs.**
+     `src/server/observability/render-deadline.ts`, installed from
+     `instrumentation.ts`, patches `handleResponse` on Next's `AppPageRouteModule`
+     (`next/dist/compiled/next-server/app-page-turbo.runtime.prod.js`, required via
+     `createRequire(cwd)` so it is the SAME module instance the page chunks use).
+     Each cacheable render (`cacheKey` set) races a 90s timer
+     (`RENDER_DEADLINE_MS`, under Cloudflare's 100s). On timeout it rejects, Next
+     releases both Batcher keys, the request gets a plain-text 500 (no
+     Cache-Control, so Cloudflare does not cache it), and the next request renders
+     afresh. Proof it is live: `render_deadline_installed` in `next-out.log` at
+     boot (`render_deadline_not_installed` = a Next upgrade broke the shape;
+     `render-deadline.test.ts` pins it against the installed runtime).
+   - **It also names the culprit next time.** Each render runs in an
+     AsyncLocalStorage `RenderContext` (`src/lib/render-context.ts`). Prisma ops
+     (`prisma:<Model>.<op>`), cache-service fetches (`cache:` / `cache-join:` =
+     joined another render's in-flight fetch), the hydration limiter
+     (`hydration-queue:` vs `hydration:`), and every outbound fetch (undici
+     diagnostics channels, `fetch GET <origin><path>`, query string dropped)
+     register as pending. Logs: `render_slow` (warn, >30s, `RENDER_SLOW_MS`),
+     `render_deadline_exceeded` (error; `pending` oldest-first, `lastSettled`,
+     `startedOps`/`settledOps`, `abandonedOutstanding`, `activeRenders`, `rssMb`),
+     `render_settled_after_deadline` (warn: it was slow, not hung). Also a
+     ClickHouse `errors` row (`error_source='render'`, `error_type='render_deadline'`).
+     **When it fires, read `pending`:** a non-empty list names the await; EMPTY with
+     `startedOps == settledOps` means the hang is in an untracked await, and
+     `lastSettled` says where in the tree it stopped. Wrap that await with
+     `trackPending(label, promise)` (returns the same promise, so it is safe on a
+     PrismaPromise). Validated end-to-end in a local prod build against a
+     hanging DB: the report listed `hydration:movie:27205`,
+     `prisma:Movie.findUnique`, `prisma:AiData.findFirst`, and the second request
+     re-rendered instead of joining.
+   - **What it cannot do:** cancel the hung render. It is abandoned and keeps its
+     memory until it settles, if ever (`abandonedOutstanding` counts them). PM2's
+     `max_memory_restart` on next-server is the backstop. For a stale-entry
+     background revalidation that hangs, Next re-sets the old entry with a 3-30s
+     revalidate, so a deterministic hang would retry (and abandon) a render every
+     ~2 minutes for that URL. Watch for one `cacheKey` repeating.
+   - **Remediation if it recurs anyway = `pm2 restart next`.** Before restarting,
+     dump the wedged keys cheaply (17ms, safe on prod): open the inspector
+     (`kill -USR1 <pid>`) and `Runtime.evaluate` with `includeCommandLineAPI: true`
+     over `require.cache`: for each key containing `/.next/server/app/`, take
+     `exports.routeModule.responseCache` and list
+     `[...getBatcher.pending.keys()]` / `[...revalidateBatcher.pending.keys()]`.
+     Sample twice a few minutes apart and keep only keys present in both.
+     `process._getActiveRequests()` gives `TCPConnectWrap` `address:port` and
+     `GetAddrInfoReqWrap` `hostname` too. The Oct 29 dump is
+     `~/wedge-diag/pending-before-restart-*.json` on the box.
    - **Live-process diagnosis recipe (prod-safe parts):** `kill -USR1 <next pid>`
      opens the inspector on 127.0.0.1:9229 (localhost only). Drive it with a
      ~20-line CDP client over Node 22's global `WebSocket`. Cheap:
      `Runtime.evaluate` of `process._getActiveHandles()` grouped by remote
      address. **EXPENSIVE: `Runtime.queryObjects(Map.prototype)` walks the whole
-     heap and FROZE prod for 91s.** Run it once, stash the hits on `globalThis`,
-     then inspect those handles with cheap evaluates. A heap snapshot is unsafe
-     here while next-server has hundreds of MB in swap (it pages everything in and
+     heap and FROZE prod for 91s.** Never use it; the `require.cache` route above
+     reaches the Batchers without a heap walk. A heap snapshot is unsafe here
+     while next-server has hundreds of MB in swap (it pages everything in and
      needs about heap-size of native memory; swap thrash was the Sep 3 outage).
    - **Discriminate in 2 minutes:** start a throwaway `next start -p 3111` from the
-     same build dir (`NODE_ENV=production`, same env) and request the wedged URL.
-     A fresh process rendering it means stuck in-process state, not a broken page.
-     **`pkill -f "next start -p 3111"` also matches your own `ssh … bash -c`
-     command line**. Kill by PID instead.
+     same build dir (`NODE_ENV=production`, same env) and request the wedged URL,
+     or just restart. A fresh process rendering it means stuck in-process state,
+     not a broken page or bad DB rows. **`pkill -f "next start -p 3111"` also
+     matches your own `ssh … bash -c` command line**. Kill by PID instead.
    - `ps -o pcpu` is the lifetime average, not instantaneous CPU. It reads the
      same "48%" every sample and tells you nothing about a hang.
 

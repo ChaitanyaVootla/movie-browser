@@ -58,6 +58,7 @@ import type { EnrichedData, HydrationResult, MediaType } from "./types";
 import { triggerProgressiveEnrichment } from "@/server/services/enrichment/progressive";
 import { triggerUserEpisodeReconcile } from "@/server/services/hydration/reconcile-user-episodes";
 import pLimit from "p-limit";
+import { trackPending } from "@/lib/render-context";
 
 // Re-export types
 export * from "./types";
@@ -250,7 +251,11 @@ export function hydrateMovie(
   options: HydrationOptions = {}
 ): Promise<HydrationResult<TmdbMovieData>> {
   // Gate heavy hydration through the concurrency limiter (see stampede guard).
-  return hydrationLimit(() => hydrateMovieImpl(movieId, options));
+  // Two labels so a render-deadline report tells queueing from a hung hydrate.
+  return trackPending(
+    `hydration-queue:movie:${movieId}`,
+    hydrationLimit(() => trackPending(`hydration:movie:${movieId}`, hydrateMovieImpl(movieId, options)))
+  );
 }
 
 async function hydrateMovieImpl(
@@ -427,7 +432,12 @@ export function hydrateSeries(
   options: HydrationOptions = {}
 ): Promise<HydrationResult<TmdbSeriesData>> {
   // Gate heavy hydration through the concurrency limiter (see stampede guard).
-  return hydrationLimit(() => hydrateSeriesImpl(seriesId, options));
+  return trackPending(
+    `hydration-queue:series:${seriesId}`,
+    hydrationLimit(() =>
+      trackPending(`hydration:series:${seriesId}`, hydrateSeriesImpl(seriesId, options))
+    )
+  );
 }
 
 async function hydrateSeriesImpl(

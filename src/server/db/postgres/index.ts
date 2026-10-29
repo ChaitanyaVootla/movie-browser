@@ -7,6 +7,7 @@
 import { PrismaClient, Prisma } from "@prisma/client";
 import { dataLogger } from "@/lib/logger";
 import { resolveOperationTimeoutMs, withOperationDeadline } from "./operation-deadline";
+import { trackPending } from "@/lib/render-context";
 
 // Re-export Prisma namespace for JSON handling in other files
 export { Prisma };
@@ -33,16 +34,16 @@ function createPrismaClient(): PrismaClient {
   }).$extends({
     query: {
       $allOperations({ model, operation, args, query }) {
-        return withOperationDeadline(
-          query(args),
-          OPERATION_TIMEOUT_MS,
-          `${model ?? "$raw"}.${operation}`,
-          (error) =>
+        const label = `${model ?? "$raw"}.${operation}`;
+        return trackPending(
+          `prisma:${label}`,
+          withOperationDeadline(query(args), OPERATION_TIMEOUT_MS, label, (error) =>
             dataLogger.error({
               event: "prisma_op_timeout",
               operation: error.label,
               timeoutMs: error.timeoutMs,
             })
+          )
         );
       },
     },

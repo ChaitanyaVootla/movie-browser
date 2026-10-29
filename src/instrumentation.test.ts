@@ -11,9 +11,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const startCacheJanitor = vi.fn();
+const installAppPageRenderDeadline = vi.fn(() => ({ installed: true, timeoutMs: 90_000 }));
 
 vi.mock("@/lib/cache-service", () => ({
   startCacheJanitor: () => startCacheJanitor(),
+}));
+
+vi.mock("@/server/observability/render-deadline", () => ({
+  installAppPageRenderDeadline: () => installAppPageRenderDeadline(),
 }));
 
 async function runRegister(env: { runtime?: string; nodeEnv?: string }): Promise<void> {
@@ -28,6 +33,7 @@ async function runRegister(env: { runtime?: string; nodeEnv?: string }): Promise
 describe("instrumentation register()", () => {
   beforeEach(() => {
     startCacheJanitor.mockClear();
+    installAppPageRenderDeadline.mockClear();
     vi.unstubAllEnvs();
   });
 
@@ -40,6 +46,18 @@ describe("instrumentation register()", () => {
     // the exact assertion whose absence let the 44GB cache happen.
     await runRegister({ runtime: "nodejs", nodeEnv: "production" });
     expect(startCacheJanitor).toHaveBeenCalledTimes(1);
+  });
+
+  it("installs the render deadline IN PRODUCTION (a hung render must not wedge its URL)", async () => {
+    // Same trap as the janitor: anything after the NODE_ENV early return in
+    // register() never runs in prod.
+    await runRegister({ runtime: "nodejs", nodeEnv: "production" });
+    expect(installAppPageRenderDeadline).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT install the render deadline on the edge runtime", async () => {
+    await runRegister({ runtime: "edge", nodeEnv: "production" });
+    expect(installAppPageRenderDeadline).not.toHaveBeenCalled();
   });
 
   it("starts the janitor in development too", async () => {

@@ -40,6 +40,7 @@ import crypto from "crypto";
 import { gzipSync, gunzipSync } from "zlib";
 import NodeCache from "node-cache";
 import { dataLogger } from "./logger";
+import { trackPending } from "./render-context";
 
 // =============================================================================
 // Configuration
@@ -772,7 +773,8 @@ export async function cachedFetchPersistent<T>(
   // 3. Check if there's already an in-flight request for this key
   const inFlight = inFlightRequests.get(fullKey);
   if (inFlight) {
-    return inFlight as Promise<T>;
+    // A separate label: joining another render's fetch is how one hang spreads.
+    return trackPending(`cache-join:${fullKey.slice(0, 120)}`, inFlight as Promise<T>);
   }
 
   // 4. Fetch fresh data
@@ -795,7 +797,7 @@ export async function cachedFetchPersistent<T>(
     });
 
   inFlightRequests.set(fullKey, promise);
-  return promise;
+  return trackPending(`cache:${fullKey.slice(0, 120)}`, promise);
 }
 
 /**

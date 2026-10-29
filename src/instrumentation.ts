@@ -42,6 +42,47 @@ async function startL2CacheJanitor(): Promise<void> {
 }
 
 /**
+ * Bound every ISR render (see src/server/observability/render-deadline.ts).
+ *
+ * WHY: one render that never settles wedges its URL until restart, because
+ * Next parks every later request for that URL on it (Oct 18 + Oct 29 2026:
+ * ~150 titles were permanent Cloudflare 524s in an 11-day-old process). Runs
+ * in production on purpose, before the early return below. The info line is
+ * the proof in pm2 logs that the patch is live: grep `render_deadline_installed`.
+ */
+async function installRenderDeadline(): Promise<void> {
+  try {
+    const [{ installAppPageRenderDeadline }, { renderLogger }, { trackError }] = await Promise.all([
+      import("@/server/observability/render-deadline"),
+      import("@/lib/logger"),
+      import("@/lib/analytics/track"),
+    ]);
+    const result = installAppPageRenderDeadline(renderLogger, (report) =>
+      trackError({
+        sessionId: "server",
+        errorSource: "render",
+        errorType: "render_deadline",
+        errorMessage: `Render of ${report.cacheKey} exceeded ${report.timeoutMs}ms`,
+        route: report.cacheKey,
+        context: { pending: report.pending, lastSettled: report.lastSettled },
+        severity: "high",
+      })
+    );
+    if (result.installed) {
+      renderLogger.info({ event: "render_deadline_installed", ...result });
+    } else {
+      renderLogger.error({ event: "render_deadline_not_installed", ...result });
+    }
+  } catch (error) {
+    // Never let observability break server startup.
+    console.error(
+      "[startup] render deadline failed to install:",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+}
+
+/**
  * DEV-ONLY undici workaround. In some local runtimes (observed: Node 20/22 +
  * Next 16 Turbopack) undici crashes while decompressing gzip/br HTTP responses
  * with `TypeError: controller[kState].transformAlgorithm is not a function`.
@@ -98,6 +139,7 @@ export async function register(): Promise<void> {
   // Order matters only in that the janitor must NOT sit behind a dev-only
   // guard. It previously did (by living in the orphaned file), which is the bug.
   await startL2CacheJanitor();
+  await installRenderDeadline();
 
   if (process.env.NODE_ENV === "production") return;
   patchFetchForDevUndici();

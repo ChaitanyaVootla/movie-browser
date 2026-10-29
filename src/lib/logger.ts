@@ -111,6 +111,12 @@ export const authLogger = logger.child({ module: "auth" });
  */
 export const analyticsLogger = logger.child({ module: "analytics" });
 
+/**
+ * Render logger - ISR render health (deadline, slow renders)
+ * Use for: render_deadline_exceeded, render_slow, render_settled_after_deadline
+ */
+export const renderLogger = logger.child({ module: "render" });
+
 // =============================================================================
 // Helper Functions
 // =============================================================================
