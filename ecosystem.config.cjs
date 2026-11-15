@@ -12,6 +12,12 @@
 // Schedules sit in the true low-traffic window for the India-heavy audience
 // (21:00/22:00 UTC = 02:30/03:30 IST).
 
+// Memory caps for `next` are per-box, read from the box's `.env` (the deploy
+// sources it before `pm2 startOrReload`). Defaults are the old 8GB EC2 values;
+// the 4GB Hetzner CX23 sets NEXT_MAX_MEMORY=1700M and NEXT_HEAP_MB=1280.
+const NEXT_MAX_MEMORY = process.env.NEXT_MAX_MEMORY || "4000M";
+const NEXT_HEAP_MB = process.env.NEXT_HEAP_MB || "3072";
+
 module.exports = {
   apps: [
     {
@@ -33,7 +39,7 @@ module.exports = {
       // Caddy take ~1.7GB, and the Sep 3 outage was 5.8GB -> swap -> dead NIC.
       // 4000M leaves margin on both sides. What actually keeps us away from it
       // is Caddy's admission control (Caddyfile `unhealthy_request_count`).
-      max_memory_restart: "4000M",
+      max_memory_restart: NEXT_MAX_MEMORY,
       env: {
         NODE_ENV: "production",
         PORT: "3002",
@@ -48,7 +54,7 @@ module.exports = {
         // --heapsnapshot-signal: `kill -USR2 <next-server pid>` writes a
         // Heap.<ts>.heapsnapshot to cwd for leak diagnosis.
         // --max-old-space-size caps the JS heap as a backstop.
-        NODE_OPTIONS: "--heapsnapshot-signal=SIGUSR2 --max-old-space-size=3072",
+        NODE_OPTIONS: `--heapsnapshot-signal=SIGUSR2 --max-old-space-size=${NEXT_HEAP_MB}`,
       },
     },
     // IMDb Ratings Sync - daily at 20:00 UTC (01:30 IST)

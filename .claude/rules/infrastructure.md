@@ -10,6 +10,32 @@ paths:
 
 # Infrastructure
 
+## CURRENT HOST: Hetzner `web-1` (since Nov 15 2026) — the EC2 sections below are HISTORY
+
+AWS EC2 was terminated on 2026-11-14: about $200/mo, almost all of it internet egress to bots behind
+Cloudflare. Both this app and the separate kosh stocks app (stocks.vootlachaitanya.com,
+systemd `kosh-*`, SQLite in `/var/lib/kosh`) now run on ONE Hetzner box:
+
+- **CX23**: 2 vCPU / **4 GB** / 38 GB disk, Falkenstein, `2.31.137.169`, + 4 GB swap.
+  Postgres data lives on a 40 GB volume at `/data/postgres`. Firewall `web-fw`: 22 (key-only,
+  password + root login disabled), 80, 443.
+- `docker-compose.override.yml` **exists only on the box** (not in git, not in the deploy tar):
+  Postgres → `/data/postgres`, `shared_buffers=512MB`, `mem_limit 1400m`, `shm_size 512m`
+  (HNSW index builds fail at Docker's 64 MB default /dev/shm), port bound to 127.0.0.1;
+  **ClickHouse parked** under compose profile `analytics` (no RAM for it) → the app logs
+  `clickhouse_insert_error` lines, which is expected. Its last full dump is in
+  `s3://movie-browser-migration-2025-10-19/final-2026-11-14/`.
+- Box `.env` sets `NEXT_MAX_MEMORY=1700M` / `NEXT_HEAP_MB=1280` (read by `ecosystem.config.cjs`);
+  `.env.local` has `BOUNDED_CACHE_MB=6000` and an `AWS_ACCESS_KEY_ID`/`SECRET` (no instance
+  profile here, so Bedrock + Lambda need explicit keys).
+- **Never `next build` on the box.** It needs more than 4 GB, and the kernel OOM-kills it. CI builds it.
+- Turbopack's `.next/node_modules/<pkg>-<hash>` externals are symlinks relative to the BUILD
+  checkout's folder name; the deploy re-points dangling ones at the box's `node_modules`
+  (missing them = `Failed to load external module pino-<hash>` 500s everywhere).
+- GitHub secrets `NEXT_EC2_HOST` / `NEXT_EC2_SSH_PRIVATE_KEY` (names kept) now point at web-1.
+- DNS: themoviebrowser.com apex + `www` are PROXIED by Cloudflare → web-1; `origin.`/`beta.`
+  DELETED (and their Caddy vhosts). stocks.vootlachaitanya.com is an A record in Route 53.
+
 ## CloudFront CDN (since Jun 11 2026) — see `.claude/rules/cdn.md`
 
 CloudFront (`E12R1ZNQNG3LK5`) fronts the apex; the EC2 is now the ORIGIN

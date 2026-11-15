@@ -27,7 +27,10 @@
 	}
 }
 
-themoviebrowser.com, origin.themoviebrowser.com {
+# Nov 15 2026 — moved to Hetzner behind Cloudflare. `origin.` and `beta.` DNS
+# records were deleted (bots used the DNS-only origin to bypass the CDN), so
+# their vhosts are gone too (Caddy would retry ACME for them forever).
+themoviebrowser.com {
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	encode zstd gzip
 
@@ -270,12 +273,6 @@ themoviebrowser.com, origin.themoviebrowser.com {
 			copy_response
 		}
 	}
-}
-
-# Post-GA: the beta host is the same app — 301 to the apex so search engines
-# never index a duplicate site (it served identical 200s until 2026-06-10).
-beta.themoviebrowser.com {
-	redir https://themoviebrowser.com{uri} permanent
 }
 
 www.themoviebrowser.com {

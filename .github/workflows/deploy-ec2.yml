@@ -1,4 +1,4 @@
-name: Build and Deploy Next.js to EC2
+name: Build and Deploy Next.js (Hetzner web-1)
 
 on:
   push:
@@ -158,15 +158,17 @@ jobs:
             # Restart a bloated next BEFORE the install lands — Jun 11 second
             # freeze: preflight passed at ~2GB available but the deploy's own
             # footprint on top of a 2GB next froze the kernel anyway.
-            if [ "$MEM_MB" -lt 2500 ] || [ "${NEXT_RSS:-0}" -gt 1000 ]; then
+            # Thresholds sized for the 4GB Hetzner CX23 (Nov 2026; were 2500/1000/1500
+            # on the 8GB EC2). The deploy itself is light now: no on-box install/build.
+            if [ "$MEM_MB" -lt 1200 ] || [ "${NEXT_RSS:-0}" -gt 1400 ]; then
               echo "Restarting next to reclaim RSS before deploying..."
               pm2 restart next || true
               sleep 10
               MEM_MB=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)
               echo "Available memory after restart: ${MEM_MB}MB"
             fi
-            if [ "$MEM_MB" -lt 1500 ]; then
-              echo "::error::Less than 1.5GB memory available — deploying now risks freezing the box"
+            if [ "$MEM_MB" -lt 800 ]; then
+              echo "::error::Less than 800MB memory available — deploying now risks freezing the box"
               exit 1
             fi
           EOF
@@ -190,6 +192,17 @@ jobs:
             # .next/cache (ISR, bounded) is not in the tar, so it's preserved.
             tar -xzf deploy.tar.gz
             rm -f deploy.tar.gz
+
+            # Turbopack externals (.next/node_modules/<pkg>-<hash>) are symlinks
+            # RELATIVE to the build checkout's folder name (../../../<checkout>/
+            # node_modules/<pkg>), which doesn't exist here → "Failed to load
+            # external module pino-<hash>" 500s on every page (Nov 15 2026).
+            # Re-point any dangling one at this box's node_modules.
+            find .next/node_modules -type l 2>/dev/null | while read -r l; do
+              [ -e "$l" ] && continue
+              pkg="$(readlink "$l" | sed 's#.*/node_modules/##')"
+              ln -sfn "$PWD/node_modules/$pkg" "$l" && echo "relinked $l -> node_modules/$pkg"
+            done
 
             echo "[2/6] Starting PostgreSQL + ClickHouse + Caddy..."
             # Start all services but only BLOCK on Postgres readiness — the app
@@ -395,7 +408,11 @@ jobs:
 
       - name: Verify deployment
         run: |
-          sleep 10
-          curl -sf --max-time 15 http://${{ secrets.NEXT_EC2_HOST }}:3002/ > /dev/null \
-            && echo "Health check passed" \
-            || echo "Warning: Health check failed (app may still be starting)"
+          # :3002 is not reachable from outside (Hetzner firewall: 22/80/443 only),
+          # so check on the box and through Cloudflare. Fails the job if the app
+          # never comes up, instead of only warning.
+          ssh -i ~/.ssh/ec2_key.pem ubuntu@${{ secrets.NEXT_EC2_HOST }} \
+            'for i in $(seq 1 30); do curl -sf --max-time 5 http://127.0.0.1:3002/api/health >/dev/null && { echo "origin health OK"; exit 0; }; sleep 3; done; echo "::error::origin /api/health never returned 200"; pm2 logs next --err --lines 30 --nostream; exit 1'
+          curl -sf --max-time 30 "https://themoviebrowser.com/api/health?cb=${GITHUB_SHA}" >/dev/null \
+            && echo "public health OK" \
+            || echo "::warning::public health check failed (edge may lag)"
