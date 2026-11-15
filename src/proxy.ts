@@ -347,11 +347,29 @@ function hasSessionCookie(req: NextRequest): boolean {
   );
 }
 
+/**
+ * True when the viewer IP (Cloudflare `CF-Connecting-IP`) is one of this box's
+ * own public IPs, listed comma-separated in the box env `ORIGIN_SELF_IPS`.
+ * Exact match only; an unset env exempts nothing.
+ */
+function isSelfOriginRequest(req: NextRequest): boolean {
+  const self = process.env.ORIGIN_SELF_IPS;
+  if (!self) return false;
+  const ip = req.headers.get("cf-connecting-ip")?.trim();
+  if (!ip) return false;
+  return self.split(",").some((s) => s.trim() === ip);
+}
+
 function isBlockedDatacenterIP(req: NextRequest): boolean {
   try {
     // Logged-in users are always exempt. Checked first so a human on a cloud
     // VPN is never shed by ASN or CIDR.
     if (hasSessionCookie(req)) return false;
+
+    // The origin's own requests through the CDN (it self-fetches some rewrites
+    // via the public hostname). Since Nov 2026 the origin is a Hetzner box, and
+    // Hetzner (AS24940) is on the list below, so without this it 429s itself.
+    if (isSelfOriginRequest(req)) return false;
 
     // ASN comes from CloudFront's native header OR, behind Cloudflare, from the
     // X-Viewer-ASN request-header Transform Rule (Cloudflare exposes cf.asn only

@@ -32,6 +32,16 @@ systemd `kosh-*`, SQLite in `/var/lib/kosh`) now run on ONE Hetzner box:
 - Turbopack's `.next/node_modules/<pkg>-<hash>` externals are symlinks relative to the BUILD
   checkout's folder name; the deploy re-points dangling ones at the box's `node_modules`
   (missing them = `Failed to load external module pino-<hash>` 500s everywhere).
+- **Edge bot rules (Cloudflare WAF custom rules, set 2026-11-15 via API):** (1) hosting ASNs
+  (= `BLOCKED_HOSTING_ASNS`) → managed_challenge, (2) bare-origin referer
+  `https://themoviebrowser.com` (no slash) → block. Both exempt the session cookie +
+  `cf.client.bot`; (1) also exempts web-1's IPs. Hetzner AS24940 is on the list and web-1
+  self-fetches through Cloudflare, so `proxy.ts` exempts `ORIGIN_SELF_IPS` (box `.env.local`).
+  Caddy's `@dcfleet` reads `CloudFront-Viewer-ASN`, which Cloudflare never sends → inert.
+- Every deploy starts the ISR tier COLD (`cache-handler.cjs` namespaces by BUILD_ID on
+  purpose) → 0% idle, slow cache-miss pages for several minutes on 2 vCPU. `.cache/` (L2
+  TMDB data) and Postgres survive deploys; Cloudflare's edge copies (s-maxage 1h) carry
+  popular pages through it.
 - GitHub secrets `NEXT_EC2_HOST` / `NEXT_EC2_SSH_PRIVATE_KEY` (names kept) now point at web-1.
 - DNS: themoviebrowser.com apex + `www` are PROXIED by Cloudflare → web-1; `origin.`/`beta.`
   DELETED (and their Caddy vhosts). stocks.vootlachaitanya.com is an A record in Route 53.
