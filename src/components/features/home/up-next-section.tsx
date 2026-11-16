@@ -19,6 +19,27 @@ import { CDN_IMAGE_BASE, TMDB_IMAGE_BASE } from "@/lib/constants";
 import type { UpNextItemDTO } from "@/types/social";
 
 /**
+ * Tries each source in order; when all fail it renders nothing, so the card's
+ * `bg-muted` shows instead of the browser's broken-image icon + alt text.
+ */
+function FallbackImage({ sources, alt, className }: { sources: string[]; alt: string; className: string }) {
+  const [index, setIndex] = useState(0);
+  const src = sources[index];
+  if (!src) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      key={src}
+      src={src}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      onError={() => setIndex((i) => i + 1)}
+    />
+  );
+}
+
+/**
  * "Up Next" — next unwatched episode for WATCHING/REWATCHING shows.
  * Client island: the home page is ISR-cached, so this fetches per-user on the
  * client (roadmap invariant §4.1.8) like ContinueWatchingSection.
@@ -93,9 +114,14 @@ export function UpNextSection({
       contentPadding=""
     >
       {items.map((item) => {
-        const still = item.episodeStillPath
-          ? `${TMDB_IMAGE_BASE}/w400${item.episodeStillPath}`
-          : `${CDN_IMAGE_BASE}/series/${item.seriesId}/backdrop.webp`;
+        // Our CDN backdrop first: it is the host every other home row loads
+        // from. The TMDB still is the fallback, because image.tmdb.org is
+        // unreachable on some networks (Nov 2026: cards rendered the browser's
+        // broken-image icon on a phone while the CDN rows loaded).
+        const sources = [
+          `${CDN_IMAGE_BASE}/series/${item.seriesId}/backdrop.webp`,
+          ...(item.episodeStillPath ? [`${TMDB_IMAGE_BASE}/w400${item.episodeStillPath}`] : []),
+        ];
         return (
           <Link
             key={`${item.seriesId}-${item.seasonNumber}-${item.episodeNumber}`}
@@ -113,12 +139,10 @@ export function UpNextSection({
             }
           >
             <div className="relative aspect-video rounded-lg overflow-hidden bg-muted mb-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={still}
+              <FallbackImage
+                sources={sources}
                 alt={`${item.seriesName} ${episodeCode(item.seasonNumber, item.episodeNumber)}`}
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                loading="lazy"
               />
               <Badge
                 variant="secondary"

@@ -52,7 +52,7 @@ vi.mock("@/server/db/postgres/social/taste-recs", () => ({
 }));
 vi.mock("@/server/db/postgres/vector-index", () => ({ hasVectorIndex: vi.fn(async () => true) }));
 vi.mock("@/server/services/tmdb", () => ({ getRecommendations: h.getTmdbRecommendations }));
-vi.mock("@/lib/logger", () => ({ dataLogger: { warn: vi.fn(), debug: vi.fn() } }));
+vi.mock("@/lib/logger", () => ({ dataLogger: { warn: vi.fn(), debug: vi.fn(), info: vi.fn() } }));
 
 const { getRecommendationsForUser, getHomeRecsForUser, clearRecsCache } = await import("./recommend");
 
@@ -230,5 +230,48 @@ describe("recs: in-flight dedupe", () => {
   it("different users are not merged", async () => {
     await Promise.all([getRecommendationsForUser(8), getRecommendationsForUser(9)]);
     expect(h.getTasteVectors).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("recs: stale-while-revalidate across taste recomputes", () => {
+  beforeEach(() => {
+    h.annCandidates.mockImplementation(async (table: string) =>
+      Array.from({ length: 12 }, (_, i) => ({ id: (table === "movies" ? 100 : 200) + i, dist: 0.1 + i / 100, query: 0 }))
+    );
+    h.fetchCandidateDetails.mockImplementation(async (table: string, ids: number[]) =>
+      ids.map((id, i) => cand(id, table === "movies" ? "movie" : "series", [0.2 + i / 50, 0.3, 0.9 - i / 60]))
+    );
+  });
+
+  it("a plain home load answers from the last result while the new key computes; a tune waits for the live pool", async () => {
+    const { getTasteProfile } = await import("./index");
+    const first = await getHomeRecsForUser(1);
+    expect(first.reason).toBe("ok");
+    const annCalls = h.annCandidates.mock.calls.length;
+
+    // The taste row recomputed (a watch / rating): new computedAt → new cache key.
+    vi.mocked(getTasteProfile).mockResolvedValue({
+      computedAt: "2026-10-11T08:00:00.000Z",
+      facets: { genre: [], language: [] },
+    } as unknown as Awaited<ReturnType<typeof getTasteProfile>>);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const ann = h.annCandidates.getMockImplementation();
+    h.annCandidates.mockImplementation(async (...a: unknown[]) => {
+      await gate;
+      return ann?.(...a);
+    });
+
+    // Answers immediately from the previous result, with the Tune chips intact…
+    const stale = await getHomeRecsForUser(1);
+    expect(stale.rows).toEqual(first.rows);
+    expect(stale.tuneChips).toEqual(first.tuneChips);
+    // …while the recompute for the new key has started in the background.
+    await vi.waitFor(() => expect(h.annCandidates.mock.calls.length).toBeGreaterThan(annCalls));
+
+    // A tuned load needs the live pool, so it joins the in-flight computation.
+    const tuned = getHomeRecsForUser(1, { media: "movie" });
+    release();
+    expect((await tuned).reason).toBe("ok");
   });
 });

@@ -79,6 +79,8 @@ interface CacheEntry {
   recs: RecsDTO;
   /** Scored candidate pool for Tune / Surprise / sharpen (null for fallbacks). */
   pool: RecPool | null;
+  /** Set only on a stale (last-good) entry, whose pool is dropped to save memory. */
+  staleMeta?: { tuneAvailable: RecPool["tuneAvailable"]; chips: RecPool["chips"] };
 }
 
 const cache = new Map<string, { at: number; value: CacheEntry }>();
@@ -89,6 +91,31 @@ const cache = new Map<string, { at: number; value: CacheEntry }>();
  * together would otherwise each run up to 8 HNSW scans at ef_search 1000.
  */
 const inflight = new Map<string, Promise<CacheEntry>>();
+
+/**
+ * Last good result per user, kept past its key and TTL (stale-while-revalidate).
+ * Nov 2026: the For-you row took seconds on most home visits because the key
+ * changes on every watch/rating (new taste `computedAt`) and the 1h TTL lapses
+ * between visits, so nearly every visit recomputed 8–10 sequential queries.
+ * Serving the previous result is safe: every read re-filters with fresh
+ * exclusions (`withoutExcluded`), and the recompute replaces it in the background.
+ */
+const lastGood = new Map<number, CacheEntry>();
+
+function rememberLastGood(userId: number, value: CacheEntry): void {
+  lastGood.delete(userId);
+  // Rows + Tune metadata only: the ~1MB scored pool stays in `cache`.
+  lastGood.set(userId, {
+    recs: value.recs,
+    pool: null,
+    staleMeta: value.pool ? { tuneAvailable: value.pool.tuneAvailable, chips: value.pool.chips } : undefined,
+  });
+  while (lastGood.size > REC_CACHE_MAX) {
+    const oldest = lastGood.keys().next().value;
+    if (oldest === undefined) break;
+    lastGood.delete(oldest);
+  }
+}
 
 function cacheGet(key: string): CacheEntry | null {
   const hit = cache.get(key);
@@ -125,12 +152,14 @@ function cacheSet(key: string, value: CacheEntry): void {
 export function clearRecsCache(): void {
   cache.clear();
   inflight.clear();
+  lastGood.clear();
 }
 
 /** Drop every cached rec result for a user (rec feedback, calibration answers). */
 export function evictRecsCache(userId: number): void {
   const prefix = `${userId}:`;
   for (const k of [...cache.keys()]) if (k.startsWith(prefix)) cache.delete(k);
+  lastGood.delete(userId);
 }
 
 // ---------------------------------------------------------------------------
@@ -324,12 +353,18 @@ async function computeRecsInSpace(
   // space with `dist + μ·q` (spec 2026-10-10 §2), then the best per title.
   const offsets = queries.map((q) => space.meanDot(q));
   const best = new Map<TitleKey, { table: VectorTable; id: number; dist: number }>();
-  for (const t of indexed) {
-    const hits = await annCandidates(t.table, queries, {
-      excludeIds: excludedFor(exclusions, t.table),
-      minVotes: t.minVotes,
-      perQuery: REC_ANN_PER_QUERY,
-    });
+  // Movies and series are independent scans: run them concurrently.
+  const hitsByTable = await Promise.all(
+    indexed.map(async (t) => ({
+      t,
+      hits: await annCandidates(t.table, queries, {
+        excludeIds: excludedFor(exclusions, t.table),
+        minVotes: t.minVotes,
+        perQuery: REC_ANN_PER_QUERY,
+      }),
+    }))
+  );
+  for (const { t, hits } of hitsByTable) {
     for (const h of hits) {
       const key = `${t.mediaType === "movie" ? "m" : "s"}:${h.id}`;
       const dist = h.dist + (offsets[h.query] ?? 0);
@@ -413,9 +448,19 @@ async function computeRecsInSpace(
 function computeRecsOnce(key: string, userId: number, snapshot: TasteSnapshot | null): Promise<CacheEntry> {
   const existing = inflight.get(key);
   if (existing) return existing;
+  const t0 = performance.now();
   const p = computeRecs(userId, snapshot)
     .then(({ value, cacheable }) => {
-      if (cacheable) cacheSet(key, value);
+      if (cacheable) {
+        cacheSet(key, value);
+        rememberLastGood(userId, value);
+      }
+      dataLogger.info({
+        action: "taste.recs_computed",
+        userId,
+        reason: value.recs.reason,
+        ms: Math.round(performance.now() - t0),
+      });
       return value;
     })
     .finally(() => inflight.delete(key));
@@ -432,13 +477,20 @@ const ERROR_RECS: RecsDTO = { rows: [], reason: "error", algo: REC_ALGO_VERSION 
  * Also what backs Cue's "all picks are unwatched". Throws on failure.
  */
 async function loadEntry(
-  userId: number
+  userId: number,
+  opts: { allowStale?: boolean } = {}
 ): Promise<{ entry: CacheEntry; exclusions: RecExclusions; snapshot: TasteSnapshot | null }> {
   const t0 = performance.now();
   const snapshot = await getTasteProfile(userId, { scope: "full" });
   const key = `${userId}:${snapshot?.computedAt ?? "none"}:${REC_ALGO_VERSION}`;
   const cached = cacheGet(key);
   if (cached) return { entry: cached, exclusions: await fetchRecExclusions(userId), snapshot };
+  const stale = opts.allowStale ? lastGood.get(userId) : undefined;
+  if (stale) {
+    // Refresh in the background; this request answers from the last result.
+    computeRecsOnce(key, userId, snapshot).catch((error: unknown) => logFailure(userId, error));
+    return { entry: stale, exclusions: await fetchRecExclusions(userId), snapshot };
+  }
   const entry = await computeRecsOnce(key, userId, snapshot);
   // Re-read AFTER the computation, even on a miss: an in-flight joiner may have
   // started before a dismissal, and the popular top-up (a NEW catalog query)
@@ -468,7 +520,7 @@ function logFailure(userId: number, error: unknown): void {
  */
 export async function getRecommendationsForUser(userId: number): Promise<RecsDTO> {
   try {
-    const { entry, exclusions } = await loadEntry(userId);
+    const { entry, exclusions } = await loadEntry(userId, { allowStale: true });
     return withoutExcluded(entry.recs, exclusions);
   } catch (error: unknown) {
     logFailure(userId, error);
@@ -489,15 +541,17 @@ export async function getHomeRecsForUser(
   opts: GetHomeRecsOptions = {}
 ): Promise<HomeRecsDTO> {
   try {
-    const { entry, exclusions, snapshot } = await loadEntry(userId);
+    const shuffle = opts.shuffle ?? tune?.shuffle;
+    // A plain home load may answer from the last result; Tune / Surprise need the live pool.
+    const plain = isEmptyTune(tune) && shuffle === undefined;
+    const { entry, exclusions, snapshot } = await loadEntry(userId, { allowStale: plain });
     const base = withoutExcluded(entry.recs, exclusions);
     const pool = entry.pool;
     const meta = {
-      tuneAvailable: pool?.tuneAvailable ?? {},
-      tuneChips: pool?.chips ?? [],
+      tuneAvailable: pool?.tuneAvailable ?? entry.staleMeta?.tuneAvailable ?? {},
+      tuneChips: pool?.chips ?? entry.staleMeta?.chips ?? [],
       positiveCount: snapshot?.positiveCount ?? 0,
     };
-    const shuffle = opts.shuffle ?? tune?.shuffle;
     if (!pool || (isEmptyTune(tune) && shuffle === undefined)) return { ...base, ...meta };
 
     const forYou = await retuneForYou(pool, tune ?? {}, { shuffle, exclude: opts.exclude }, exclusions);
