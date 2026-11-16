@@ -1,0 +1,575 @@
+---
+description: Authentication and authorization patterns using Auth.js v5
+globs: ["src/lib/auth*.ts", "src/proxy.ts", "src/app/api/auth/**/*.ts", "src/components/features/auth/**/*.tsx"]
+alwaysApply: false
+---
+
+# Authentication Rules
+
+## Tech Stack
+
+- **Auth.js v5** (NextAuth) with JWT strategy
+- **Google OAuth** with Google One Tap support
+- **MongoDB Adapter** for user persistence
+- **Role-based access control** (admin via email whitelist)
+
+## Architecture
+
+### Split Configuration (Edge + Node)
+
+Auth.js config is split for Edge Runtime compatibility:
+
+```
+src/lib/
+├── auth.ts        # Full config (Node.js only) - includes MongoDB adapter + Credentials provider
+├── auth.config.ts # Edge-compatible config - used by proxy.ts (NO Credentials provider)
+└── admin.ts       # Admin email whitelist
+```
+
+**Why?** The `proxy.ts` (middleware) runs in Edge Runtime which doesn't support:
+- MongoDB driver (native `dns` module)
+- Node.js-specific APIs
+- Credentials provider with async authorize function
+
+**CRITICAL**: The Credentials provider for Google One Tap MUST be defined in `auth.ts` only, NOT in `auth.config.ts`. This is because:
+1. The `authorize` function requires Node.js APIs (fetch to Google, MongoDB lookup)
+2. NextAuth v5 doesn't support mapping/overriding provider authorize functions
+
+```typescript
+// src/lib/auth.config.ts - Edge-safe (NO Credentials provider!)
+import Google from "next-auth/providers/google";
+
+// Export Google provider separately for reuse in auth.ts
+export const googleProvider = Google({
+  clientId: process.env.GOOGLE_AUTH_CLIENT_ID!,
+  clientSecret: process.env.GOOGLE_AUTH_CLIENT_SECRET!,
+  allowDangerousEmailAccountLinking: true,
+});
+
+export const authConfig = {
+  providers: [googleProvider], // Only Google OAuth here
+  callbacks: {
+    authorized: ({ auth, request }) => {
+      // Route protection logic
+    },
+    jwt: ({ token, user }) => {
+      // Add user.id, role, and image to token
+      if (user) {
+        token.id = user.id;
+        token.role = getUserRole(user.email ?? "");
+        if (user.image) token.picture = user.image;
+      }
+      return token;
+    },
+    session: ({ session, token }) => {
+      // Add id, role, and image to session.user
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as "admin" | "user";
+        if (token.picture) session.user.image = token.picture as string;
+      }
+      return session;
+    },
+  },
+};
+
+// src/lib/auth.ts - Full Node.js config with Credentials provider
+import Credentials from "next-auth/providers/credentials";
+import { MongoDBAdapter } from "@auth/mongodb-adapter";
+import { authConfig, googleProvider } from "./auth.config";
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
+  adapter: MongoDBAdapter(clientPromise),
+  
+  // IMPORTANT: Override providers to add Credentials for Google One Tap
+  providers: [
+    googleProvider,
+    Credentials({
+      id: "google-one-tap",
+      name: "Google One Tap",
+      credentials: {
+        credential: { type: "text" },
+      },
+      authorize: async (credentials) => {
+        // Verify Google ID token and return/create user
+        // This requires Node.js APIs - cannot be in auth.config.ts
+      },
+    }),
+  ],
+});
+```
+
+### Proxy (Route Protection)
+
+File: `src/proxy.ts` (NOT `middleware.ts` - Next.js 16 convention)
+
+```typescript
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
+
+export const { auth } = NextAuth(authConfig);
+
+export default auth((req) => {
+  const isLoggedIn = !!req.auth;
+  const isProtectedRoute = req.nextUrl.pathname.startsWith("/profile");
+  
+  if (isProtectedRoute && !isLoggedIn) {
+    return Response.redirect(new URL("/auth/signin", req.url));
+  }
+});
+
+export const config = {
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+};
+```
+
+## Google One Tap
+
+### Component Location
+
+`src/components/features/auth/google-one-tap.tsx`
+
+### Behavior
+
+- **Delay**: 2-second delay before showing (non-invasive)
+- **Cooldown**: 24-hour cooldown after dismissal
+- **FedCM**: Uses Federated Credential Management API where supported
+- **Auto-select**: Enabled for returning users
+
+```typescript
+"use client";
+
+export function GoogleOneTap() {
+  const { status } = useSession();
+  
+  useEffect(() => {
+    if (status === "authenticated" || status === "loading") return;
+    
+    // Check cooldown
+    const cooldown = localStorage.getItem("google-one-tap-cooldown");
+    if (cooldown && Date.now() < parseInt(cooldown)) return;
+    
+    // Initialize after delay
+    const timer = setTimeout(() => {
+      google.accounts.id.initialize({
+        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+        callback: handleCredentialResponse,
+        use_fedcm_for_prompt: true,
+      });
+      google.accounts.id.prompt();
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [status]);
+}
+```
+
+### Integration
+
+Wrap in `Providers` component:
+
+```tsx
+// src/components/providers/index.tsx
+export function Providers({ children }) {
+  return (
+    <AuthProvider>
+      <GoogleOneTap />
+      {children}
+    </AuthProvider>
+  );
+}
+```
+
+## Admin System
+
+### Role Identification
+
+Admins are identified by **email whitelist** in environment variables:
+
+```typescript
+// src/lib/admin.ts
+export const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+export function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.toLowerCase());
+}
+```
+
+```env
+# .env.local
+ADMIN_EMAILS=admin@example.com,owner@example.com
+```
+
+### Role in Session
+
+Role is added via JWT callback:
+
+```typescript
+// src/lib/auth.config.ts
+callbacks: {
+  jwt({ token, user }) {
+    if (user) {
+      token.id = user.id;
+      token.role = isAdminEmail(user.email) ? "admin" : "user";
+    }
+    return token;
+  },
+  session({ session, token }) {
+    if (session.user) {
+      session.user.id = token.id as string;
+      session.user.role = token.role as "admin" | "user";
+    }
+    return session;
+  },
+}
+```
+
+### Type Augmentation
+
+```typescript
+// src/types/next-auth.d.ts
+import "next-auth";
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      role: "admin" | "user";
+    } & DefaultSession["user"];
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id?: string;
+    role?: "admin" | "user";
+  }
+}
+```
+
+### Protected API Routes
+
+```typescript
+// src/lib/auth.ts
+export async function requireAdmin() {
+  const session = await auth();
+  if (!session?.user) {
+    throw new Error("Authentication required");
+  }
+  if (session.user.role !== "admin") {
+    throw new Error("Admin access required");
+  }
+  return session;
+}
+
+// Usage in API route
+export async function GET() {
+  try {
+    await requireAdmin();
+    // ... admin-only logic
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 403 });
+  }
+}
+```
+
+### Admin UI
+
+Admin link only visible to admins (neutral styling to blend with other nav items):
+
+```tsx
+// In NavBar
+{isAdmin && (
+  <Link href="/admin">
+    <Button
+      variant="ghost"
+      className={cn(
+        "gap-2",
+        isScrolled
+          ? "text-foreground/80 hover:text-foreground hover:bg-accent"
+          : "text-white/90 hover:text-white hover:bg-white/10"
+      )}
+    >
+      <Shield className="h-4 w-4" />
+      Admin
+    </Button>
+  </Link>
+)}
+```
+
+## Database Structure
+
+### Single Database: `test`
+
+Both Next.js and Nuxt apps share the same `test` database for all user data:
+
+| Collection | Purpose |
+|------------|---------|
+| `users` | User profiles (Auth.js + Nuxt compatible) |
+| `accounts` | OAuth account links |
+| `sessions` | Auth.js sessions |
+| `watchedmovies` | User watched movies |
+| `movieswatchlists` | User movie watchlist |
+| `serieslists` | User series watchlist |
+| `userratings` | User likes/dislikes |
+| `recents` | Recently viewed items |
+| `continuewatchings` | Continue watching state |
+
+**Note**: The `moviebrowser` database was a legacy artifact and is no longer used.
+
+```typescript
+// Auth.js adapter uses test database
+MongoDBAdapter(clientPromise, { databaseName: "test" })
+
+// All user operations use test database
+const db = client.db("test");
+```
+
+### User Schema (test.users)
+
+The user schema is compatible with both Next.js Auth.js and the Nuxt app:
+
+```typescript
+interface User {
+  _id: ObjectId;
+  // Nuxt-compatible fields
+  id: string;            // Google sub as string (primary identifier for Nuxt)
+  sub: string;           // Google sub (duplicate for compatibility)
+  name: string;
+  email: string;
+  picture?: string;
+  image?: string;        // Auth.js uses 'image', Nuxt uses 'picture'
+  location?: {
+    countryCode: string;
+    country: string;
+    city: string;
+    region: string;
+    timezone: string;
+  };
+  // Timestamps
+  createdAt: Date;
+  updatedAt: Date;
+  lastVisited: Date;     // Updated on each sign-in
+  emailVerified?: Date;  // Auth.js field
+}
+```
+
+**On sign-in**, the Next.js app:
+1. Creates/updates user in `test.users` with Nuxt-compatible fields
+2. Updates `lastVisited` timestamp
+3. Ensures `id` and `sub` fields are set (Google sub as string)
+
+### User Library Collections (test database)
+
+The Nuxt app stores user library data with `userId` as a **number** (Google OAuth `sub` parsed as integer):
+
+```typescript
+// watchedmovies collection
+interface WatchedMovie {
+  _id: ObjectId;
+  userId: number;        // Google sub as number (e.g., 100739281047185839198)
+  movieId: number;       // TMDB movie ID
+  createdAt: Date;
+}
+
+// movieswatchlists collection
+interface MovieWatchlist {
+  _id: ObjectId;
+  userId: number;
+  movieId: number;
+  createdAt: Date;
+}
+
+// serieslists collection
+interface SeriesWatchlist {
+  _id: ObjectId;
+  userId: number;
+  seriesId: number;
+  createdAt: Date;
+}
+
+// userratings collection
+interface UserRating {
+  _id: ObjectId;
+  odooUserId: number;    // Google sub as number
+  itemId: number;        // TMDB movie/series ID
+  mediaType: "movie" | "series";
+  rating: 1 | -1;        // 1 = like, -1 = dislike
+  createdAt: Date;
+}
+```
+
+## User ID Utility
+
+### Getting userId for Database Queries
+
+The session's `id` field contains the Google OAuth `sub`. Use the utility function:
+
+```typescript
+// src/lib/user-id.ts
+import { auth } from "./auth";
+
+export async function getUserIdForDb(): Promise<number | null> {
+  const session = await auth();
+  
+  if (!session?.user) {
+    return null;
+  }
+  
+  // Try googleId first (explicitly captured), then fall back to id
+  // The id field often contains the Google sub when using Google OAuth
+  const googleId = session.user.googleId || session.user.id;
+  
+  if (googleId) {
+    const parsed = parseInt(googleId, 10);
+    if (!isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  
+  return null;
+}
+
+// Throws if not authenticated
+export async function requireUserIdForDb(): Promise<number> {
+  const userId = await getUserIdForDb();
+  if (!userId) {
+    throw new Error("Authentication required");
+  }
+  return userId;
+}
+```
+
+### Usage in API Routes
+
+```typescript
+// src/app/api/user/watchlist/route.ts
+import { getUserIdForDb } from "@/lib/user-id";
+
+export async function GET() {
+  const userId = await getUserIdForDb();
+  
+  if (!userId) {
+    return NextResponse.json({ movies: [], series: [] });
+  }
+  
+  // Query with numeric userId
+  const watchlist = await MoviesWatchlist.find({ userId });
+  // ...
+}
+```
+
+## Environment Variables
+
+```env
+# Required
+AUTH_SECRET=<random-32-char-string>
+GOOGLE_AUTH_CLIENT_ID=<google-client-id>
+GOOGLE_AUTH_CLIENT_SECRET=<google-client-secret>
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=<same-as-above>
+
+# MongoDB
+MONGO_IP=<ip-address>
+MONGO_PORT=27018
+MONGO_PASS=<password>
+
+# Admin
+ADMIN_EMAILS=admin@example.com
+
+# Optional
+NEXTAUTH_URL=http://localhost:3000
+AUTH_TRUST_HOST=true
+```
+
+## Auth Components
+
+```
+src/components/features/auth/
+├── google-one-tap.tsx   # Google One Tap prompt
+├── login-dialog.tsx     # Manual sign-in modal
+├── user-menu.tsx        # Avatar dropdown (profile, watchlist, theme, logout)
+├── settings-menu.tsx    # Settings dropdown for non-authenticated users (theme toggle)
+└── index.ts             # Barrel exports
+```
+
+### User Menu vs Settings Menu
+
+- **Authenticated users**: Use `UserMenu` - includes profile, watchlist, theme toggle submenu, logout
+- **Non-authenticated users**: Use `SettingsMenu` - cog icon with theme toggle only
+
+```tsx
+// In NavBar
+{isAuthenticated ? (
+  <UserMenu />
+) : (
+  <>
+    <SettingsMenu />
+    <Button onClick={openLoginDialog}>Sign In</Button>
+  </>
+)}
+
+## Common Patterns
+
+### Check Auth in Server Component
+
+```typescript
+import { auth } from "@/lib/auth";
+
+export default async function Page() {
+  const session = await auth();
+  
+  if (!session) {
+    redirect("/auth/signin");
+  }
+  
+  return <div>Welcome, {session.user.name}</div>;
+}
+```
+
+### Check Auth in Client Component
+
+```typescript
+"use client";
+import { useSession } from "next-auth/react";
+
+export function UserGreeting() {
+  const { data: session, status } = useSession();
+  
+  if (status === "loading") return <Skeleton />;
+  if (!session) return null;
+  
+  return <span>Hi, {session.user.name}</span>;
+}
+```
+
+### Protected Server Action
+
+```typescript
+"use server";
+import { auth } from "@/lib/auth";
+
+export async function addToWatchlist(movieId: number) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error("Not authenticated");
+  }
+  
+  // ... add to watchlist
+}
+```
+
+## Do NOT
+
+- Import `auth.ts` in Edge Runtime files (use `auth.config.ts`)
+- Put Credentials provider in `auth.config.ts` (authorize function requires Node.js)
+- Try to map/override provider authorize functions (NextAuth v5 doesn't support this)
+- Store sensitive data in session (only id, role, basic profile)
+- Use `middleware.ts` filename (use `proxy.ts` for Next.js 16)
+- Hardcode admin emails (use environment variable)
+- Skip type augmentation for custom session fields
+

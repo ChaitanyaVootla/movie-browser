@@ -8,12 +8,17 @@
         <count>3</count>
     </logger>
 
-    <!-- Cap ClickHouse to ~2.2GB on shared EC2 (default 0.8 = 6.4GB on 8GB box).
-         Must sit well below the docker-compose mem_limit (3GB): ClickHouse's own
-         tracker misses ~0.5GB (allocator fragmentation, thread stacks), and when
-         RSS crosses the cgroup limit the kernel OOM-kills the server instead of
-         queries failing gracefully. 2.2GB tracked + ~0.5GB untracked < 3GB. -->
-    <max_server_memory_usage>2362232012</max_server_memory_usage>
+    <!-- Cap ClickHouse to ~900MB on the 8GB Hetzner web-2 (Nov 2026), which it
+         shares with Postgres (3GB cap) and Next (3GB restart). Was 2.2GB under a
+         3GB limit on EC2. Must sit well below the docker-compose mem_limit
+         (1300m): ClickHouse's own tracker misses ~0.3-0.5GB (allocator
+         fragmentation, thread stacks), and when RSS crosses the cgroup limit the
+         kernel OOM-kills the server instead of queries failing gracefully. -->
+    <max_server_memory_usage>943718400</max_server_memory_usage>
+    <!-- Defaults are sized for dedicated servers (mark cache 5GB). -->
+    <mark_cache_size>268435456</mark_cache_size>
+    <index_mark_cache_size>67108864</index_mark_cache_size>
+    <uncompressed_cache_size>0</uncompressed_cache_size>
 
     <!-- Disable ALL system introspection logs. June 2026: these tables (never
          TTL'd) silently grew to 22.5GB — trace_log alone 18GB vs ~130MB of actual
