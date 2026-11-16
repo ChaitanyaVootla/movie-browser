@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { TMDB_IMG_FALLBACK_SCRIPT } from "@/lib/tmdb-img/fallback-script";
 import { Montserrat, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
@@ -128,6 +129,8 @@ export default function RootLayout({
     <ViewTransitions>
       <html lang="en" suppressHydrationWarning>
         <head>
+        {/* Retries image.tmdb.org images through /tmdb-img when TMDB is unreachable (some networks block it). Must run before <body>. */}
+        <script dangerouslySetInnerHTML={{ __html: TMDB_IMG_FALLBACK_SCRIPT }} />
         <link rel="preconnect" href="https://image.tmdb.org" />
         <link rel="preconnect" href="https://accounts.google.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://api.themoviedb.org" />
