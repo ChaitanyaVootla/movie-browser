@@ -36,6 +36,7 @@ import {
   runInRenderContext,
   type RenderContext,
 } from "@/lib/render-context";
+import { renderStatsWindow, startRenderStatsReporter } from "./render-stats";
 
 /** The runtime the Turbopack production build's page chunks require. */
 export const APP_PAGE_RUNTIME_MODULE =
@@ -147,6 +148,7 @@ function guardGenerator(
     const ctx = createRenderContext(cacheKey);
     const renders = activeRenders();
     renders.add(ctx);
+    renderStatsWindow().observeActive(renders.size);
     const render = Promise.resolve().then(() => runInRenderContext(ctx, () => generator(...args)));
 
     return new Promise((resolve, reject) => {
@@ -154,6 +156,7 @@ function guardGenerator(
         ctx.deadlineHit = true;
         abandonedOutstanding++;
         renders.delete(ctx);
+        safely(() => renderStatsWindow().record(options.timeoutMs, "deadline"));
         // Reporting must never stop the release: this runs in a timer callback.
         safely(() => options.onDeadline?.(buildReport(ctx, options.timeoutMs)));
         reject(new RenderDeadlineError(cacheKey, options.timeoutMs));
@@ -172,9 +175,15 @@ function guardGenerator(
       );
       // Bookkeeping only; the caller's rejection handling is above.
       render
-        .catch(() => undefined)
-        .finally(() => {
+        .then(
+          () => "ok" as const,
+          () => "error" as const
+        )
+        .then((outcome) => {
           renders.delete(ctx);
+          const durationMs = Date.now() - ctx.startedAt;
+          // A deadline render was already counted when its timer fired.
+          if (!ctx.deadlineHit) safely(() => renderStatsWindow().record(durationMs, outcome));
           if (ctx.deadlineHit) {
             abandonedOutstanding--;
             safely(() =>
@@ -274,6 +283,7 @@ function startSlowRenderWatchdog(slowMs: number, log: RenderDeadlineLogger): voi
     for (const ctx of activeRenders()) {
       if (ctx.slowReported || now - ctx.startedAt < slowMs) continue;
       ctx.slowReported = true;
+      renderStatsWindow().markSlow();
       safely(() => log.warn({ event: "render_slow", ...buildReport(ctx, slowMs, now) }));
     }
   }, WATCHDOG_INTERVAL_MS);
@@ -323,6 +333,12 @@ export function installAppPageRenderDeadline(
     subscribeOutboundFetchTracking();
     const slowMs = resolveRenderDeadlineMs(process.env.RENDER_SLOW_MS, DEFAULT_RENDER_SLOW_MS);
     if (slowMs > 0) startSlowRenderWatchdog(Math.min(slowMs, timeoutMs), log);
+    if (process.env.RENDER_STATS !== "off") {
+      startRenderStatsReporter(log, {
+        activeCount: () => activeRenders().size,
+        abandoned: () => abandonedOutstanding,
+      });
+    }
     return { installed, timeoutMs, module: modulePath, reason: installed ? undefined : "already patched" };
   } catch (error: unknown) {
     return {

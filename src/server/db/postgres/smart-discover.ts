@@ -565,6 +565,28 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
       conditions.push(`m.id != $${paramIndex}`);
       params.push(similarToId);
       paramIndex++;
+    } else {
+      // No source embedding (≈90% of the catalog: 121k of 1.18M movies, 25.6k
+      // of 177k series are embedded) → there is nothing to be "similar" to.
+      // This used to fall through to `ORDER BY popularity` over the WHOLE
+      // catalog with a per-row vote-count EXISTS: a walk of all ~620k TMDB
+      // ratings + a movies_pkey probe each, 8.4s p50 / 18s p90, on ~90% of
+      // cold detail renders. Measured on web-1 (Nov 16 2026): 56k calls in
+      // 11.5h ≈ 14 of these running at once on 2 vCPU, 64 billion tuples read
+      // via ratings_source_id_idx in 32h. It also returned the most popular
+      // titles overall as "similar". Return nothing; the TMDB rows fill in.
+      dataLogger.debug({
+        event: "smart_discover_similar_no_embedding",
+        mediaType,
+        similarToId,
+        durationMs: Date.now() - startTime,
+      });
+      return {
+        results: [],
+        totalFound: 0,
+        filters,
+        stats: { durationMs: Date.now() - startTime, embeddingGenerated: false, rowsScanned: 0 },
+      };
     }
   } else if (semanticQuery) {
     // Generate query embedding
@@ -744,7 +766,11 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
 
     const durationMs = Date.now() - startTime;
 
-    dataLogger.info({
+    // The Similar row (similarToId) runs on every cold detail render, so it
+    // logs at debug (performance.md §17: per-render logs never at info). It was
+    // 57k lines / 17 MB per 11.5h on web-1 (Nov 16 2026). AI-tool calls stay info.
+    const logSummary = similarToId ? dataLogger.debug.bind(dataLogger) : dataLogger.info.bind(dataLogger);
+    logSummary({
       event: "smart_discover",
       mediaType,
       hasSemanticQuery: !!semanticQuery,

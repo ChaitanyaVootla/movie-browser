@@ -4,7 +4,7 @@ import os from "os";
 import path from "path";
 // CJS script — exercised here for its pure prune logic (the top-level run is
 // guarded by `require.main === module`, so importing does not execute it).
-import { pruneTarget, collectEntries, removeEmptyDirs } from "./prune-isr-cache";
+import { pruneTarget, collectEntries, removeEmptyDirs, isrPrunePlan, run } from "./prune-isr-cache";
 
 let tmp: string;
 
@@ -83,5 +83,43 @@ describe("removeEmptyDirs", () => {
     fs.unlinkSync(f);
     removeEmptyDirs(path.join(tmp, "images"));
     expect(fs.existsSync(path.join(tmp, "images/hash"))).toBe(false);
+  });
+});
+
+describe("isrPrunePlan — bounded-isr backstop (Nov 16 2026)", () => {
+  const GB = 1024 * MB;
+
+  it("cron run with plenty of disk skips the walk (the handler bounds itself)", () => {
+    const plan = isrPrunePlan({ BOUNDED_CACHE_MB: "6000" }, 10 * GB);
+    expect(plan.walk).toBe(false);
+    expect(plan.budgetBytes).toBe(6000 * MB);
+  });
+
+  it("cron run on a tight disk walks, pruning to the handler's own cap", () => {
+    const plan = isrPrunePlan({ BOUNDED_CACHE_MB: "6000", PRUNE_MIN_FREE_MB: "4000" }, 3 * GB);
+    expect(plan).toMatchObject({ walk: true, budgetBytes: 6000 * MB });
+  });
+
+  it("an explicit ISR_CACHE_BUDGET_MB (disk-guard, deploy preflight) always walks", () => {
+    expect(isrPrunePlan({ ISR_CACHE_BUDGET_MB: "1500" }, 30 * GB)).toMatchObject({
+      walk: true,
+      budgetBytes: 1500 * MB,
+    });
+  });
+
+  it("unknown free space fails safe (walks)", () => {
+    expect(isrPrunePlan({}, null).walk).toBe(true);
+  });
+});
+
+describe("run — prunes the real bounded-isr store", () => {
+  it("emergency mode deletes the oldest bounded-isr entries, not .next/server/app", () => {
+    const old = write(".next/cache/bounded-isr/BUILD1/a.json", 3 * MB, 10);
+    const fresh = write(".next/cache/bounded-isr/BUILD1/b.json", 3 * MB, 1);
+    const r = run(tmp, NOW, { ISR_CACHE_BUDGET_MB: "4", IMAGE_CACHE_BUDGET_MB: "100" });
+    expect(fs.existsSync(old)).toBe(false);
+    expect(fs.existsSync(fresh)).toBe(true);
+    expect(r.rows.deleted).toBe(1);
+    expect(r.isrWalked).toBe(true);
   });
 });

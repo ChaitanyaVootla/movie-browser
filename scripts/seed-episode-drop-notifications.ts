@@ -16,6 +16,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 import { prisma } from "../src/server/db/postgres";
 import { notifyEpisodeDrop } from "../src/server/services/notifications/notify";
+import { startJobRun, type JobRun } from "./lib/job-run.cjs";
 
 export const EPISODE_DROP_LOOKBACK_MS = 36 * 60 * 60 * 1000; // 36h — covers a daily run + slack
 
@@ -58,6 +59,16 @@ async function main() {
     process.exit(0);
   }
 
+  const jobRun = startJobRun("episode-drop-notify");
+  try {
+    await runEpisodeDrops(jobRun);
+  } catch (error: unknown) {
+    jobRun.finish({ status: "error", error });
+    throw error;
+  }
+}
+
+async function runEpisodeDrops(jobRun: JobRun) {
   const now = new Date();
   const windowStart = new Date(now.getTime() - EPISODE_DROP_LOOKBACK_MS);
 
@@ -99,6 +110,7 @@ async function main() {
   }
 
   console.log(`✅ Episode-drop run complete — ${notified} notifications written.`);
+  jobRun.finish({ rows: { notified, read: episodes.length }, extra: { seasonDrops: seasonKeys.length } });
   await prisma.$disconnect();
 }
 

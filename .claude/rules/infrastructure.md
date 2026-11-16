@@ -250,12 +250,33 @@ Materialized views: `daily_stats`, `hourly_ai_costs`, `content_performance`, `ho
 
 No migrations — schema SQL is authoritative. Re-deploy recreates containers. Pre-GA data loss is acceptable.
 
-## PM2 Jobs
+## PM2 Jobs (web-1, measured Nov 2026 — every run writes a `job_run_summary`, see performance.md "Metrics")
 
-| Job | Schedule | Heap Limit |
-|-----|----------|------------|
-| `next` | Always | 600MB |
-| `imdb-ratings-sync` | 20:00 UTC | 900MB (IMDb dataset → ratings) |
-| `popularity-sync` | 21:00 UTC | 500MB |
-| `sitemap-generator` | 22:00 UTC | 1024MB |
-| `isr-cache-prune` | 23:00 UTC | 512MB (keeps ISR route cache ≤ 5GB — Jun 10 disk-fill) |
+| Job | Schedule (UTC) | Measured run | Writes/run |
+|-----|----------|------------|------------|
+| `next` | Always | — | `NEXT_MAX_MEMORY` 1700M RSS cap, heap 1280 MB on web-1 |
+| `episode-drop-notify` | daily 05:00 | 15-40 s | 0 notifications so far (no trackers) |
+| `isr-cache-prune` | every 6h (00/06/12/18) | seconds | 0 unless disk < 4 GB free (bounded-isr backstop) |
+| `taste-baseline` | **Sundays** 19:00 (weekly since Nov 16 2026) | 7-8 min, unniced PG aggregation | ~200 of ~457k keys |
+| `imdb-ratings-sync` | daily 20:00 | 1-2.5 min | ~3-5k of ~576k ratings (diff-only) |
+| `popularity-sync` | daily 21:00 | **12h+ on Nov 15-16** (box saturated) | ~75% of movies / ~90% of series (being fixed) |
+| `sitemap-generator` | daily 22:00 | ~96 s | 13 files |
+
+No two jobs overlap EXCEPT popularity-sync, whose 12h run on Nov 15-16 overlapped every
+other job and the 03:00-07:00 fleet window; fixing its write volume is the schedule fix.
+The user crontab on web-1 was EMPTY on Nov 16 2026: `~/bin/pg-backup.sh`,
+`disk-metric.sh` and `scripts/disk-guard.sh` were not scheduled after the move.
+
+## Memory Budget (web-1, 4 GB + 4 GB swap, measured Nov 16 2026 under load)
+
+| Process | Observed | Cap |
+|---------|----------|-----|
+| next-server | 1.5 GB RSS **+ 0.74 GB in swap** | PM2 `max_memory_restart` 1700M (RSS only — swap is invisible to it), heap 1280 MB |
+| Postgres (container) | ~0.7 GB (+ 512 MB shared_buffers as shmem) | `mem_limit 1400m` |
+| Caddy | ~160 MB | none |
+| kosh (api + web) | ~30 MB resident (mostly swapped) | systemd |
+| cron job (tsx) | 200-900 MB | per-job `max_memory_restart` |
+| page cache | ~1.2 GB | — |
+
+Heap tracks IN-FLIGHT renders (§14), so the lever is fewer slow renders (§22), then a lower
+Caddy `unhealthy_request_count` — not a bigger heap.

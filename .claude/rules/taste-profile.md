@@ -101,7 +101,8 @@ never throws), plus `cosineSimilarity` / `l2Normalize`.
    (display hygiene; see `seo-search-console.md`).
 7. **No catalog scan on a request.** Lift baselines come from
    `taste_facet_baseline`/`taste_baseline_meta` (PK lookups), rebuilt by the
-   `taste-baseline` cron (19:00 UTC, `nice -n 19`, CRON_HOUR_UTC guard). Empty
+   `taste-baseline` cron (Sundays 19:00 UTC since Nov 16 2026 — it was daily, but each run
+   costs 7-8 min of Postgres to change ~0.04% of keys; `nice -n 19`, CRON_HOUR_UTC guard). Empty
    tables → uniform prior. Recomputes: per-user dedupe, global `p-limit(2)`, 20s
    cap, 1.5s reader wait then stale, failure backoff 5 min→1 h.
 

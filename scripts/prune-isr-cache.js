@@ -1,7 +1,17 @@
 /**
  * Disk-cache prune — keeps Next's on-disk caches under a budget:
- *   1. ISR route cache  — `.next/server/app/{movie,series,person}` (.html/.rsc/.meta)
+ *   1. ISR route cache  — `.next/cache/bounded-isr/<BUILD_ID>/*.json` (the
+ *      cache-handler.cjs store). BACKSTOP ONLY: the handler's own write-time
+ *      LRU (BOUNDED_CACHE_MB) is the primary bound, so the cron run walks this
+ *      dir only when the disk is actually tight (see isrPrunePlan).
  *   2. Image optimizer  — `.next/cache/images` (all files; any format)
+ *
+ * CORRECTED Nov 16 2026: until then target 1 was `.next/server/app/{movie,
+ * series,person}` (Next's DEFAULT ISR location), which has been empty since
+ * cache-handler.cjs took over — the job logged "isr: 0 files ... under budget"
+ * every 6h while 13GB sat in bounded-isr (performance.md §1). Walking ~170k
+ * entry files every 6h on a box at 56% IO pressure just to confirm the handler
+ * did its job is waste, hence the disk-free gate.
  *
  * WHY THIS EXISTS:
  * - Jun 10 2026 outage: Next's default ISR disk cache never evicts by size. The
@@ -33,22 +43,56 @@
  * when under budget):
  *   FORCE_RUN=1 nice -n 19 node scripts/prune-isr-cache.js
  *
- * Env: ISR_CACHE_BUDGET_MB (default 5000), IMAGE_CACHE_BUDGET_MB (default 3000),
- *      ISR_CACHE_MAX_AGE_HOURS (default 72), CRON_HOUR_UTC (default 23).
+ * Env: ISR_CACHE_BUDGET_MB (set = emergency mode: always walk bounded-isr and
+ *      prune it to this budget; disk-guard.sh + the deploy preflight set it),
+ *      BOUNDED_CACHE_MB (the handler's cap; default ISR budget when unset),
+ *      PRUNE_MIN_FREE_MB (default 4000: below this free space on the cache's
+ *      filesystem the cron run walks bounded-isr), IMAGE_CACHE_BUDGET_MB
+ *      (default 3000), ISR_CACHE_MAX_AGE_HOURS (default 72), CRON_HOUR_UTC (23).
  */
 
 const fs = require("fs");
 const path = require("path");
 
 const CRON_HOUR_UTC = parseInt(process.env.CRON_HOUR_UTC || "23", 10);
-const ISR_BUDGET_BYTES =
-  parseInt(process.env.ISR_CACHE_BUDGET_MB || "5000", 10) * 1024 * 1024;
 const IMAGE_BUDGET_BYTES =
   parseInt(process.env.IMAGE_CACHE_BUDGET_MB || "3000", 10) * 1024 * 1024;
 const MAX_AGE_MS =
   parseInt(process.env.ISR_CACHE_MAX_AGE_HOURS || "72", 10) * 3600 * 1000;
 
-const ISR_EXTENSIONS = new Set([".html", ".rsc", ".meta"]);
+/** cache-handler.cjs stores one `<hash>.json` (gzipped) per entry. */
+const ISR_EXTENSIONS = new Set([".json"]);
+const MB = 1024 * 1024;
+
+/**
+ * Decide whether (and to what budget) the bounded-isr walk runs. Pure.
+ * - ISR_CACHE_BUDGET_MB set → emergency caller (disk-guard / deploy preflight):
+ *   always walk, prune to that budget.
+ * - otherwise (the 6-hourly PM2 run): walk only if free disk < PRUNE_MIN_FREE_MB,
+ *   pruning to BOUNDED_CACHE_MB — i.e. only if the handler's own bound failed
+ *   or the budget no longer fits the disk.
+ */
+function isrPrunePlan(env, freeBytes) {
+  const explicit = parseInt(env.ISR_CACHE_BUDGET_MB || "", 10);
+  if (Number.isFinite(explicit) && explicit >= 0) {
+    return { walk: true, budgetBytes: explicit * MB, reason: "explicit budget" };
+  }
+  const budgetBytes = parseInt(env.BOUNDED_CACHE_MB || "4000", 10) * MB;
+  const minFreeBytes = parseInt(env.PRUNE_MIN_FREE_MB || "4000", 10) * MB;
+  if (freeBytes === null || freeBytes < minFreeBytes) {
+    return { walk: true, budgetBytes, reason: freeBytes === null ? "free space unknown" : "disk tight" };
+  }
+  return { walk: false, budgetBytes, reason: `${(freeBytes / 1024 ** 3).toFixed(1)}GB free` };
+}
+
+function freeBytesAt(dir) {
+  try {
+    const st = fs.statfsSync(dir);
+    return st.bavail * st.bsize;
+  } catch {
+    return null;
+  }
+}
 
 /** Recursively collect cache entry files. Sync walk is fine: the job is niced
  * and the entry count (not throughput) is the constraint. `extFilter` null =
@@ -147,30 +191,33 @@ function removeEmptyDirs(dir) {
   }
 }
 
-function run(cwd, now) {
+function run(cwd, now, env = process.env) {
   const gb = (b) => (b / 1024 ** 3).toFixed(2);
-  const targets = [
-    {
-      label: "isr",
-      roots: ["movie", "series", "person"].map((d) =>
-        path.join(cwd, ".next", "server", "app", d),
-      ),
-      budget: ISR_BUDGET_BYTES,
-      ext: ISR_EXTENSIONS,
-    },
+  const isrRoot = path.join(cwd, ".next", "cache", "bounded-isr");
+  const plan = isrPrunePlan(env, freeBytesAt(cwd));
+  const targets = [];
+  if (plan.walk) {
+    targets.push({ label: "isr", roots: [isrRoot], budget: plan.budgetBytes, ext: ISR_EXTENSIONS });
+  } else {
+    console.log(`[prune-isr-cache] isr: skipped walk (${plan.reason}; cache-handler.cjs bounds bounded-isr itself).`);
+  }
+  targets.push(
     {
       label: "images",
       roots: [path.join(cwd, ".next", "cache", "images")],
       budget: IMAGE_BUDGET_BYTES,
       ext: null, // any extension
     },
-  ];
+  );
 
   let totalFreed = 0;
+  const rows = { deleted: 0, scanned: 0 };
   for (const t of targets) {
     const startedAt = now;
     const r = pruneTarget(t.label, t.roots, t.budget, t.ext, now);
     totalFreed += r.freed;
+    rows.deleted += r.deleted;
+    rows.scanned += r.scanned;
     if (r.deleted === 0) {
       console.log(
         `[prune-isr-cache] ${t.label}: ${r.scanned} files, ${gb(r.totalBytes)}GB (budget ${(t.budget / 1024 ** 3).toFixed(1)}GB) — under budget.`,
@@ -182,7 +229,7 @@ function run(cwd, now) {
       );
     }
   }
-  return totalFreed;
+  return { totalFreed, rows, isrWalked: plan.walk };
 }
 
 // Run only when invoked directly (not when required by the unit test).
@@ -196,10 +243,18 @@ if (require.main === module) {
     );
     process.exit(0);
   }
-  run(process.cwd(), Date.now());
+  const jobRun = require("./lib/job-run.cjs").startJobRun("isr-cache-prune");
+  try {
+    const r = run(process.cwd(), Date.now());
+    jobRun.finish({ rows: r.rows, extra: { freedMb: Math.round(r.totalFreed / MB), isrWalked: r.isrWalked } });
+  } catch (error) {
+    jobRun.finish({ status: "error", error });
+    throw error;
+  }
 }
 
 module.exports = {
+  isrPrunePlan,
   collectEntries,
   pruneTarget,
   removeEmptyDirs,

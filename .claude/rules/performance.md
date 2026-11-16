@@ -171,7 +171,12 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
      out of sync with it. The job's own header comment admits this; CLAUDE.md's PM2
      table is accurate about the path (it says `server/app`) — it is this file that
      was wrong. If you want a real backstop, point the job at `bounded-isr` and
-     match its budget to `BOUNDED_CACHE_MB`.
+     match its budget to `BOUNDED_CACHE_MB`. **DONE Nov 16 2026:** the job now targets
+     `.next/cache/bounded-isr` (`*.json`) with budget `BOUNDED_CACHE_MB`, but the 6-hourly
+     run only WALKS it when free disk < `PRUNE_MIN_FREE_MB` (4000) — the handler bounds
+     itself, and stat-ing ~170k files every 6h on an IO-bound 2-vCPU box is waste.
+     disk-guard.sh and the deploy preflight pass `ISR_CACHE_BUDGET_MB`, which always
+     walks (`isrPrunePlan`, tested).
      Diagnosis signature for disk-full: load ≫ vCPUs at mid
      CPU%, `pm2 logs` ENOSPC, `df -h` 100%. `pm2 flush` buys ~1GB instantly.
      **Disk-full aftermath checklist (each bit us on Jun 10):** (1) ClickHouse's
@@ -753,6 +758,71 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
      matches your own `ssh … bash -c` command line**. Kill by PID instead.
    - `ps -o pcpu` is the lifetime average, not instantaneous CPU. It reads the
      same "48%" every sample and tells you nothing about a hang.
+
+22. **"Similar" for a title WITHOUT an embedding ran a whole-catalog popularity scan
+   on every cold detail render (Nov 16 2026, web-1 at load 13-15 for a day).**
+   `smartDiscover({ similarToId })` looked up the source title's embedding and, when
+   it was NULL, silently fell through to `ORDER BY m.popularity DESC` over the WHOLE
+   table with the per-row `EXISTS (ratings … vote_count >= 100)`. Only 121k of 1.18M
+   movies and 25.6k of 177k series are embedded, so ~90% of cold movie/series renders
+   ran it. Plan: Parallel Index Scan on `ratings_source_id_idx` (all ~620k TMDB rating
+   rows) → nested loop into `movies_pkey` → sort. It also returned the most popular
+   titles overall as "similar".
+   - **Signature (all read-only, all cheap):** `pg_stat_user_indexes` with an absurd
+     `idx_tup_read / idx_scan` on a low-selectivity index (ratings_source_id_idx:
+     64 BILLION tuples in 103k scans in 32h, i.e. ~620k per scan) plus billions of
+     `idx_scan` on a parent PK (movies_pkey 2.45B); `pg_stat_activity` full of the same
+     `SELECT m.id, m.title … NULL::float as semantic_score` text in `DataFileRead`;
+     `render_slow` reports pending `prisma:$raw.$queryRawUnsafe`; `prisma_op_timeout`
+     on `$queryRawUnsafe` (215 in 11.5h, every one this query).
+   - **Size of it:** 56,466 calls in 11.5h, p50 8.4s / p90 18s, ≈572k query-seconds,
+     i.e. ~14 running at once on 2 vCPU; `activeRenders` p50 82 against Caddy's cap
+     of 96, ~5 TB of block reads since the restore, swap thrash from in-flight render heap.
+   - **Fix:** no source embedding → return `[]` after the PK lookup
+     (`smart_discover_similar_no_embedding`, debug); the TMDB recommendations fill the
+     row. Pinned in `smart-discover.test.ts`. The `smart_discover` summary for
+     similarTo calls is debug now too (it was 17 MB of info lines per 11.5h).
+   - **Lesson:** a "fallback" that changes the query SHAPE (vector → full sort) is a new
+     query with its own cost; it needs its own EXPLAIN on prod stats, not the vector
+     path's numbers. Check what a fallback costs at the catalog's real coverage (here
+     10% embedded), not at the coverage you plan to have.
+
+## Metrics: where time and resources go (Nov 16 2026)
+
+ClickHouse is parked on web-1, so these three feeds are plain JSONL files in
+`~/metrics/` (outside the deploy dir; `JOB_METRICS_DIR` overrides, `off` disables).
+Read all three with ONE command on the box (small files, safe at any load):
+
+```
+node ~/movie-browser-next/scripts/metrics-report.cjs            # last 24h
+node ~/movie-browser-next/scripts/metrics-report.cjs --hours 72 --json
+```
+
+| Feed | Writer | Cadence | What |
+|---|---|---|---|
+| `job-runs-YYYY-MM.jsonl` | `scripts/lib/job-run.cjs` (`startJobRun(job).finish({rows})`) | 1 line per cron run | status, durationMs, the job process's own CPU ms + peak RSS, `rows` by kind, `rowsWritten` |
+| `render-stats-YYYY-MM-DD.jsonl` | `src/server/observability/render-stats.ts` (started by render-deadline) | 1 line/min | cacheable renders/min, ok/error/deadline/slow, p50/p95/max ms, peak in-flight, event-loop delay p50/p99/max, RSS/heap, load1 |
+| `box-YYYY-MM-DD.jsonl` | `scripts/box-stats.sh` (SYSTEM crontab, */5) | 1 line/5 min | load, mem avail, swap used + cumulative pswpin/out, PSI cpu/mem/io avg60, free disk / and /data, next-server RSS+swap, PG conns/active/IO-wait/lock-wait/longest query + cumulative commits, blks_read/hit, tup_returned/updated, temp_bytes |
+
+- The same `job_run_summary` / `render_stats` lines also land in the job's PM2 log /
+  `next-out.log` (Pino shape), so `tail -c 3M … | grep '"render_stats"'` works too.
+- **Every new cron job calls `startJobRun`** after its cron-window guard (deploy-time
+  skips are not runs) and `finish({ rows })` with what it WROTE; read/no-op kinds use
+  the names `unchanged / skipped / scanned / matched / selected* / read / total / keys` so
+  `rowsWritten` stays honest. A job whose `rowsWritten` is a large share of its table
+  every night is the popularity-sync anti-pattern (loose threshold → nightly rewrite).
+- **Install the box sampler once** (system crontab, so it keeps sampling when PM2 is
+  what broke): `( crontab -l 2>/dev/null; echo '*/5 * * * * /home/ubuntu/movie-browser-next/scripts/box-stats.sh >/dev/null 2>&1' ) | crontab -`.
+  sysstat already records `sar -q` (load), `-r` (mem), `-W` (swap pages/s) every 10 min
+  for history before that.
+- Cost: render-stats is an array push per render + one line/min; box-stats is /proc
+  reads + one `docker exec psql` over stats views (~50 ms CPU); job-run is one
+  appendFile per run. `RENDER_STATS=off` disables the render feed.
+- **Not covered yet: per-query Postgres time.** That needs `pg_stat_statements`
+  (`shared_preload_libraries` → a Postgres restart; proposed in
+  `docs/perf-audit-2026-11-16.md`). Until then use `pg_stat_user_tables` /
+  `pg_stat_user_indexes` deltas: a huge `idx_tup_read/idx_scan` or `seq_tup_read` names
+  the table, `pg_stat_activity` names the query (item 22 was found exactly this way).
 
 ## Testing a fix
 

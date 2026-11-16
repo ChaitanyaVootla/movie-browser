@@ -31,6 +31,7 @@ import { createGunzip } from "zlib";
 import { fileURLToPath } from "url";
 import { prisma } from "../src/server/db/postgres";
 import { isSignificantImdbChange, parseImdbRatingLine } from "./lib/imdb-ratings";
+import { startJobRun, type JobRun } from "./lib/job-run.cjs";
 
 const DATASET_URL = "https://datasets.imdbws.com/title.ratings.tsv.gz";
 const BATCH_SIZE = 1000;
@@ -116,6 +117,9 @@ async function flush(kind: Kind, sourceId: number, rows: Row[]): Promise<void> {
   );
 }
 
+/** Set once past the cron guard; finished on success or from the catch below. */
+let jobRun: JobRun = { finish: () => null };
+
 async function main(): Promise<void> {
   const dryRun = process.argv.includes("--dry-run");
   const cronHourUtc = Number(process.env.CRON_HOUR_UTC ?? "20");
@@ -126,6 +130,7 @@ async function main(): Promise<void> {
     process.exit(0);
   }
   const started = Date.now();
+  jobRun = startJobRun("imdb-ratings-sync");
   console.log(`🎬 IMDb ratings sync (${dryRun ? "DRY RUN" : "LIVE"})`);
 
   const source = await prisma.dataSource.findUnique({ where: { slug: "imdb" }, select: { id: true } });
@@ -189,6 +194,13 @@ async function main(): Promise<void> {
       `${stats.matched.toLocaleString()} matched, ${stats.inserted.toLocaleString()} inserted, ` +
       `${stats.updated.toLocaleString()} updated, ${stats.unchanged.toLocaleString()} unchanged`
   );
+  jobRun.finish({
+    status: process.exitCode ? "error" : "ok",
+    rows: dryRun
+      ? { matched: stats.matched, unchanged: stats.unchanged }
+      : { inserted: stats.inserted, updated: stats.updated, matched: stats.matched, unchanged: stats.unchanged },
+    extra: { dryRun, lines: stats.lines },
+  });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -196,6 +208,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     .catch((e: unknown) => {
       console.error("❌ IMDb ratings sync failed:", e instanceof Error ? e.message : e);
       process.exitCode = 1;
+      jobRun.finish({ status: "error", error: e });
     })
     .finally(() => prisma.$disconnect());
 }

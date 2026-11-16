@@ -27,6 +27,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createWriteStream } from "fs";
 import { execFileSync } from "child_process";
+import jobRunLib from "./lib/job-run.cjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -558,6 +559,8 @@ async function main() {
   console.log(`   - Max URLs per file: ${CONFIG.URLS_PER_FILE}`);
 
   const startTime = Date.now();
+  const jobRun = jobRunLib.startJobRun("sitemap-generator");
+  let selected = { movies: 0, series: 0, persons: 0 };
 
   try {
     // Clean any leftover TMDB dumps from the pre-PG generator (disk-fill guard)
@@ -595,6 +598,7 @@ async function main() {
       console.log("\n👤 Step 4/4: Generating person sitemap...");
       const personUrls = await fetchPersonUrls(prisma);
       if (personUrls.length === 0) throw new Error("person query returned 0 rows — aborting");
+      selected = { movies: movieUrls.length, series: seriesUrls.length, persons: personUrls.length };
       console.log(`   🐘 ${personUrls.length} persons selected`);
 
       // Snapshot which sitemap files already exist, so we can tell "overwrote
@@ -633,7 +637,17 @@ async function main() {
     console.log(`📊 Files: ${indexEntries.length + 1} (index + ${indexEntries.length} sitemaps)`);
     console.log(`   - Static/topic URLs: ${statics.length}`);
     console.log("   - lastmod: PG updated_at for movies/series; omitted where unknown");
+    // Sitemaps write files, not rows: `files` counts as written, `selected*` do not.
+    jobRun.finish({
+      rows: {
+        files: indexEntries.length + 1,
+        selectedMovies: selected.movies,
+        selectedSeries: selected.series,
+        selectedPersons: selected.persons,
+      },
+    });
   } catch (error) {
+    jobRun.finish({ status: "error", error });
     console.error("\n💥 Fatal error during sitemap generation:", error);
     console.error("Stack trace:", error.stack);
     process.exit(1);

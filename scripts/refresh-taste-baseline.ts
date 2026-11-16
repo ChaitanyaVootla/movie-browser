@@ -37,6 +37,8 @@ async function main(): Promise<void> {
   // Without it every nightly run died "Environment variable not found: DATABASE_URL"
   // (Oct 10 + 11 2026) and the taste space stayed raw. Loaded after the hour guard
   // so the deploy-time autostart stays a no-op; dotenv never overrides a set var.
+  const { startJobRun } = await import("./lib/job-run.cjs");
+  const jobRun = startJobRun("taste-baseline");
   const { config } = await import("dotenv");
   config({ path: ".env.local" });
   const { refreshTasteBaseline } = await import("../src/server/db/postgres/social/taste-baseline");
@@ -46,11 +48,22 @@ async function main(): Promise<void> {
     console.log(
       `[taste-baseline] done in ${r.totalMs}ms  mode=${r.mode} catalog=${r.catalogSize} enriched=${r.enrichedSize} quantiles=${r.quantilesMs}ms embeddingMean=${r.embeddingCount} titles/${r.embeddingMs}ms`
     );
+    const rows = { inserted: 0, updated: 0, deleted: 0, keys: 0 };
+    const perTypeMs: Record<string, number> = {};
     for (const [type, s] of Object.entries(r.perType)) {
       console.log(
         `  ${type.padEnd(9)} keys=${String(s.keys).padStart(7)} +${s.inserted} ~${s.updated} -${s.deleted}  ${s.ms}ms`
       );
+      rows.inserted += s.inserted;
+      rows.updated += s.updated;
+      rows.deleted += s.deleted;
+      rows.keys += s.keys;
+      perTypeMs[type] = s.ms;
     }
+    jobRun.finish({ rows, extra: { mode: r.mode, embeddingMs: r.embeddingMs, perTypeMs } });
+  } catch (error: unknown) {
+    jobRun.finish({ status: "error", error });
+    throw error;
   } finally {
     await prisma.$disconnect();
   }

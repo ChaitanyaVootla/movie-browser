@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { rawCalls, queryRawUnsafe, executeRawUnsafe, flags } = vi.hoisted(() => {
   const calls: string[] = [];
-  const flags = { indexValid: false };
+  const flags = { indexValid: false, sourceEmbedding: "[0.1,0.2]" as string | null };
   return {
     rawCalls: calls,
     flags,
@@ -18,7 +18,7 @@ const { rawCalls, queryRawUnsafe, executeRawUnsafe, flags } = vi.hoisted(() => {
       if (sql.includes("pg_index")) return [{ valid: flags.indexValid }];
       calls.push(sql);
       // The similarTo source-embedding lookup expects an `embedding` column.
-      if (sql.includes("SELECT embedding::text")) return [{ embedding: "[0.1,0.2]" }];
+      if (sql.includes("SELECT embedding::text")) return [{ embedding: flags.sourceEmbedding }];
       return [];
     }),
     executeRawUnsafe: vi.fn(async (sql: string) => {
@@ -53,6 +53,7 @@ beforeEach(() => {
   rawCalls.length = 0;
   queryRawUnsafe.mockClear();
   flags.indexValid = false;
+  flags.sourceEmbedding = "[0.1,0.2]";
   resetVectorIndexCache();
 });
 
@@ -140,5 +141,25 @@ describe("smartDiscover vector path", () => {
     await smartDiscover({ mediaType: "movie", semanticQuery: "cosy", watchlistIds: [15], fromWatchlist: true });
     const annCall = queryRawUnsafe.mock.calls.find(([sql]) => String(sql).includes("MATERIALIZED"));
     expect(String(annCall?.[0])).not.toContain("NOT (id = ANY");
+  });
+});
+
+describe("smartDiscover similarTo without a source embedding", () => {
+  // Nov 16 2026: ~90% of titles have no embedding, and this used to fall
+  // through to a whole-catalog `ORDER BY popularity` + per-row vote EXISTS
+  // (8.4s p50 on web-1, the box's #1 load). It must stop at the PK lookup.
+  it.each(["movie", "series"] as const)("%s: runs only the source lookup and returns no rows", async (mediaType) => {
+    flags.sourceEmbedding = null;
+    const res = await smartDiscover({ mediaType, similarToId: 42, minVotes: 100, excludeIds: [42] });
+    expect(res.results).toEqual([]);
+    expect(res.totalFound).toBe(0);
+    expect(rawCalls).toHaveLength(1);
+    expect(rawCalls[0]).toContain("SELECT embedding::text");
+    expect(rawCalls.join("\n")).not.toContain("ORDER BY");
+  });
+
+  it("a source WITH an embedding still runs the similarity query", async () => {
+    await smartDiscover({ mediaType: "movie", similarToId: 42 });
+    expect(mainSql()).toContain("m.embedding <=>");
   });
 });

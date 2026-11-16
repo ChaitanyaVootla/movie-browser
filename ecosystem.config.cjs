@@ -135,7 +135,11 @@ module.exports = {
       cwd: "/home/ubuntu/movie-browser-next",
       script: "bash",
       args: ["-c", "exec nice -n 19 npx tsx scripts/refresh-taste-baseline.ts"],
-      cron_restart: "0 19 * * *",
+      // WEEKLY (Sundays) since Nov 16 2026: each run costs ~7-8 min of unniced
+      // Postgres aggregation (cast 114-234s) on a 2-vCPU box, to change ~0.04%
+      // of ~457k baseline keys (Nov 13: +36 ~205 -2; Nov 15: +40 ~159 -3).
+      // Lift baselines are catalog-level and move slowly; a week is plenty.
+      cron_restart: "0 19 * * 0",
       autorestart: false,
       restart_delay: 5000,
       max_restarts: 2,
