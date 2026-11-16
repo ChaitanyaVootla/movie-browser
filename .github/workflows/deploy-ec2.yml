@@ -363,11 +363,17 @@ jobs:
             # crontab runs disk-guard.sh every 15 min regardless of PM2 health.
             # Idempotent: strip any prior entry, re-add (the script ships in the
             # tar; chmod in case the tar lost the bit).
-            chmod +x scripts/disk-guard.sh || true
-            ( crontab -l 2>/dev/null | grep -v 'disk-guard.sh' ; \
-              echo '*/15 * * * * /home/ubuntu/movie-browser-next/scripts/disk-guard.sh' ) \
+            # `|| true` is load-bearing: under `set -e`, grep -v on an EMPTY crontab
+            # exits 1, the subshell aborts before the echoes, and an EMPTY crontab
+            # is installed while this step still prints "installed" (web-1, Nov 2026).
+            # box-stats.sh = 5-min box/PG sampler → ~/metrics (performance.md "Metrics").
+            chmod +x scripts/disk-guard.sh scripts/box-stats.sh || true
+            ( { crontab -l 2>/dev/null | grep -v -e 'disk-guard.sh' -e 'box-stats.sh' || true; } ; \
+              echo '*/15 * * * * /home/ubuntu/movie-browser-next/scripts/disk-guard.sh' ; \
+              echo '*/5 * * * * /home/ubuntu/movie-browser-next/scripts/box-stats.sh >/dev/null 2>&1' ) \
               | crontab -
-            echo "disk-guard cron installed"
+            crontab -l | grep -q 'disk-guard.sh' && echo "disk-guard + box-stats cron installed" \
+              || { echo "ERROR: crontab install failed"; exit 1; }
 
             echo ""
             echo "[7/7] Revalidating build-prerendered pages (/ and /topics)..."
