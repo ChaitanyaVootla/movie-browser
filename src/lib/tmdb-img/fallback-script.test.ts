@@ -48,3 +48,18 @@ describe("TMDB image fallback script", () => {
     expect(later.getAttribute("src")).toBe("/tmdb-img/t/p/w500/later.jpg");
   });
 });
+
+describe("YouTube thumbnail fallback", () => {
+  it("retries img.youtube.com and i.ytimg.com via /yt-img", () => {
+    for (const [src, want] of [
+      ["https://img.youtube.com/vi/LY19rHKAaAg/mqdefault.jpg", "/yt-img/vi/LY19rHKAaAg/mqdefault.jpg"],
+      ["https://i.ytimg.com/vi/LY19rHKAaAg/hqdefault.jpg", "/yt-img/vi/LY19rHKAaAg/hqdefault.jpg"],
+    ]) {
+      const img = document.createElement("img");
+      img.setAttribute("src", src);
+      document.body.appendChild(img);
+      img.dispatchEvent(new Event("error"));
+      expect(img.getAttribute("src")).toBe(want);
+    }
+  });
+});

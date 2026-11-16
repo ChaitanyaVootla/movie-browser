@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTmdbImagePath } from "./path";
+import { parseTmdbImagePath, parseYoutubeThumbPath } from "./path";
 
 describe("parseTmdbImagePath", () => {
   it("accepts TMDB image paths", () => {
@@ -15,5 +15,17 @@ describe("parseTmdbImagePath", () => {
     expect(parseTmdbImagePath(["t", "p", "w92", "x.html"])).toBeNull();
     expect(parseTmdbImagePath(["t", "p", "big", "x.jpg"])).toBeNull();
     expect(parseTmdbImagePath(["3", "movie", "550", "x.jpg"])).toBeNull();
+  });
+});
+
+describe("parseYoutubeThumbPath", () => {
+  it("accepts YouTube thumbnail paths", () => {
+    expect(parseYoutubeThumbPath(["vi", "LY19rHKAaAg", "hqdefault.jpg"])).toBe("/vi/LY19rHKAaAg/hqdefault.jpg");
+    expect(parseYoutubeThumbPath(["vi", "zSWdZVtXT7E", "mqdefault.jpg"])).toBe("/vi/zSWdZVtXT7E/mqdefault.jpg");
+  });
+  it("rejects anything else", () => {
+    expect(parseYoutubeThumbPath(["vi", "abc", "hqdefault.jpg"])).toBeNull();
+    expect(parseYoutubeThumbPath(["vi", "LY19rHKAaAg", "x.html"])).toBeNull();
+    expect(parseYoutubeThumbPath(["watch", "LY19rHKAaAg", "hqdefault.jpg"])).toBeNull();
   });
 });

@@ -27,6 +27,7 @@ User-agent: OAI-SearchBot
 User-agent: ChatGPT-User
 Disallow: /api/
 Disallow: /tmdb-img/
+Disallow: /yt-img/
 # /browse results JSON (edge-cached data endpoint behind the /browse grid)
 Disallow: /browse/results
 Disallow: /ratings
@@ -104,6 +105,7 @@ User-agent: *
 # API + SSE enrich endpoints (GET /api/[mediaType]/[id]/enrich) — never crawl
 Disallow: /api/
 Disallow: /tmdb-img/
+Disallow: /yt-img/
 # /browse results JSON (edge-cached data endpoint behind the /browse grid)
 Disallow: /browse/results
 # Private user content - not for indexing

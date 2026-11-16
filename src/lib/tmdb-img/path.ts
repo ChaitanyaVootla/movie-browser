@@ -19,3 +19,17 @@ export function parseTmdbImagePath(segments: readonly string[]): string | null {
   if (t !== "t" || p !== "p" || !SIZE.test(size) || !FILE.test(file)) return null;
   return `/t/p/${size}/${file}`;
 }
+
+/** Same-origin fallback for YouTube thumbnails (`/yt-img/vi/<videoId>/<name>.jpg`). */
+export const YT_IMG_PROXY_PREFIX = "/yt-img";
+
+const YT_ID = /^[A-Za-z0-9_-]{6,20}$/;
+const YT_FILE = /^(default|mqdefault|hqdefault|sddefault|maxresdefault|[0-3])\.(jpg|webp)$/;
+
+/** `["vi","abc123","hqdefault.jpg"]` → `"/vi/abc123/hqdefault.jpg"`, or null. */
+export function parseYoutubeThumbPath(segments: readonly string[]): string | null {
+  if (segments.length !== 3) return null;
+  const [vi, id, file] = segments;
+  if (vi !== "vi" || !YT_ID.test(id) || !YT_FILE.test(file)) return null;
+  return `/vi/${id}/${file}`;
+}
