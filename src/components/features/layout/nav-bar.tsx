@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Search, Sparkles, Compass, Shield, Library, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,16 @@ const authNavItems = [{ href: "/library", label: "Library", icon: Library }];
 
 export function NavBar() {
   const pathname = usePathname();
+  const router = useRouter();
+  // Nav links are on every page, so viewport prefetch fetched /browse, /topics
+  // and /discussions on EVERY page view (~14k RSC requests / 3h at the origin,
+  // ~95% Cloudflare misses, Nov 16 2026). Prefetch on intent instead: hover or
+  // keyboard focus still warms the route well before the click lands.
+  const intentPrefetch = (href: string) => ({
+    prefetch: false as const,
+    onMouseEnter: () => router.prefetch(href),
+    onFocus: () => router.prefetch(href),
+  });
   const { data: session, status } = useSession();
   const [isScrolled, setIsScrolled] = useState(false);
   const { isOpen, openLoginDialog, setIsOpen } = useLoginDialog();
@@ -122,7 +132,12 @@ export function NavBar() {
             {/* Desktop Navigation */}
             <nav data-testid="nav-desktop" className="hidden md:flex items-center gap-0.5">
               {navItems.map(({ href, label, icon: Icon }) => (
-                <Link key={href} href={href} data-testid={`nav-${label.toLowerCase()}`}>
+                <Link
+                  key={href}
+                  href={href}
+                  {...intentPrefetch(href)}
+                  data-testid={`nav-${label.toLowerCase()}`}
+                >
                   <Button
                     variant="ghost"
                     className={navLinkClass(Boolean(pathname?.startsWith(href)))}
@@ -135,7 +150,12 @@ export function NavBar() {
               {/* Auth-only nav items */}
               {isAuthenticated &&
                 authNavItems.map(({ href, label, icon: Icon }) => (
-                  <Link key={href} href={href} data-testid={`nav-${label.toLowerCase()}`}>
+                  <Link
+                    key={href}
+                    href={href}
+                    {...intentPrefetch(href)}
+                    data-testid={`nav-${label.toLowerCase()}`}
+                  >
                     <Button
                       variant="ghost"
                       className={navLinkClass(Boolean(pathname?.startsWith(href)))}
@@ -150,6 +170,7 @@ export function NavBar() {
               {isAuthenticated && (
                 <Link
                   href={username ? `/u/${username}` : "/settings"}
+                  {...intentPrefetch(username ? `/u/${username}` : "/settings")}
                   data-testid="nav-profile"
                 >
                   <Button

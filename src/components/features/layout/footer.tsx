@@ -7,6 +7,11 @@ interface FooterProps {
   className?: string;
 }
 
+// Every footer link had viewport prefetch on. On web-2 (Nov 16 2026) footer +
+// nav prefetches were the single biggest request class at the origin: ~37k RSC
+// requests / 3h, ~95% Cloudflare MISSes (unique `_rsc` keys), incl. /stats and
+// /diary, which are dynamic and render in full on every prefetch. Footer links
+// are rarely clicked, so they load on demand.
 export function Footer({ className }: FooterProps) {
   return (
     <footer className={cn("border-t border-border/40 bg-muted/30", className)}>
@@ -16,7 +21,11 @@ export function Footer({ className }: FooterProps) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 font-bold text-lg mb-4">
+            <Link
+              prefetch={false}
+              href="/"
+              className="flex items-center gap-2 font-bold text-lg mb-4"
+            >
               <Image src="/popcorn-lite.png" alt="TMB" width={24} height={24} />
               <span className="tracking-wider font-extrabold">TMB</span>
             </Link>
@@ -33,6 +42,7 @@ export function Footer({ className }: FooterProps) {
                   browse views, same targets as the home "Browse All" CTAs */}
               <li>
                 <Link
+                  prefetch={false}
                   href={buildBrowseUrl({ media_type: "movie", sort_by: "popularity.desc" })}
                   className="hover:text-foreground transition-colors"
                 >
@@ -41,6 +51,7 @@ export function Footer({ className }: FooterProps) {
               </li>
               <li>
                 <Link
+                  prefetch={false}
                   href={buildBrowseUrl({ media_type: "tv", sort_by: "popularity.desc" })}
                   className="hover:text-foreground transition-colors"
                 >
@@ -48,17 +59,29 @@ export function Footer({ className }: FooterProps) {
                 </Link>
               </li>
               <li>
-                <Link href="/browse" className="hover:text-foreground transition-colors">
+                <Link
+                  prefetch={false}
+                  href="/browse"
+                  className="hover:text-foreground transition-colors"
+                >
                   Browse
                 </Link>
               </li>
               <li>
-                <Link href="/topics" className="hover:text-foreground transition-colors">
+                <Link
+                  prefetch={false}
+                  href="/topics"
+                  className="hover:text-foreground transition-colors"
+                >
                   Topics
                 </Link>
               </li>
               <li>
-                <Link href="/discussions" className="hover:text-foreground transition-colors">
+                <Link
+                  prefetch={false}
+                  href="/discussions"
+                  className="hover:text-foreground transition-colors"
+                >
                   Discussions
                 </Link>
               </li>
@@ -70,17 +93,29 @@ export function Footer({ className }: FooterProps) {
             <h3 className="font-semibold mb-4">Account</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <Link href="/library" className="hover:text-foreground transition-colors">
+                <Link
+                  prefetch={false}
+                  href="/library"
+                  className="hover:text-foreground transition-colors"
+                >
                   Library
                 </Link>
               </li>
               <li>
-                <Link href="/diary" className="hover:text-foreground transition-colors">
+                <Link
+                  prefetch={false}
+                  href="/diary"
+                  className="hover:text-foreground transition-colors"
+                >
                   Diary
                 </Link>
               </li>
               <li>
-                <Link href="/stats" className="hover:text-foreground transition-colors">
+                <Link
+                  prefetch={false}
+                  href="/stats"
+                  className="hover:text-foreground transition-colors"
+                >
                   Stats
                 </Link>
               </li>
@@ -92,17 +127,29 @@ export function Footer({ className }: FooterProps) {
             <h3 className="font-semibold mb-4">Legal</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <Link href="/privacy" className="hover:text-foreground transition-colors">
+                <Link
+                  prefetch={false}
+                  href="/privacy"
+                  className="hover:text-foreground transition-colors"
+                >
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="hover:text-foreground transition-colors">
+                <Link
+                  prefetch={false}
+                  href="/terms"
+                  className="hover:text-foreground transition-colors"
+                >
                   Terms of Service
                 </Link>
               </li>
               <li>
-                <Link href="/content-policy" className="hover:text-foreground transition-colors">
+                <Link
+                  prefetch={false}
+                  href="/content-policy"
+                  className="hover:text-foreground transition-colors"
+                >
                   Content Policy
                 </Link>
               </li>
