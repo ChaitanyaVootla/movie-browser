@@ -84,6 +84,11 @@ function TrailerCard({ trailer, priority = false, onPlay, metadata }: TrailerCar
       >
         <Image
           src={thumbnailUrl}
+          // A removed YouTube video's thumbnail 404s for everyone: hide it so the
+          // card shows its background, not a broken-image icon.
+          onError={(e) => {
+            e.currentTarget.style.visibility = "hidden";
+          }}
           alt={trailer.trailerTitle}
           fill
           sizes="(max-width: 640px) 280px, (max-width: 768px) 320px, 360px"

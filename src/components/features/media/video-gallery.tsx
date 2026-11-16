@@ -76,6 +76,11 @@ function VideoThumbnail({ video, isActive, onClick, metadata }: VideoThumbnailPr
       <div className="relative w-[120px] flex-shrink-0 aspect-video rounded overflow-hidden">
         <Image
           src={thumbnailUrl}
+          // A removed YouTube video's thumbnail 404s for everyone: hide it so the
+          // card shows its background, not a broken-image icon.
+          onError={(e) => {
+            e.currentTarget.style.visibility = "hidden";
+          }}
           alt={video.name}
           fill
           className="object-cover"
@@ -476,6 +481,11 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
                 <div className="relative aspect-video">
                   <Image
                     src={`https://img.youtube.com/vi/${video.key}/mqdefault.jpg`}
+                    // A removed YouTube video's thumbnail 404s for everyone: hide it so the
+                    // card shows its background, not a broken-image icon.
+                    onError={(e) => {
+                      e.currentTarget.style.visibility = "hidden";
+                    }}
                     alt={video.name}
                     fill
                     className="object-cover"
@@ -532,6 +542,11 @@ export function VideoCard({ video, onClick }: { video: Video; onClick: () => voi
       <div className="relative aspect-video rounded-lg overflow-hidden">
         <Image
           src={thumbnailUrl}
+          // A removed YouTube video's thumbnail 404s for everyone: hide it so the
+          // card shows its background, not a broken-image icon.
+          onError={(e) => {
+            e.currentTarget.style.visibility = "hidden";
+          }}
           alt={video.name}
           fill
           className="object-cover transition-transform group-hover:scale-105"
