@@ -10,7 +10,34 @@ paths:
 
 # Infrastructure
 
-## CURRENT HOST: Hetzner `web-1` (since Nov 15 2026) — the EC2 sections below are HISTORY
+## CURRENT HOST: Hetzner `web-2` (since Nov 16 2026) — the EC2 sections below are HISTORY
+
+**web-2** = CX33 (4 vCPU / 8 GB, €9.99/mo), fsn1, `178.105.158.84` / `2a01:4f8:c016:f9af::1`,
+`ssh -i ~/.ssh/hetzner_moviebrowser ubuntu@178.105.158.84`. Movie Browser ONLY — kosh
+stays on web-1. Postgres data on the LOCAL disk at `/data/postgres` (no volume);
+`docker-compose.override.yml` (box-only) sizes it for 8 GB (shared_buffers 1536MB,
+mem_limit 3000m, max_connections 60); `.env` NEXT_MAX_MEMORY=3000M / NEXT_HEAP_MB=2304;
+`.env.local` BOUNDED_CACHE_MB=15000, ORIGIN_SELF_IPS lists web-2 AND web-1. Crontab:
+disk-guard, box-stats, and **`scripts/pg-backup.sh` at 02:30 UTC** (verified pg_dump →
+`s3://movie-browser-migration-2025-10-19/backups/pg/web-2-pg-<date>.dump`, newest copy
+kept in `~/backups/pg`; first run Nov 16: 2.95 GB in ~2 min). Daily logrotate for PM2 logs.
+Measured on cutover day at the same traffic: render p50 ~180 ms / p95 ~400 ms vs
+3.5 s / 7 s on web-1 (2 vCPU, swapping).
+
+How it was moved (Nov 16 2026): CX33/CAX21 were sold out in every EU location, so
+`scripts/hetzner-claim-server.sh` polled and created web-2 the moment one appeared (~25 min).
+DB = `pg_basebackup -D - -Ft -X fetch` inside web-1's container, relayed via the PC
+(~10 MB/s), then the user tables (<5 MB) re-copied with `session_replication_role=replica`
+just before, and merged with `ON CONFLICT DO NOTHING` just after, the Cloudflare A-record
+flip. App tree copied from web-1 (same BUILD_ID), Caddy certs copied from its volume.
+
+**web-1** (below) is kept running for rollback: rollback = point the apex + www A records
+back at 2.31.137.169 (its DB is frozen at the cutover) — `cd ~/movie-browser-next && node
+~/bin/cf-dns.mjs 2.31.137.169 apply` on either box (reads the Cloudflare token from
+.env.local; `~/bin/cf-waf.mjs` edits the WAF self-exemption the same way). The GitHub `beta` secret
+`NEXT_EC2_HOST` must point at web-2 for deploys to land there.
+
+## PREVIOUS HOST: Hetzner `web-1` (Nov 15-16 2026)
 
 AWS EC2 was terminated on 2026-11-14: about $200/mo, almost all of it internet egress to bots behind
 Cloudflare. Both this app and the separate kosh stocks app (stocks.vootlachaitanya.com,
