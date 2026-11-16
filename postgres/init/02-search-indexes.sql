@@ -98,3 +98,16 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_series_orig_name_squash ON series
 
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_persons_name_squash ON persons
 ((regexp_replace(lower(coalesce(name, '')), '[^a-z0-9]+', '', 'g')) text_pattern_ops);
+
+-- ---------------------------------------------------------------------------
+-- Exact-match lookups (Nov 16 2026). `findExactMatch` in fuzzy-search.ts runs
+-- `WHERE adult IS NOT TRUE AND LOWER(title|name) = $1` on movies, series and
+-- persons on search. With no index on that expression each call was a Parallel
+-- Seq Scan: measured on web-2, 1.5s and ~700 MB of buffer reads for movies
+-- (1.18M rows), 1.45s for persons (4.7M rows) — the slowest statement on the
+-- box by mean time, and it flushes the shared buffers the vector/detail queries
+-- rely on. The expression must stay `lower(<col>)` to match the query.
+-- Expression indexes are invisible to `prisma db push`, so they survive it.
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_movies_lower_title ON movies (lower(title));
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_series_lower_name ON series (lower(name));
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_persons_lower_name ON persons (lower(name));

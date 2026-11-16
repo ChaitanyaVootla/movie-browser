@@ -78,3 +78,25 @@ describe("squashSql / index-expression drift guard", () => {
     expect(squashCreates).toHaveLength(5);
   });
 });
+
+describe("findExactMatch / lower() index drift guard", () => {
+  // findExactMatch filters on LOWER(title|name) = $1. Without a matching
+  // expression index each search seq-scanned movies (1.5s, ~700 MB read) and
+  // persons (4.7M rows) — measured on web-2, Nov 16 2026.
+  const sql = readFileSync(join(process.cwd(), "postgres", "init", "02-search-indexes.sql"), "utf-8");
+  const src = readFileSync(
+    join(process.cwd(), "src", "server", "db", "postgres", "fuzzy-search.ts"),
+    "utf-8"
+  );
+
+  it("queries the exact expressions the indexes cover", () => {
+    expect(src).toContain("LOWER(title) = ${normalizedQuery}");
+    expect(src).toContain("LOWER(name) = ${normalizedQuery}");
+  });
+
+  it("indexes lower(title) on movies and lower(name) on series + persons", () => {
+    expect(sql).toContain("idx_movies_lower_title ON movies (lower(title))");
+    expect(sql).toContain("idx_series_lower_name ON series (lower(name))");
+    expect(sql).toContain("idx_persons_lower_name ON persons (lower(name))");
+  });
+});
