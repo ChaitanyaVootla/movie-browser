@@ -71,9 +71,14 @@ export default auth((req: NextRequest & { auth: Session | null }) => {
   // body, so /api/md needs no change.
   if (isReadMethod(req.method) && isMarkdownRequest(req.nextUrl.pathname)) {
     maybeTrackPageView(req); // keep .md hits visible in analytics
-    // NOT req.nextUrl.clone(): auth() re-bases it onto AUTH_URL, which made
-    // Next proxy this rewrite out through Cloudflare (see internal-rewrite.ts).
-    const url = internalRewriteUrl(req.nextUrl, req.headers.get("x-forwarded-proto"));
+    // KNOWN COST: auth() re-bases req.nextUrl onto AUTH_URL, so Next PROXIES
+    // this rewrite out through Cloudflare and back (see internal-rewrite.ts).
+    // Do NOT switch this branch to internalRewriteUrl() as-is: an in-process
+    // rewrite DROPS the query string (`p`/`q`/`page`), and every .md answered
+    // 400 in prod for ~10 min on Nov 16 2026. The external hop is what carried
+    // the query. Fixing it needs the target passed another way (e.g. a request
+    // header set via NextResponse.rewrite(url, { request: { headers } })).
+    const url = req.nextUrl.clone();
     const target = markdownPathToTarget(url.pathname);
     // Forward the original query string (q for /search.md, page for /browse.md +
     // /topics/*.md) and set the internal target path. `set("p", …)` overrides any
