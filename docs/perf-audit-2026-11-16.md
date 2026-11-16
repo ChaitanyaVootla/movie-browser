@@ -14,6 +14,36 @@ restarted or reconfigured. Branch `claude/perf-audit-0d8252`, not deployed.
 | Renders | `activeRenders` p50 82 / max 98 (Caddy `unhealthy_request_count` 96); 41,403 `render_slow` (>30s) + 39 `render_deadline_exceeded` in 11.5h |
 | Postgres | 11 active / 32 conns; buffer hit ratio 95.9%; 71.8 billion tuples returned since start |
 
+## Applied on Nov 16 2026 (with the user's OK) and the measured result
+
+- **12:17 UTC: deployed** d9981b21 via push to `next` (GitHub Actions).
+  `ratings_source_id_idx` stopped growing right away: 113,010 scans at 12:18 and still
+  113,010 at 12:27 (previously ~620k tuples read per scan). `render_stats` over the first
+  ten minutes:
+
+  | | Before (log, 11.5h) | After (12:19–12:26) |
+  |---|---|---|
+  | render p50 / p95 | 8.4 s / 18 s (Similar query alone) | 0.45–0.6 s / 1.8–3.3 s |
+  | peak in-flight renders | p50 82, max 98 | 8–16 |
+  | slow (>30 s) / deadline | 41,403 / 39 | 0 / 0 |
+  | event-loop p99 | n/a | 87–190 ms |
+  | load (1 min) | 13.5–15.8 | 2.8–3.4 |
+  | next-server | 1.5 GB RSS + 0.74 GB swap | ~0.9 GB RSS, 0 swap |
+
+- **Crontab**: installed `disk-guard.sh` (*/15) and `box-stats.sh` (*/5). The deploy
+  step that was supposed to install disk-guard wrote an EMPTY crontab on a fresh box:
+  under `set -e`, `grep -v` over no input exits 1 and aborts the subshell. That's fixed in
+  `deploy-ec2.yml`, which now also installs box-stats and fails loudly if the line is
+  missing. `pg-backup.sh` / `disk-metric.sh` were NOT scheduled: both upload to AWS
+  (S3 / CloudWatch), and web-1 has no AWS CLI or credentials. **There are still no DB
+  backups; they need a new destination.**
+- **Postgres** (box `docker-compose.override.yml`, backup next to it): `jit=off`,
+  `effective_cache_size=1GB`, `shared_preload_libraries=pg_stat_statements`
+  (`max=2000`, `track=top`), `track_io_timing=on`; container recreated (ready in 2 s);
+  `CREATE EXTENSION pg_stat_statements`.
+- **Caddy** `unhealthy_request_count` 96 → 48 in the repo and on the box (`caddy validate`
+  first, `Caddyfile.bak-*` kept, container force-recreated per cdn.md).
+
 ## Findings, ranked by expected impact
 
 ### 1. "Similar" ran a whole-catalog scan on ~90% of cold detail renders. FIXED on this branch

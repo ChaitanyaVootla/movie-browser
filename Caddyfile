@@ -235,7 +235,11 @@ themoviebrowser.com {
 		# a slot, hence the headroom. Cloudflare does not cache 503s by default.
 		lb_try_duration 15s
 		lb_try_interval 100ms
-		unhealthy_request_count 96
+		# 96 -> 48 on Nov 16 2026 (web-1, 4 GB): after the Similar-scan fix
+		# (performance.md #22) render_stats showed maxActive 8-16/min; 96
+		# in-flight renders never fit a 1280 MB heap, so the excess queued as
+		# swap in Node instead of as cheap parked requests here.
+		unhealthy_request_count 48
 
 		# (a) stale-if-error (CDN pairing, Jun 11 2026)
 		# Next emits `Cache-Control: s-maxage=<ttl>, stale-while-revalidate` on

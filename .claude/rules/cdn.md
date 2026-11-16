@@ -420,8 +420,9 @@ persona reaching the origin: 0.
 no concurrency limit, so memory scales with in-flight renders: at the crash there
 were 450–520 ESTAB connections on `:3002` (351 in CLOSE-WAIT = rendering for
 clients that had already gone), accept backlog 512/511. Now in `reverse_proxy`:
-`unhealthy_request_count 96` (upstream unavailable while it has that many in
-flight) + `lb_try_duration 15s` / `lb_try_interval 100ms` (Caddy QUEUES the excess
+`unhealthy_request_count` (was 96; **48 since Nov 16 2026** on the 4 GB web-1, after
+`render_stats` showed maxActive 8–16 once the Similar scan was fixed — upstream
+unavailable while it has that many in flight) + `lb_try_duration 15s` / `lb_try_interval 100ms` (Caddy QUEUES the excess
 — a parked goroutine — and re-checks every 100ms before answering 503). Overload
 degrades to fast 200s for what fits + prompt 503s for the rest instead of 21s
 TTFBs then a crash. Cloudflare does not cache 503s by default; `Always Online` may
