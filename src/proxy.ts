@@ -25,6 +25,7 @@ import {
   type DiscussSuffix,
 } from "@/server/proxy/media-resolver";
 import { isMarkdownRequest, markdownPathToTarget } from "@/lib/llm/paths";
+import { internalRewriteUrl } from "@/server/proxy/internal-rewrite";
 
 const { auth } = NextAuth(authConfig);
 
@@ -70,7 +71,9 @@ export default auth((req: NextRequest & { auth: Session | null }) => {
   // body, so /api/md needs no change.
   if (isReadMethod(req.method) && isMarkdownRequest(req.nextUrl.pathname)) {
     maybeTrackPageView(req); // keep .md hits visible in analytics
-    const url = req.nextUrl.clone();
+    // NOT req.nextUrl.clone(): auth() re-bases it onto AUTH_URL, which made
+    // Next proxy this rewrite out through Cloudflare (see internal-rewrite.ts).
+    const url = internalRewriteUrl(req.nextUrl, req.headers.get("x-forwarded-proto"));
     const target = markdownPathToTarget(url.pathname);
     // Forward the original query string (q for /search.md, page for /browse.md +
     // /topics/*.md) and set the internal target path. `set("p", …)` overrides any
@@ -227,7 +230,7 @@ function applyMediaDecision(
     // Rewrite (not redirect) to a loading.tsx-less route that calls
     // notFound() pre-flush → branded not-found UI with a REAL 404 status.
     maybeTrackPageView(req); // keep garbage-id crawler sweeps visible
-    const url = req.nextUrl.clone();
+    const url = internalRewriteUrl(req.nextUrl, req.headers.get("x-forwarded-proto"));
     url.pathname = "/media-not-found";
     url.search = "";
     return NextResponse.rewrite(url);
