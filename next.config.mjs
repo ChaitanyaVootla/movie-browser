@@ -244,6 +244,30 @@ const nextConfig = {
           },
         ],
       },
+      // Public images (logos, rating/OTT icons, popcorn, backdrop) had NO rule,
+      // so they inherited `public, max-age=0` and Cloudflare REVALIDATED every
+      // request against the origin — web-1, Nov 16 2026: each new visitor's SW
+      // precache pulled ~60 of these, i.e. ~60 origin round-trips per install,
+      // on a single-threaded Node that was already saturated. They are
+      // unversioned, so: a day in the browser, a week at the edge.
+      {
+        source: "/images/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, s-maxage=604800",
+          },
+        ],
+      },
+      {
+        source: "/(popcorn.png|popcorn-lite.png|apple-touch-icon.png|backdrop.webp)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, s-maxage=604800",
+          },
+        ],
+      },
       // Sitemaps were MISSING from the rule above (it names robots.txt but not
       // sitemap*.xml), so they were served `public, max-age=0` — the public-dir
       // default — meaning EVERY sitemap fetch by every crawler was a full origin
