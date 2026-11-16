@@ -207,8 +207,16 @@ Both cost a debug cycle on Jul 30 2026; neither is a real bug.
    Same family as the redirect-origin gotcha in `performance.md`. Prod sets `PORT` and is
    consistent.
 2. **Even on :3000 the rewrite's query string is dropped in dev**, so `/api/md` answers
-   `400 — p: expected string, received null`. Confirmed PRE-EXISTING by A/B against a
-   stashed working tree, and prod serves real markdown, so do not chase it. To exercise
+   `400 — p: expected string, received null`. **CORRECTED Nov 16 2026: this is NOT
+   dev-only — it is what ANY in-process rewrite of this branch does.** Prod only works
+   because `auth()` re-bases `req.nextUrl` onto AUTH_URL, so Next sees a cross-origin
+   rewrite and PROXIES it out through Cloudflare and back to the live box (a doubled
+   request per `.md` hit, and the reason the box's own IPs need the WAF exemption). Making
+   the rewrite in-process (`internalRewriteUrl`, `src/server/proxy/internal-rewrite.ts`)
+   400'd every `.md` in prod for ~10 min. The not-found rewrite uses it safely (no query).
+   To de-loop `.md`, pass `p`/`q`/`page` some other way than the rewrite's query string
+   (e.g. request headers via `NextResponse.rewrite(url, { request: { headers } })`) and
+   verify on a prod build, not by reasoning. To exercise
    the renderers, call the route directly: `/api/md?p=/browse`. What the `.md` URL still
    proves in dev is ROUTING: a `text/markdown` content-type means the branch fired
    (`text/html` means it did not).
