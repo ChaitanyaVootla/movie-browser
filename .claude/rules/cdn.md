@@ -1080,3 +1080,34 @@ now has Cache Purge. It is NOT a purge-only token, by the user's choice; swap in
 purge-only one if the box's credential blast radius matters). `next` needs a reload after
 any `.env.local` change. Verify with ClickHouse `api_calls WHERE service='cdn_purge' AND
 endpoint LIKE 'cloudflare%'` (`error_type` NULL = ok, `cf_10000` = scope missing).
+
+## Third-party images blocked on some networks: `/tmdb-img` + `/yt-img` fallback (Nov 17 2026)
+
+`image.tmdb.org` (and possibly YouTube's thumbnail hosts) is unreachable on some
+visitors' networks. ~67 components build TMDB URLs directly (provider logos, search
+posters, cast, studio logos), so those all rendered as broken images while our own
+CDN (`image.themoviebrowser.com/{movie,series}/…`) loaded. The CDN's old `/t/p/*`
+passthrough (default behaviour of dist `E300L33VF15D5T`, origin
+`proxyimage.themoviebrowser.com`) has been **dead (502) since the AWS exit** —
+pointing that origin at `image.tmdb.org` would be the tidier fix, but needs the
+user's OK for the CloudFront change.
+
+What ships instead (no per-component edits):
+- Routes `src/app/tmdb-img/[...path]` → `image.tmdb.org/t/p/…` and
+  `src/app/yt-img/[...path]` → `i.ytimg.com/vi/…`. Strict path whitelists
+  (`src/lib/tmdb-img/path.ts`, no open proxy), `immutable` 1-year Cache-Control so
+  Cloudflare serves repeats; excluded from the `src/proxy.ts` matcher and
+  `Disallow`ed in robots.txt.
+- An inline `<head>` script (`src/lib/tmdb-img/fallback-script.ts`, root layout):
+  on an `<img>` error for those hosts it swaps the src to the proxy and stops that
+  first error before React (so component `onError` fallbacks don't fire for a retry
+  that may succeed). The network is marked blocked (localStorage, 1 day) only when
+  the proxied copy LOADS; then srcs are rewritten as they appear. Visitors who can
+  reach TMDB never hit the proxy (verified: `proxied=0`).
+- It only covers `<img src>`. A CSS `background-image` or `srcset` pointing at TMDB
+  would NOT be rescued — keep TMDB imagery in `<img>`/`next/image` (unoptimized).
+- **Verify by blocking the host in Playwright** (`page.route` → `abort` for
+  `image.tmdb.org`, `img.youtube.com`, `i.ytimg.com`; `serviceWorkers: 'block'`;
+  local Edge via `channel: 'msedge'` if the bundled Chromium isn't installed) and
+  counting `img.complete && naturalWidth === 0`. Nov 17 2026: 0 broken on home,
+  movie, series, person, search, browse, topics, discussions (desktop + 390px).
