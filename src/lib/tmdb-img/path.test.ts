@@ -29,3 +29,23 @@ describe("parseYoutubeThumbPath", () => {
     expect(parseYoutubeThumbPath(["watch", "LY19rHKAaAg", "hqdefault.jpg"])).toBeNull();
   });
 });
+
+describe("Google avatar mirror", () => {
+  it("accepts Google profile-photo paths", async () => {
+    const { parseGoogleAvatarPath } = await import("./path");
+    expect(parseGoogleAvatarPath(["a", "ACg8ocKabc123_-xyz=s96-c"])).toBe("/a/ACg8ocKabc123_-xyz=s96-c");
+    expect(parseGoogleAvatarPath(["a-", "AOh14Gabcdefgh"])).toBe("/a-/AOh14Gabcdefgh");
+  });
+  it("rejects anything else", async () => {
+    const { parseGoogleAvatarPath } = await import("./path");
+    expect(parseGoogleAvatarPath(["b", "ACg8ocKabc123"])).toBeNull();
+    expect(parseGoogleAvatarPath(["a", "../etc"])).toBeNull();
+    expect(parseGoogleAvatarPath(["a", "x", "y"])).toBeNull();
+  });
+  it("maps lh3 URLs to the same-origin route", async () => {
+    const { sameOriginImageUrl } = await import("./path");
+    expect(sameOriginImageUrl("https://lh3.googleusercontent.com/a/ACg8ocK=s96-c")).toBe("/g-avatar/a/ACg8ocK=s96-c");
+    expect(sameOriginImageUrl("https://image.tmdb.org/t/p/w342/x.jpg")).toBe("/tmdb-img/t/p/w342/x.jpg");
+    expect(sameOriginImageUrl("https://example.com/a.jpg")).toBeNull();
+  });
+});

@@ -550,6 +550,6 @@ export const config = {
     // access lines and CloudFront logging is unconfigured. It now runs through
     // the shed-exempt branch at the top of the handler, which tracks it and
     // passes through to the static file.
-    "/((?!_next/static|_next/image|favicon.ico|images|popcorn|manifest.json|robots.txt|sitemap|serwist|tmdb-img|yt-img|api|666170ce7734064c2d3dbe589dc9cdfb.txt).*)",
+    "/((?!_next/static|_next/image|favicon.ico|images|popcorn|manifest.json|robots.txt|sitemap|serwist|tmdb-img|yt-img|g-avatar|api|666170ce7734064c2d3dbe589dc9cdfb.txt).*)",
   ],
 };

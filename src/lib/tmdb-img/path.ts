@@ -33,3 +33,58 @@ export function parseYoutubeThumbPath(segments: readonly string[]): string | nul
   if (vi !== "vi" || !YT_ID.test(id) || !YT_FILE.test(file)) return null;
   return `/vi/${id}/${file}`;
 }
+
+/** Same-origin fallback for Google profile photos (`/g-avatar/a/<id>=s96-c`). */
+export const GOOGLE_AVATAR_PROXY_PREFIX = "/g-avatar";
+
+const G_KIND = /^a-?$/;
+const G_ID = /^[A-Za-z0-9_-]{8,200}(=[A-Za-z0-9-]{1,40})?$/;
+
+/** `["a","ACg8oc…=s96-c"]` → `"/a/ACg8oc…=s96-c"`, or null. */
+export function parseGoogleAvatarPath(segments: readonly string[]): string | null {
+  if (segments.length !== 2) return null;
+  const [kind, id] = segments;
+  if (!G_KIND.test(kind) || !G_ID.test(id)) return null;
+  return `/${kind}/${id}`;
+}
+
+/**
+ * Third-party image URL prefixes and the same-origin route that mirrors each.
+ * Shared by the inline <head> fallback script and `sameOriginImageUrl`.
+ */
+export const IMG_PROXY_MAP: ReadonlyArray<readonly [string, string]> = [
+  ["https://image.tmdb.org/t/p/", "/tmdb-img/t/p/"],
+  ["https://img.youtube.com/vi/", "/yt-img/vi/"],
+  ["https://i.ytimg.com/vi/", "/yt-img/vi/"],
+  ["https://lh3.googleusercontent.com/a", "/g-avatar/a"],
+];
+
+/** The same-origin mirror of a third-party image URL, or null if it has none. */
+export function sameOriginImageUrl(src: string): string | null {
+  for (const [from, to] of IMG_PROXY_MAP) {
+    if (src.startsWith(from)) return to + src.slice(from.length);
+  }
+  return null;
+}
+
+/** localStorage key the fallback script sets once a proxied image loaded. */
+export const IMG_BLOCKED_KEY = "tmdb-img-blocked";
+
+/** True when this browser recently needed the same-origin mirrors (1 day). */
+export function imageHostsBlocked(): boolean {
+  try {
+    const v = localStorage.getItem(IMG_BLOCKED_KEY);
+    return !!v && Date.now() - Number(v) < 864e5;
+  } catch {
+    return false;
+  }
+}
+
+/** Remember that third-party image hosts are blocked here. */
+export function markImageHostsBlocked(): void {
+  try {
+    if (!imageHostsBlocked()) localStorage.setItem(IMG_BLOCKED_KEY, String(Date.now()));
+  } catch {
+    // storage unavailable: the per-image retry still works
+  }
+}

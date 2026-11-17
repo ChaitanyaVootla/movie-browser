@@ -1,5 +1,8 @@
+import { IMG_BLOCKED_KEY, IMG_PROXY_MAP } from "./path";
+
 /**
- * Inline <head> script: when an image.tmdb.org or YouTube-thumbnail image fails
+ * Inline <head> script: when an image.tmdb.org, YouTube-thumbnail or Google
+ * profile-photo image fails
  * to load, retry it through our same-origin `/tmdb-img` / `/yt-img` routes
  * (see ./path.ts). One "blocked" flag covers both: a network that blocks one
  * often blocks the other, and the cost of a wrong guess is a cached proxy hit.
@@ -15,7 +18,7 @@
  *   images do not wait for a failure first.
  */
 export const TMDB_IMG_FALLBACK_SCRIPT = `(function(){try{
-var M=[["https://image.tmdb.org/t/p/","/tmdb-img/t/p/"],["https://img.youtube.com/vi/","/yt-img/vi/"],["https://i.ytimg.com/vi/","/yt-img/vi/"]],K="tmdb-img-blocked",blocked=false;
+var M=${JSON.stringify(IMG_PROXY_MAP)},K=${JSON.stringify(IMG_BLOCKED_KEY)},blocked=false;
 try{var v=localStorage.getItem(K);blocked=!!v&&Date.now()-Number(v)<864e5}catch(e){}
 function swap(i){var s=i.getAttribute("src");if(!s)return false;for(var j=0;j<M.length;j++){if(s.indexOf(M[j][0])===0){i.setAttribute("src",M[j][1]+s.slice(M[j][0].length));return true}}return false}
 function scan(r){if(!r.querySelectorAll)return;var l=r.querySelectorAll("img");for(var k=0;k<l.length;k++)swap(l[k])}

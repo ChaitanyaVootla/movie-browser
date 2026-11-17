@@ -28,6 +28,7 @@ User-agent: ChatGPT-User
 Disallow: /api/
 Disallow: /tmdb-img/
 Disallow: /yt-img/
+Disallow: /g-avatar/
 # /browse results JSON (edge-cached data endpoint behind the /browse grid)
 Disallow: /browse/results
 Disallow: /ratings
@@ -106,6 +107,7 @@ User-agent: *
 Disallow: /api/
 Disallow: /tmdb-img/
 Disallow: /yt-img/
+Disallow: /g-avatar/
 # /browse results JSON (edge-cached data endpoint behind the /browse grid)
 Disallow: /browse/results
 # Private user content - not for indexing

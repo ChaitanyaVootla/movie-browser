@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ResilientAvatarImage } from "./resilient-avatar-image";
 import { cn } from "@/lib/utils";
 import { cropLayout, type AvatarCrop } from "@/lib/avatar-crop";
 import { avatarInitials } from "@/lib/avatar-initials";
@@ -64,7 +65,8 @@ export function UserAvatar({
     const l = cropLayout(crop);
     inner = (
       <>
-        <AvatarImage
+        <ResilientAvatarImage
+          key={src}
           src={src}
           alt={alt}
           referrerPolicy="no-referrer"
@@ -84,7 +86,7 @@ export function UserAvatar({
   } else if (src) {
     inner = (
       <>
-        <AvatarImage src={src} alt={alt} referrerPolicy="no-referrer" className="object-cover" />
+        <ResilientAvatarImage key={src} src={src} alt={alt} referrerPolicy="no-referrer" className="object-cover" />
         {fallback}
       </>
     );
