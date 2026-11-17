@@ -327,6 +327,11 @@ stocks.vootlachaitanya.com {
 	}
 
 	# Everything else: the Next.js production server.
+	# MCP OAuth discovery (RFC 9728 / RFC 8414) is served by kosh-api; flag ENABLE_MCP_OAUTH.
+	handle /.well-known/oauth-* {
+		reverse_proxy 127.0.0.1:3010
+	}
+
 	handle {
 		reverse_proxy 127.0.0.1:3009
 	}
