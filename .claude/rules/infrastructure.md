@@ -13,8 +13,12 @@ paths:
 ## CURRENT HOST: Hetzner `web-2` (since Nov 16 2026) — the EC2 sections below are HISTORY
 
 **web-2** = CX33 (4 vCPU / 8 GB, €9.99/mo), fsn1, `178.105.158.84` / `2a01:4f8:c016:f9af::1`,
-`ssh -i ~/.ssh/hetzner_moviebrowser ubuntu@178.105.158.84`. Movie Browser ONLY — kosh
-stays on web-1. Postgres data on the LOCAL disk at `/data/postgres` (no volume);
+`ssh -i ~/.ssh/hetzner_moviebrowser ubuntu@178.105.158.84`. Runs Movie Browser AND, since
+Nov 16 2026 17:41 UTC, the kosh stocks app (moved from web-1: `/opt/kosh/app`, `/etc/kosh`,
+`/var/lib/kosh`; Route 53 A record `stocks.vootlachaitanya.com` → web-2 in zone
+`Z05366321AEAGL1OU8ATC`; systemd caps kosh-api 1200M / kosh-web 600M). kosh on web-1 is
+stopped + disabled on purpose — never restart it there (stale data, duplicate pollers).
+ClickHouse also runs here (mem_limit 1300m, ~900 MB tracked). Postgres data on the LOCAL disk at `/data/postgres` (no volume);
 `docker-compose.override.yml` (box-only) sizes it for 8 GB (shared_buffers 1536MB,
 mem_limit 3000m, max_connections 60); `.env` NEXT_MAX_MEMORY=3000M / NEXT_HEAP_MB=2304;
 `.env.local` BOUNDED_CACHE_MB=15000, ORIGIN_SELF_IPS lists web-2 AND web-1. Crontab:
@@ -31,11 +35,18 @@ DB = `pg_basebackup -D - -Ft -X fetch` inside web-1's container, relayed via the
 just before, and merged with `ON CONFLICT DO NOTHING` just after, the Cloudflare A-record
 flip. App tree copied from web-1 (same BUILD_ID), Caddy certs copied from its volume.
 
-**web-1** (below) is kept running for rollback: rollback = point the apex + www A records
-back at 2.31.137.169 (its DB is frozen at the cutover) — `cd ~/movie-browser-next && node
-~/bin/cf-dns.mjs 2.31.137.169 apply` on either box (reads the Cloudflare token from
-.env.local; `~/bin/cf-waf.mjs` edits the WAF self-exemption the same way). The GitHub `beta` secret
-`NEXT_EC2_HOST` must point at web-2 for deploys to land there.
+**web-1 was DELETED on 2026-11-17** (server, its 40 GB `data` volume and both primary IPs),
+so there is no warm rollback box any more. Recovery = a new Hetzner box restored from the
+nightly S3 dump (`s3://movie-browser-migration-2025-10-19/backups/pg/web-2-pg-<date>.dump`)
++ the deploy tar, then `node ~/bin/cf-dns.mjs <new-ip> apply`. The Cloudflare WAF
+self-exemption and `ORIGIN_SELF_IPS` now list only web-2's IPs (`~/bin/cf-waf-drop-web1.mjs`
+did the WAF edit; a new box must be added to both). The GitHub `beta` secret `NEXT_EC2_HOST`
+must point at the live box for deploys to land there.
+
+**The nightly backup cron calls `/bin/bash …/pg-backup.sh`** — the file was committed
+without its executable bit, each deploy reset it to 0644, and the plain-path cron line
+failed silently on Nov 17 (no dump that night). Keep the `bash` prefix even now that git has
+mode 100755: a deploy must never be able to disable backups.
 
 ## PREVIOUS HOST: Hetzner `web-1` (Nov 15-16 2026)
 
