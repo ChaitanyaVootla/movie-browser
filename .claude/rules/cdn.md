@@ -1106,6 +1106,17 @@ What ships instead (no per-component edits):
   reach TMDB never hit the proxy (verified: `proxied=0`).
 - It only covers `<img src>`. A CSS `background-image` or `srcset` pointing at TMDB
   would NOT be rescued — keep TMDB imagery in `<img>`/`next/image` (unoptimized).
+- **Nor does it see Radix `Avatar` failures** (found Nov 17 2026: the user's Google
+  photo showed initials). Radix preloads with a detached `new Image()` and mounts the
+  `<img>` only after it loads, so no DOM error ever fires. `UserAvatar` therefore uses
+  `ResilientAvatarImage`, which swaps to `sameOriginImageUrl(src)` on Radix's
+  `"error"` status (or immediately once the network is flagged). Google photos go
+  through `/g-avatar/a/<id>` (mirrors `lh3.googleusercontent.com`). Any other
+  component that preloads images in JS needs the same treatment. The host→route
+  map (`IMG_PROXY_MAP` in `src/lib/tmdb-img/path.ts`) is shared by the script and
+  the component. Pinned by `user-avatar.test.tsx`, which fails on the old code.
+  Public pages show no Google photos (signed-in surfaces only), so a prod Playwright
+  pass can't exercise this path. The test fakes `window.Image` instead.
 - **Verify by blocking the host in Playwright** (`page.route` → `abort` for
   `image.tmdb.org`, `img.youtube.com`, `i.ytimg.com`; `serviceWorkers: 'block'`;
   local Edge via `channel: 'msedge'` if the bundled Chromium isn't installed) and
