@@ -341,3 +341,7 @@ stocks.vootlachaitanya.com {
 		format console
 	}
 }
+
+# Box-local extra sites (e.g. Pramana), kept in the caddy_data volume so deploys
+# never clobber them. A glob that matches nothing is fine.
+import /data/sites/*.caddy
