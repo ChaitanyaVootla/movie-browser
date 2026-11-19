@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { FlagImage } from "@/components/features/shared/flag-image";
 import type { TimeRange } from "../analytics-types";
 
 // =============================================================================
@@ -649,8 +650,8 @@ function UserRow({ user, aiStats, isExpanded, onToggle }: UserRowProps) {
       <TableCell>
         {user.location?.countryCode ? (
           <div className="flex items-center gap-2">
-            <img
-              src={`https://flagcdn.com/w40/${user.location.countryCode.toLowerCase()}.png`}
+            <FlagImage
+              code={user.location.countryCode}
               alt={user.location.countryCode}
               width={20}
               height={15}
@@ -767,8 +768,8 @@ function ExpandedUserDetails({ user, aiStats }: ExpandedUserDetailsProps) {
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
               {user.location.countryCode && (
-                <img
-                  src={`https://flagcdn.com/w40/${user.location.countryCode.toLowerCase()}.png`}
+                <FlagImage
+                  code={user.location.countryCode}
                   alt={user.location.countryCode}
                   width={20}
                   height={15}

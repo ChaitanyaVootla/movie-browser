@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FlagImage } from "@/components/features/shared/flag-image";
 
 // Language code to name mapping (common languages)
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -94,8 +95,8 @@ export function CountryLanguageBadges({
               isXs ? "gap-1 px-1.5 h-5 text-[10px]" : "gap-2 px-3 py-1.5 text-xs"
             )}
           >
-            <img
-              src={`https://flagcdn.com/w40/${country.toLowerCase()}.png`}
+            <FlagImage
+              code={country}
               alt={`Flag of ${country}`}
               width={isXs ? 14 : 20}
               height={isXs ? 10 : 14}

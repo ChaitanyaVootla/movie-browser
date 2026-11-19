@@ -1117,6 +1117,12 @@ What ships instead (no per-component edits):
   the component. Pinned by `user-avatar.test.tsx`, which fails on the old code.
   Public pages show no Google photos (signed-in surfaces only), so a prod Playwright
   pass can't exercise this path. The test fakes `window.Image` instead.
+- **Country flags are self-hosted (Nov 19 2026).** `flagcdn.com` was blocked on the same
+  networks; the nav-bar flag (the only image a signed-out visitor sees top-right) showed as a
+  broken image. Flags now live in `public/images/flags/<iso2>.png` (flagcdn's w40 set, 252
+  files, ~330KB) and render via `FlagImage` (`components/features/shared/flag-image.tsx`,
+  `flagUrl` in `src/lib/flags.ts`), which renders nothing for codes with no flag (TMDB's
+  retired SU/YU/XC…). flagcdn is out of the CSP `img-src`; never reintroduce it.
 - **Verify by blocking the host in Playwright** (`page.route` → `abort` for
   `image.tmdb.org`, `img.youtube.com`, `i.ytimg.com`; `serviceWorkers: 'block'`;
   local Edge via `channel: 'msedge'` if the bundled Chromium isn't installed) and

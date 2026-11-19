@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { FlagImage } from "@/components/features/shared/flag-image";
 import { DevicePieChart } from "../../analytics-charts";
 import { EmptyState, formatSeconds } from "../../analytics-shared";
 import type {
@@ -312,9 +313,8 @@ function GeoDistribution({ data }: { data: GeoData[] }) {
         return (
           <div key={item.country} className="flex items-center gap-2 text-xs">
             {code !== "unknown" ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={`https://flagcdn.com/w40/${code}.png`}
+              <FlagImage
+                code={code}
                 alt={item.country}
                 className="h-3.5 w-5 shrink-0 rounded-sm object-cover"
               />

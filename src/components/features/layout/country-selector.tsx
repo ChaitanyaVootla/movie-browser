@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { FlagImage } from "@/components/features/shared/flag-image";
 import { useUserStore, selectCountryOverride } from "@/stores/user";
 
 // Get all countries from country-list library and sort alphabetically
@@ -83,8 +84,8 @@ export function CountrySelector({ className, compact = false }: CountrySelectorP
           size="sm"
           className={cn("gap-1.5 px-2 h-9 hover:bg-white/10", className)}
         >
-          <img
-            src={`https://flagcdn.com/w40/${selectedCode.toLowerCase()}.png`}
+          <FlagImage
+            code={selectedCode}
             alt={selectedCountryName}
             width={20}
             height={14}
@@ -126,8 +127,8 @@ export function CountrySelector({ className, compact = false }: CountrySelectorP
                     selectedCode === code && "bg-accent"
                   )}
                 >
-                  <img
-                    src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
+                  <FlagImage
+                    code={code}
                     alt={countryName}
                     width={20}
                     height={14}

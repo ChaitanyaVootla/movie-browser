@@ -61,7 +61,7 @@ function buildCsp() {
     // avatars (Auth.js Google user.image = lh3.googleusercontent.com,
     // rendered in comment-item, mobile nav, profiles).
     // NO arbitrary external hotlinks (rung 7 image proxy deferred).
-    "img-src 'self' data: blob: https://image.tmdb.org https://image.themoviebrowser.com https://img.youtube.com https://i.ytimg.com https://www.google.com https://flagcdn.com https://*.googleusercontent.com https://*.ggpht.com",
+    "img-src 'self' data: blob: https://image.tmdb.org https://image.themoviebrowser.com https://img.youtube.com https://i.ytimg.com https://www.google.com https://*.googleusercontent.com https://*.ggpht.com",
     "font-src 'self' data:",
     // YouTube facade iframe (lite-youtube → youtube-nocookie.com) only.
     // Also covers trailer-modal.tsx (youtube.com/embed) + video-gallery.tsx (youtube-nocookie.com/embed)
