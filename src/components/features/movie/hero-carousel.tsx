@@ -315,7 +315,7 @@ export function HeroCarousel({
                   e.stopPropagation();
                   goToSlide(index);
                 }}
-                className="p-3 cursor-default"
+                className="p-3"
                 aria-label={`Go to slide ${index + 1}`}
               >
                 <span
