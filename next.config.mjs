@@ -36,7 +36,14 @@ const FRAME_ANCESTORS = [
  */
 function buildCsp() {
   // connect-src: self (server actions POST same-origin) + analytics ingest.
-  const connectSrc = ["'self'", "https://*.themoviebrowser.com"];
+  const connectSrc = [
+    "'self'",
+    "https://*.themoviebrowser.com",
+    // Google Identity Services (One Tap / Sign in with Google) + the Cloudflare
+    // Web Analytics beacon Cloudflare injects at the edge.
+    "https://accounts.google.com/gsi/",
+    "https://cloudflareinsights.com",
+  ];
   if (process.env.NODE_ENV !== "production") {
     // Dev only: Turbopack's HMR socket (ws://localhost) + dev asset fetches.
     // The headers() CSP applies in dev too, and without these connect-src
@@ -54,8 +61,11 @@ function buildCsp() {
     // unsafe-inline/eval for scripts (matches Next's documented CSP
     // guidance until nonce-based CSP is wired — a separate hardening
     // task). Keep this conservative: no wildcard.
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-    "style-src 'self' 'unsafe-inline'",
+    // + Google Identity Services and the Cloudflare beacon. Both were blocked
+    // until Nov 2026: every page logged "Failed to load Google Identity
+    // Services", so One Tap / the GSI button never rendered.
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com/gsi/client https://static.cloudflareinsights.com",
+    "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
     // Images: our CDNs + TMDB + YouTube thumbnails + the favicon host +
     // flag CDN (country-language-badges/country-selector) + Google account
     // avatars (Auth.js Google user.image = lh3.googleusercontent.com,
@@ -66,7 +76,7 @@ function buildCsp() {
     // YouTube facade iframe (lite-youtube → youtube-nocookie.com) only.
     // Also covers trailer-modal.tsx (youtube.com/embed) + video-gallery.tsx (youtube-nocookie.com/embed)
     // + chat-tags.tsx (youtube.com/embed).
-    "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
+    "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://accounts.google.com/gsi/",
     `connect-src ${connectSrc.join(" ")}`,
     "media-src 'self' https://image.themoviebrowser.com",
     "object-src 'none'",

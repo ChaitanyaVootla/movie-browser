@@ -195,8 +195,10 @@ export function WatchOptions({
               {visibleOptions.map((option) => (
                 <button
                   key={option.key}
+                  type="button"
                   onClick={() => handleWatchClick(option)}
-                  className="group transition-transform hover:scale-110"
+                  aria-label={`Watch on ${option.displayName}`}
+                  className="group relative rounded transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-white/70 before:absolute before:-inset-1.5 before:content-['']"
                   title={`${option.displayName}${option.price ? ` (${option.price.replace("flatrate", "stream")})` : ""}`}
                 >
                   <div className="relative w-7 h-7 rounded overflow-hidden bg-black/20">

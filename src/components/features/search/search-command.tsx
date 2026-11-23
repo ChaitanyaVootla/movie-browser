@@ -62,7 +62,7 @@ import {
   type RankableMediaType,
 } from "@/lib/search/palette-ranking";
 import { useAnalytics } from "@/hooks/use-analytics";
-import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
+import { navigateFromOverlay, useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import type {
   SearchResult,
   SearchMovieResult,
@@ -444,6 +444,27 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   // non-Back closes).
   useHistoryDismiss(open, () => onOpenChange(false));
 
+  // Result navigation (Nov 2026). The palette used to close FIRST and then
+  // router.push: nothing showed while a cold page rendered (seconds), and on
+  // mobile the close's deferred history unwind could cancel the push (see
+  // navigateFromOverlay). Now it navigates inside a transition, stays open with
+  // a progress bar while the destination loads, and closes once it commits.
+  const [isNavigating, startNavigation] = React.useTransition();
+  const navRequestedRef = React.useRef(false);
+  const goTo = React.useCallback(
+    (href: string) => {
+      navRequestedRef.current = true;
+      startNavigation(() => navigateFromOverlay(router, href));
+    },
+    [router]
+  );
+  React.useEffect(() => {
+    if (!isNavigating && navRequestedRef.current) {
+      navRequestedRef.current = false;
+      onOpenChange(false);
+    }
+  }, [isNavigating, onOpenChange]);
+
   // Fetch autocomplete suggestions on quick debounce (150ms)
   React.useEffect(() => {
     const trimmedQuery = debouncedAutocompleteQuery.trim();
@@ -624,26 +645,23 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
         type === "person"
           ? getMediaPath("person", id, name)
           : getMediaHref(id, type === "movie", name);
-      onOpenChange(false);
-      router.push(path);
+      goTo(path);
     },
-    [onOpenChange, router, trackAction, debouncedQuery, results.results]
+    [goTo, trackAction, debouncedQuery, results.results]
   );
 
   const handleSelectTopic = React.useCallback(
     (topicKey: string) => {
       trackAction({ action: "topic_select", metadata: { topic: topicKey } });
-      onOpenChange(false);
-      router.push(`/topics/${topicKey}`);
+      goTo(`/topics/${topicKey}`);
     },
-    [onOpenChange, router, trackAction]
+    [goTo, trackAction]
   );
 
   const handleViewAll = React.useCallback(() => {
     if (!query.trim()) return;
-    onOpenChange(false);
-    router.push(`/search?q=${encodeURIComponent(query.trim())}`);
-  }, [query, onOpenChange, router]);
+    goTo(`/search?q=${encodeURIComponent(query.trim())}`);
+  }, [query, goTo]);
 
   // Hand a hard-to-match query off to the Cue assistant. Deterministic search
   // (regex + embedding) handles the common case; when it comes up empty we offer
@@ -660,10 +678,9 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   const handleSelectMood = React.useCallback(
     (moodQuery: string) => {
       trackAction({ action: "mood_select", metadata: { mood: moodQuery } });
-      onOpenChange(false);
-      router.push(`/search?q=${encodeURIComponent(moodQuery)}`);
+      goTo(`/search?q=${encodeURIComponent(moodQuery)}`);
     },
-    [onOpenChange, router, trackAction]
+    [goTo, trackAction]
   );
 
   const handleSelectAutocompleteSuggestion = React.useCallback(
@@ -831,7 +848,17 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
           "sm:max-w-[600px]"
         )}
         showCloseButton={false}
+        aria-busy={isNavigating}
       >
+        {isNavigating && (
+          <div
+            role="progressbar"
+            aria-label="Opening result"
+            className="nav-pending-in pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden"
+          >
+            <div className="search-nav-progress h-full w-1/3 bg-brand" />
+          </div>
+        )}
         <DialogHeader className="sr-only">
           <DialogTitle>Search</DialogTitle>
           <DialogDescription>Search for movies, TV shows, and people</DialogDescription>

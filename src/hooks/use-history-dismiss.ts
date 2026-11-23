@@ -50,6 +50,9 @@ let listening = false;
 //     the page is left frozen/unscrollable for a real touch user. Letting Vaul
 //     finish first and unwinding history after avoids that entirely.
 let pendingUnwind = false;
+// Overlay entries a navigation REPLACED (navigateFromOverlay). Their close must
+// not unwind: the entry already holds the destination.
+const consumedIds = new Set<number>();
 // Comfortably longer than Vaul's (~500ms) and Radix's (~200ms) close
 // animations (+ margin for slower devices), so the overlay has fully torn down
 // and restored the body scroll-lock before we touch history.
@@ -221,6 +224,8 @@ function removeOverlay(id: number) {
   if (typeof window !== "undefined") {
     window.setTimeout(flushClosingVaulOverlays, UNWIND_DELAY_MS);
   }
+  // A navigation replaced this entry (navigateFromOverlay): nothing to unwind.
+  if (consumedIds.delete(id)) return;
   // Only unwind our synthetic entry if we are still sitting on it. If the user
   // navigated forward (e.g. tapped a link inside the overlay) the current
   // history state is no longer ours, and calling back() would undo that
@@ -239,6 +244,35 @@ function removeOverlay(id: number) {
       pendingUnwind = false;
     }, UNWIND_DELAY_MS);
   }
+}
+
+interface OverlayRouter {
+  push: (href: string) => void;
+  replace: (href: string) => void;
+}
+
+/**
+ * Navigate to `href` from inside an open overlay (search palette, drawers).
+ *
+ * Closing the overlay first and then calling `router.push` raced the deferred
+ * unwind on mobile: Next only updates the URL once the destination's payload
+ * arrives, so on a cold page (>600ms) the unwind's `history.back()` still saw
+ * the overlay entry, fired a popstate, and Next navigated BACK — the tapped
+ * result "sometimes didn't load" (Nov 2026). When the overlay's synthetic entry
+ * is current we REPLACE it with the destination instead: history ends up
+ * [origin, destination], Back returns to the origin, and there is nothing to
+ * unwind. Elsewhere (desktop, no synthetic entry) it is a plain push.
+ */
+export function navigateFromOverlay(router: OverlayRouter, href: string): void {
+  if (typeof window === "undefined") return;
+  const id = currentOverlayId();
+  const top = stack[stack.length - 1];
+  if (id !== null && top !== undefined && top.id === id) {
+    consumedIds.add(id);
+    router.replace(href);
+    return;
+  }
+  router.push(href);
 }
 
 function isMobileViewport(): boolean {

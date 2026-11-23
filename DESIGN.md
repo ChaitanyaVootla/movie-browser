@@ -666,6 +666,20 @@ rows → Taste twins. Rhythm is the home `space-y-10`.
   after a **150ms delay** (`.nav-pending-in` in `globals.css`) so fast/cached
   navigations never flash a spinner. Hardcoded white/black is correct here —
   the overlay sits over imagery.
+- **Navigating out of an overlay** (search palette, drawers) never closes first
+  and pushes after: it calls `navigateFromOverlay(router, href)`
+  (`@/hooks/use-history-dismiss`) inside `useTransition`, keeps the overlay open
+  with a 2px indeterminate `bg-brand` bar along its top edge (`.search-nav-progress`,
+  150ms-delayed via `.nav-pending-in`) while the destination renders, and closes
+  when the transition ends. On mobile this replaces the overlay's synthetic
+  history entry, so Back still returns to the origin page.
+- **Pointer cursor** on every enabled clickable comes from one base rule in
+  `globals.css` (Tailwind v4 preflight leaves buttons at `cursor: default`). Do
+  not sprinkle `cursor-pointer`; a custom clickable needs a real `<button>` or a
+  `role`.
+- **Small visual targets get an invisible 40px hit area** instead of growing the
+  visual (a `before:absolute before:-inset-*` pseudo on a `relative` control), as
+  on watch-provider icons and rating badges.
 - **Floating bottom-center zone is reserved for the AI assistant** (idle bubble at
   `bottom-6` desktop / `bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))]`
   mobile, z-50 — the mobile offset tracks the gesture-bar inset because the bottom

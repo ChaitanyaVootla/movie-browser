@@ -98,7 +98,7 @@ function RatingItem({
         href={rating.link}
         target="_blank"
         rel="noopener noreferrer"
-        className="focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 rounded min-h-[24px] min-w-[24px] inline-flex items-center"
+        className="relative focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 rounded min-h-[24px] min-w-[24px] inline-flex items-center before:absolute before:-inset-y-2 before:inset-x-0 before:content-['']"
         aria-label={`${rating.label}: ${displayScore}`}
       >
         {content}
