@@ -22,6 +22,7 @@
  *   Set ENABLE_MONGODB_ENRICHMENT=false
  */
 
+import { seriesHasEpisodeGap } from "./episode-backfill";
 import { hydrationDebug } from "./debug-log";
 import {
   fetchMovieFromTmdb,
@@ -459,27 +460,35 @@ async function hydrateSeriesImpl(
   // season pages fetch episodes from TMDB directly — so episode fetching belongs
   // in the background upsert, not on the render path.
   if (!forceRefresh && !skipLambda && pgRaw) {
-    const pgData = await getSeriesFromPostgres(seriesId);
+    // Seasons with no episode rows never self-heal on a "core fresh" refresh
+    // (core freshness reads updated_at, which enrichment-only writes bump), so
+    // a gap forces the full refresh that fetches episodes. See episode-backfill.ts.
+    const [pgData, episodeGap] = await Promise.all([
+      getSeriesFromPostgres(seriesId),
+      seriesHasEpisodeGap(seriesId).catch(() => false),
+    ]);
     if (pgData) {
       const tmdbData = pgData as unknown as TmdbSeriesData;
       const enriched = transformPostgresRatingsToEnriched(pgRaw);
       const enrichedFresh = isPostgresEnrichedFresh(pgRaw, pgRaw.firstAirDate);
+      const coreFresh = pgFresh && !episodeGap;
 
-      if (pgFresh && enrichedFresh) {
+      if (coreFresh && enrichedFresh) {
         hydrationDebug(`[Hydration] Series ${seriesId}: PostgreSQL fully fresh`);
         return { data: tmdbData, enriched, source: "postgres_fresh", enrichedSource: "postgres" };
       }
 
       hydrationDebug(
         `[Hydration] Series ${seriesId}: serving PostgreSQL data, background refresh ` +
-          `(core ${pgFresh ? "fresh" : "stale"}, enriched ${enrichedFresh ? "fresh" : "stale"})`
+          `(core ${coreFresh ? "fresh" : episodeGap ? "missing episodes" : "stale"}, ` +
+          `enriched ${enrichedFresh ? "fresh" : "stale"})`
       );
       // Core stale → background task refetches TMDB details + episodes itself.
       // Core fresh (enriched-only refresh) → reuse current data, skip episodes.
       backgroundRefreshSeries(
         seriesId,
-        pgFresh ? tmdbData : null,
-        pgFresh ? tmdbData.seasons : null,
+        coreFresh ? tmdbData : null,
+        coreFresh ? tmdbData.seasons : null,
         true
       );
       return {

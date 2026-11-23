@@ -426,13 +426,17 @@ export async function setPosition(
   seriesId: number,
   seasonNumber: number,
   episodeNumber: number
-): Promise<{ inserted: number; removed: number }> {
+): Promise<{ inserted: number; removed: number; matched: number }> {
   const all = await fetchAiredEpisodes(seriesId, { seasonNumber: { gt: 0 } });
   const upTo = all.filter(
     (e) =>
       e.seasonNumber < seasonNumber ||
       (e.seasonNumber === seasonNumber && e.episodeNumber <= episodeNumber)
   );
+  // No catalog episodes up to the position (PG has seasons but no episode
+  // rows): write nothing. Running the pull-back below would delete the user's
+  // real progress above a position we cannot even resolve.
+  if (upTo.length === 0) return { inserted: 0, removed: 0, matched: 0 };
   const facts = await seriesBackfillFacts(seriesId);
 
   return prisma.$transaction(async (tx) => {
@@ -496,7 +500,7 @@ export async function setPosition(
 
     await recomputeSeriesProgress(tx, userId, seriesId);
     await markStatsDirty(tx, userId);
-    return { inserted: rows.length, removed };
+    return { inserted: rows.length, removed, matched: upTo.length };
   });
 }
 

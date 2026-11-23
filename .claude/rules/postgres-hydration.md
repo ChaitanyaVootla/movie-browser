@@ -129,6 +129,19 @@ episodes 1,619 del/min vs 52 ins/min, persons 122 upd/min, movie_countries
    `BEGIN READ ONLY` psql, fetch the same title from TMDB, project both exactly
    like the comparator, and count differing fields per column.
 
+8. **Seasons without episodes never self-heal on a "core fresh" refresh (Nov 23
+   2026).** Core freshness reads `series.updated_at`, and every enrichment-only
+   refresh writes stamps onto the row, so a series whose seasons lost (or never
+   got) episode rows looked core-fresh forever: 837 of 3,048 series with
+   popularity > 20 had seasons but zero episodes. Symptom users hit: Set position
+   / Mark season said "updated" and saved nothing (tracking backfills from PG
+   episodes). Fix: `hydration/episode-backfill.ts` — `seriesHasEpisodeGap` makes
+   the serve path schedule a FULL refresh, and the tracking actions call
+   `ensureSeriesEpisodes` (TMDB → `reconcileSeasons`, refuses partial fetches)
+   before writing; `setPosition` writes nothing and the action errors when no
+   episode matches. Freshness keyed on `updated_at` instead of `tmdbUpdatedAt` is
+   the deeper cause and is still open.
+
 Also: the person-page write-back (`services/person-persist.ts`) is
 change-detected (one read, write only changed fields).
 

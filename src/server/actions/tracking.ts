@@ -25,6 +25,7 @@ import {
 import { getUserStatsSnapshot } from "@/server/db/postgres/social/stats";
 import { setUserRating } from "@/server/db/postgres/social/ratings";
 import { auditedTransaction } from "@/server/db/audit";
+import { ensureSeriesEpisodes } from "@/server/services/hydration/episode-backfill";
 import { getName as countryName } from "country-list";
 import type {
   ActionResult,
@@ -210,6 +211,7 @@ export async function markSeasonWatchedAction(
   try {
     const v = SeasonSchema.parse(input);
     const userId = await requirePgUserId();
+    await ensureEpisodesOrLog(v.seriesId);
     await markSeasonWatchedQuery(userId, v.seriesId, v.seasonNumber);
     return { ok: true };
   } catch (error: unknown) {
@@ -223,10 +225,27 @@ export async function markSeriesWatchedAction(input: {
   try {
     const seriesId = z.number().int().positive().parse(input.seriesId);
     const userId = await requirePgUserId();
+    await ensureEpisodesOrLog(seriesId);
     await markSeriesWatchedQuery(userId, seriesId);
     return { ok: true };
   } catch (error: unknown) {
     return fail("markSeriesWatchedAction", error);
+  }
+}
+
+const EPISODES_UNAVAILABLE = "Couldn't load this show's episodes. Try again in a moment.";
+
+/**
+ * Tracking writes backfill from PG episode rows, and some series have seasons
+ * but no episodes in PG. Fill them from TMDB first. Never throws: a TMDB failure
+ * just leaves the gap, and the caller reports what actually got saved.
+ */
+async function ensureEpisodesOrLog(seriesId: number): Promise<void> {
+  try {
+    const ok = await ensureSeriesEpisodes(seriesId);
+    if (!ok) userApiLogger.warn({ action: "ensureSeriesEpisodes", seriesId, ok });
+  } catch (error: unknown) {
+    userApiLogger.error({ action: "ensureSeriesEpisodes", seriesId, error: String(error) });
   }
 }
 
@@ -242,7 +261,16 @@ export async function setPositionAction(
   try {
     const v = PositionSchema.parse(input);
     const userId = await requirePgUserId();
-    await setPositionQuery(userId, v.seriesId, v.seasonNumber, v.episodeNumber);
+    await ensureEpisodesOrLog(v.seriesId);
+    const { matched } = await setPositionQuery(
+      userId,
+      v.seriesId,
+      v.seasonNumber,
+      v.episodeNumber
+    );
+    // Nothing to mark means the episode list is missing: say so instead of
+    // reporting a success that saved nothing.
+    if (matched === 0) return { ok: false, error: EPISODES_UNAVAILABLE };
     return { ok: true };
   } catch (error: unknown) {
     return fail("setPositionAction", error);
@@ -359,6 +387,7 @@ export async function getSeasonEpisodes(
 ): Promise<SeasonEpisodeDTO[]> {
   try {
     const v = SeasonEpisodesSchema.parse(input);
+    await ensureEpisodesOrLog(v.seriesId);
     const rows = await prisma.episode.findMany({
       where: { season: { seriesId: v.seriesId, seasonNumber: v.seasonNumber } },
       orderBy: { episodeNumber: "asc" },
