@@ -23,6 +23,7 @@
  */
 
 import { seriesHasEpisodeGap } from "./episode-backfill";
+import { isSeriesCoreStale } from "@/lib/data-freshness";
 import { hydrationDebug } from "./debug-log";
 import {
   fetchMovieFromTmdb,
@@ -449,7 +450,8 @@ async function hydrateSeriesImpl(
 
   // 1. Check PostgreSQL for existing data (skip if forcing refresh)
   const pgRaw = forceRefresh ? null : await fetchSeriesRaw(seriesId);
-  const pgFresh = pgRaw && isPostgresFresh(pgRaw.updatedAt, pgRaw.firstAirDate);
+  // Series-specific clock + cadence (tmdbUpdatedAt, latest airing): see isSeriesCoreStale.
+  const pgFresh = pgRaw && !isSeriesCoreStale(pgRaw);
 
   // 2. SERVE-FROM-PG PATH (normal page visits): if PostgreSQL has the series at
   // all — fresh OR stale — serve it immediately; never block the render on TMDB.

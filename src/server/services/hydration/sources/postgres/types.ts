@@ -56,6 +56,11 @@ export interface PostgresSeriesData {
   name: string;
   firstAirDate: Date | null;
   updatedAt: Date;
+  // Series core freshness (isSeriesCoreStale)
+  tmdbUpdatedAt: Date | null;
+  lastAirDate: Date | null;
+  lastEpisodeAirDate: Date | null;
+  nextEpisodeAirDate: Date | null;
   // Enriched data freshness tracking
   ratingsScrapedAt: Date | null;
   watchLinksScrapedAt: Date | null;

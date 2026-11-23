@@ -48,6 +48,14 @@ vi.mock("./sources/postgres", () => ({
 }));
 
 vi.mock("@/server/services/cdn", () => ({ notifyIfContentChanged: vi.fn() }));
+// Series core freshness has its own rule (isSeriesCoreStale, unit-tested in
+// data-freshness.test.ts). Here it follows the same switch as movies so each
+// scenario reads the same; the episode-gap check is off unless a test sets it.
+vi.mock("@/lib/data-freshness", async (orig) => ({
+  ...(await orig<typeof import("@/lib/data-freshness")>()),
+  isSeriesCoreStale: vi.fn(() => !vi.mocked(isPostgresFresh)(null, null)),
+}));
+vi.mock("./episode-backfill", () => ({ seriesHasEpisodeGap: vi.fn(async () => false) }));
 
 vi.mock("@/server/db/postgres/movies", () => ({
   getMovieFromPostgres: vi.fn(),
@@ -378,6 +386,28 @@ describe("hydrateSeries — serve-stale-then-refresh", () => {
       { enrichmentOnly: false }
     );
     expect(mockTriggerEnrichment).toHaveBeenCalledWith("series", id, freshTmdb);
+  });
+
+  it("fresh core with an EPISODE GAP: background does the full TMDB + episode refresh", async () => {
+    const { seriesHasEpisodeGap } = await import("./episode-backfill");
+    vi.mocked(seriesHasEpisodeGap).mockResolvedValueOnce(true);
+    const id = 205;
+    mockFetchSeriesRaw.mockResolvedValue(makePgRawSeries());
+    mockIsPostgresFresh.mockReturnValue(true);
+    mockIsPostgresEnrichedFresh.mockReturnValue(true); // would otherwise early-return
+    mockGetSeriesPg.mockResolvedValue(makePgSeries(id) as never);
+    const freshTmdb = makeTmdbSeries(id);
+    mockFetchSeriesFromTmdb.mockResolvedValue(freshTmdb);
+
+    const result = await hydrateSeries(id);
+
+    expect(result.source).toBe("postgres_fresh"); // still served from PG instantly
+    await waitForBackground(mockUpsertSeries);
+    expect(mockFetchSeriesFromTmdb).toHaveBeenCalledWith(id);
+    expect(mockFetchAllSeasonEpisodes).toHaveBeenCalled();
+    expect(mockUpsertSeries).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      enrichmentOnly: false,
+    });
   });
 
   it("fresh core but STALE enriched: serves PG data; background skips TMDB and episode fetches", async () => {
