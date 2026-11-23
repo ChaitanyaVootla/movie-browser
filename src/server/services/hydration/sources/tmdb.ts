@@ -13,6 +13,7 @@ import {
   getSeasonDetails as getTmdbSeasonDetails,
   fetchFromTMDB,
 } from "@/server/services/tmdb";
+import pLimit from "p-limit";
 import type { MediaType } from "../types";
 
 // =============================================================================
@@ -385,42 +386,53 @@ export interface TmdbSeasonWithEpisodes {
  * Fetch all seasons with episodes for a series (parallel requests)
  * Uses the central TMDB service which has built-in retry logic (3x with exponential backoff)
  */
+/**
+ * Per-series cap on parallel season fetches. Long-running shows have 40-60
+ * seasons, and firing them all at once tripped TMDB's rate limit (1,510 429s in
+ * two minutes during the Nov 2026 episode backfill), which also 429s the live
+ * site's own TMDB calls on the shared key.
+ */
+const SEASON_FETCH_CONCURRENCY = 4;
+
 export async function fetchAllSeasonEpisodes(
   seriesId: number,
   seasons: TmdbSeriesData["seasons"]
 ): Promise<TmdbSeasonWithEpisodes[]> {
+  const limit = pLimit(SEASON_FETCH_CONCURRENCY);
   // Filter out seasons with no episodes
   const seasonsToFetch = seasons.filter((s) => s.episode_count > 0);
 
   console.log(`[Hydration/TMDB] Fetching ${seasonsToFetch.length} seasons for series ${seriesId}`);
 
   // Fetch all seasons in parallel using the central TMDB service (has retry logic)
-  const seasonPromises = seasonsToFetch.map(async (season) => {
-    try {
-      const data = await getTmdbSeasonDetails(seriesId, season.season_number);
-      const episodes = (data.episodes as TmdbEpisode[]) || [];
+  const seasonPromises = seasonsToFetch.map((season) =>
+    limit(async () => {
+      try {
+        const data = await getTmdbSeasonDetails(seriesId, season.season_number);
+        const episodes = (data.episodes as TmdbEpisode[]) || [];
 
-      console.log(`[Hydration/TMDB] Season ${season.season_number}: ${episodes.length} episodes`);
+        console.log(`[Hydration/TMDB] Season ${season.season_number}: ${episodes.length} episodes`);
 
-      return {
-        id: data.id as number,
-        season_number: data.season_number as number,
-        name: data.name as string,
-        overview: data.overview as string | null,
-        poster_path: data.poster_path as string | null,
-        air_date: data.air_date as string | null,
-        episode_count: episodes.length || season.episode_count,
-        episodes,
-      } as TmdbSeasonWithEpisodes;
-    } catch (error) {
-      console.warn(`[Hydration/TMDB] Failed to fetch season ${season.season_number}:`, error);
-      // No `episodes` key: "unknown", so the upsert keeps the stored episodes.
-      return {
-        ...season,
-        overview: season.overview || null,
-      } as TmdbSeasonWithEpisodes;
-    }
-  });
+        return {
+          id: data.id as number,
+          season_number: data.season_number as number,
+          name: data.name as string,
+          overview: data.overview as string | null,
+          poster_path: data.poster_path as string | null,
+          air_date: data.air_date as string | null,
+          episode_count: episodes.length || season.episode_count,
+          episodes,
+        } as TmdbSeasonWithEpisodes;
+      } catch (error) {
+        console.warn(`[Hydration/TMDB] Failed to fetch season ${season.season_number}:`, error);
+        // No `episodes` key: "unknown", so the upsert keeps the stored episodes.
+        return {
+          ...season,
+          overview: season.overview || null,
+        } as TmdbSeasonWithEpisodes;
+      }
+    })
+  );
 
   const results = await Promise.all(seasonPromises);
   const totalEpisodes = results.reduce((sum, s) => sum + (s.episodes?.length ?? 0), 0);
