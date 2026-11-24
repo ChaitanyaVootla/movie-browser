@@ -64,7 +64,7 @@ async function installRenderDeadline(): Promise<void> {
         errorType: "render_deadline",
         errorMessage: `Render of ${report.cacheKey} exceeded ${report.timeoutMs}ms`,
         route: report.cacheKey,
-        context: { pending: report.pending, lastSettled: report.lastSettled },
+        context: { pending: report.pending, lastSettled: report.lastSettled, request: report.request },
         severity: "high",
       })
     );

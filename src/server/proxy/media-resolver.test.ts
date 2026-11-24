@@ -145,6 +145,52 @@ describe("SlugLru", () => {
     expect(lru.get("a")).toBe("1b");
     expect(lru.get("b")).toBe("2");
   });
+
+  it("expires slugs after the TTL so a renamed title stops redirecting to its old slug", () => {
+    let now = 1_000;
+    const lru = new SlugLru(10, 100, () => now, 1_000);
+    lru.set("series:197604", "power-play");
+    now += 99;
+    expect(lru.get("series:197604")).toBe("power-play");
+    now += 1; // a get() does not extend the TTL
+    expect(lru.get("series:197604")).toBeUndefined();
+    expect(lru.size).toBe(0);
+  });
+
+  it("keeps NOT_FOUND longer than a slug (re-checking costs a TMDB call)", () => {
+    let now = 0;
+    const lru = new SlugLru(10, 100, () => now, 1_000);
+    lru.set("movie:999999999", NOT_FOUND);
+    now = 500;
+    expect(lru.get("movie:999999999")).toBe(NOT_FOUND);
+    now = 1_000;
+    expect(lru.get("movie:999999999")).toBeUndefined();
+  });
+});
+
+describe("resolveMediaSlug after a rename", () => {
+  it("re-reads PG once the cached slug expires and redirects to the NEW slug", async () => {
+    let now = 0;
+    const cache = new SlugLru(10, 100, () => now);
+    let title = "Power Play";
+    const deps = makeDeps({
+      fetchTitleFromDb: vi.fn(async () => ({ found: true, title }) as const),
+    });
+    expect(await resolveMediaSlug("series", 197604, deps, cache)).toBe("power-play");
+
+    title = "Body to Body"; // hydration renamed it
+    expect(await resolveMediaSlug("series", 197604, deps, cache)).toBe("power-play");
+    now = 100;
+    const fresh = await resolveMediaSlug("series", 197604, deps, cache);
+    expect(fresh).toBe("body-to-body");
+    expect(deps.fetchTitleFromDb).toHaveBeenCalledTimes(2);
+    expect(
+      decideMediaRoute("/series/197604/body-to-body/discuss/s1e14", "series", 197604, fresh, {
+        season: 1,
+        episode: 14,
+      })
+    ).toEqual({ action: "next", verified: true });
+  });
 });
 
 function makeDeps(overrides: Partial<ResolverDeps> = {}): ResolverDeps {

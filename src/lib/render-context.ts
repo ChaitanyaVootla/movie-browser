@@ -26,8 +26,22 @@ export interface PendingOp {
   startedAt: number;
 }
 
+/**
+ * Router headers on the request that started a render. A prefetch without
+ * `rsc` is the shape that wedged ISR URLs in Nov 2026 (see
+ * server/observability/orphan-flight-headers.ts).
+ */
+export interface RequestShape {
+  rsc: boolean;
+  prefetch: string | null;
+  stateTree: boolean;
+  segmentPrefetch: boolean;
+}
+
 export interface RenderContext {
   cacheKey: string;
+  /** Set by the render deadline from the request that started the render. */
+  request?: RequestShape | null;
   startedAt: number;
   pending: Set<PendingOp>;
   startedOps: number;

@@ -19,7 +19,8 @@
  * - Any internal error: fail OPEN (fall through to the page, uncached) so a
  *   PG/TMDB hiccup can never take down detail routes.
  * - Negative results are cached too: a garbage-id crawler sweep costs one
- *   TMDB call per id, ever (until LRU eviction).
+ *   TMDB call per id per day (NOT_FOUND expires after 24h, a slug after 1h,
+ *   so renames and late-created titles are picked up).
  */
 
 import { getSlug } from "@/lib/utils";
@@ -120,23 +121,55 @@ export function canonicalMediaPath(mediaType: MediaType, id: number, slug: strin
 // LRU (pure, Map-based — Map iteration order = insertion order)
 // ---------------------------------------------------------------------------
 
-export class SlugLru {
-  private map = new Map<string, ResolvedSlug>();
+/**
+ * Entries expire so a RENAMED title stops redirecting to its old slug.
+ *
+ * WHY (Nov 24 2026): the LRU had no TTL. Hydration renamed series 197604 to
+ * "Body to Body" and 336006 to "Antonios & Kleopatra" (slugless when first
+ * resolved), but the 11-day-old process kept treating `power-play` / the bare
+ * id as canonical. Every link the pages render (built from the NEW name) was
+ * 308'd to the old slug, the canonical tag pointed at a URL that redirects
+ * away, and each 308'd client prefetch arrived without `_rsc` — the request
+ * shape that wedged those URLs' ISR renders (see
+ * server/observability/orphan-flight-headers.ts). One PK lookup per id per
+ * hour is negligible; it matches the detail pages' ISR revalidate.
+ */
+export const DEFAULT_SLUG_TTL_MS = 60 * 60 * 1000;
+/**
+ * NOT_FOUND entries live longer: re-checking a garbage id costs a TMDB call,
+ * and crawlers sweep garbage ids. 24h mirrors hydration's TMDB-404 memory
+ * (hydration/tmdb-gone.ts).
+ */
+export const DEFAULT_NOT_FOUND_TTL_MS = 24 * 60 * 60 * 1000;
 
-  constructor(private readonly maxEntries: number) {}
+interface SlugEntry {
+  value: ResolvedSlug;
+  expiresAt: number;
+}
+
+export class SlugLru {
+  private map = new Map<string, SlugEntry>();
+
+  constructor(
+    private readonly maxEntries: number,
+    private readonly ttlMs: number = DEFAULT_SLUG_TTL_MS,
+    private readonly now: () => number = Date.now,
+    private readonly notFoundTtlMs: number = DEFAULT_NOT_FOUND_TTL_MS,
+  ) {}
 
   get size(): number {
     return this.map.size;
   }
 
   get(key: string): ResolvedSlug | undefined {
-    const value = this.map.get(key);
-    if (value === undefined) return undefined;
+    const entry = this.map.get(key);
+    if (entry === undefined) return undefined;
+    this.map.delete(key);
+    if (entry.expiresAt <= this.now()) return undefined;
     // Recency bump: re-insert so the entry moves to the back of the
     // insertion order (eviction takes from the front).
-    this.map.delete(key);
-    this.map.set(key, value);
-    return value;
+    this.map.set(key, entry);
+    return entry.value;
   }
 
   set(key: string, value: ResolvedSlug): void {
@@ -146,7 +179,8 @@ export class SlugLru {
       const oldest = this.map.keys().next().value;
       if (oldest !== undefined) this.map.delete(oldest);
     }
-    this.map.set(key, value);
+    const ttl = value === NOT_FOUND ? this.notFoundTtlMs : this.ttlMs;
+    this.map.set(key, { value, expiresAt: this.now() + ttl });
   }
 }
 

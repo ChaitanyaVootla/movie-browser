@@ -35,7 +35,9 @@ import {
   describePending,
   runInRenderContext,
   type RenderContext,
+  type RequestShape,
 } from "@/lib/render-context";
+import { describeRequestShape, installOrphanFlightHeaderStrip } from "./orphan-flight-headers";
 import { renderStatsWindow, startRenderStatsReporter } from "./render-stats";
 
 /** The runtime the Turbopack production build's page chunks require. */
@@ -77,6 +79,8 @@ export interface RenderDeadlineReport {
   startedOps: number;
   settledOps: number;
   lastSettled: { label: string; agoMs: number } | null;
+  /** Router headers on the request that started the render (null if unknown). */
+  request: RequestShape | null;
 }
 
 export interface RenderDeadlineOptions {
@@ -115,6 +119,7 @@ export function buildReport(ctx: RenderContext, timeoutMs: number, now: number =
     lastSettled: ctx.lastSettled
       ? { label: ctx.lastSettled.label, agoMs: now - ctx.lastSettled.at }
       : null,
+    request: ctx.request ?? null,
   };
   return report;
 }
@@ -125,6 +130,7 @@ type HandleResponse = (this: unknown, args: unknown) => unknown;
 interface HandleResponseArgs {
   cacheKey?: unknown;
   responseGenerator?: unknown;
+  req?: { headers?: unknown };
 }
 
 function isHandleResponseArgs(value: unknown): value is HandleResponseArgs {
@@ -142,10 +148,12 @@ function safely(fn: () => void): void {
 function guardGenerator(
   cacheKey: string,
   generator: ResponseGenerator,
-  options: RenderDeadlineOptions
+  options: RenderDeadlineOptions,
+  request: RequestShape | null
 ): ResponseGenerator {
   return (...args: unknown[]) => {
     const ctx = createRenderContext(cacheKey);
+    ctx.request = request;
     const renders = activeRenders();
     renders.add(ctx);
     renderStatsWindow().observeActive(renders.size);
@@ -219,7 +227,8 @@ export function installRenderDeadline(proto: object, options: RenderDeadlineOpti
       const guarded = guardGenerator(
         args.cacheKey,
         args.responseGenerator as ResponseGenerator,
-        options
+        options,
+        describeRequestShape(args.req?.headers)
       );
       return originalFn.call(this, { ...args, responseGenerator: guarded });
     }
@@ -313,7 +322,6 @@ export function installAppPageRenderDeadline(
   onDeadline?: (report: RenderDeadlineReport) => void
 ): InstallResult {
   const timeoutMs = resolveRenderDeadlineMs(process.env.RENDER_DEADLINE_MS);
-  if (timeoutMs === 0) return { installed: false, timeoutMs, reason: "disabled" };
   const modulePath =
     process.env.NODE_ENV === "production" ? APP_PAGE_RUNTIME_MODULE : APP_PAGE_RUNTIME_MODULE_DEV;
   try {
@@ -321,6 +329,15 @@ export function installAppPageRenderDeadline(
     const runtime = requireFromApp(modulePath) as { AppPageRouteModule?: { prototype?: object } };
     const proto = runtime.AppPageRouteModule?.prototype;
     if (!proto) return { installed: false, timeoutMs, module: modulePath, reason: "no AppPageRouteModule" };
+
+    // Installed FIRST (innermost) and independent of the deadline switch: it
+    // removes the cause of a never-settling render, the deadline only bounds
+    // it. The deadline wrapper below runs before it, so its report still sees
+    // the request's original router headers.
+    installOrphanFlightHeaderStrip(proto, (info) =>
+      log.info({ event: "orphan_flight_headers_stripped", ...info })
+    );
+    if (timeoutMs === 0) return { installed: false, timeoutMs, reason: "disabled" };
 
     const installed = installRenderDeadline(proto, {
       timeoutMs,
