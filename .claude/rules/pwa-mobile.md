@@ -101,6 +101,17 @@ silently doubled the YouTube embeds loaded per page.
   `grep -c` the embed URL, or assert element counts in a component test. Pinned by
   `video-gallery.test.tsx` — which fails against the old code with "expected ...
   length of 1 but got 2".
+- **Better than gating: ONE responsive layout (Nov 25 2026).** The gallery still
+  rendered its whole thumbnail list twice (40 `<img>` for 20 videos) after the iframe
+  fix. It is now a single tree whose classes switch at `md:` (horizontal strip on
+  mobile, synced-height sidebar on desktop, one player slot), so the iframe is single
+  by construction, the server HTML is already right, and nothing flips after
+  hydration. Prefer this over `useMobile()` whenever the two layouts can share markup.
+- **YouTube's "video unavailable" thumbnail LOADS, it does not error.** A deleted or
+  private video's `mqdefault.jpg`/`hqdefault.jpg` returns a 120×90 grey placeholder
+  with HTTP 200, so `onError` never fires and the tile renders blank. Detect it on
+  load: `naturalWidth <= 120` (`isYouTubePlaceholderThumb`); real thumbnails are
+  320/480 wide. The gallery drops those videos.
 
 ## Mobile overlays = Vaul drawers + Back-button dismiss (June 2026)
 

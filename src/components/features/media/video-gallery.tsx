@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, type CSSProperties } from "react";
 import Image from "next/image";
 import { Play, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,9 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useWakeLock } from "@/hooks/use-wake-lock";
-import { useMobile } from "@/hooks/use-mobile";
 import { formatViewCount, formatDuration, formatRelativeTime } from "@/lib/youtube-utils";
 import { VideoStats, VideoStatsSkeleton } from "./video-stats";
 import { VideoComments } from "./video-comments";
-import { ScrollContainer } from "./scroll-container";
 import type { Video, YouTubeVideoStats, YouTubeComment } from "@/types";
 
 interface VideoGalleryProps {
@@ -54,42 +52,66 @@ function getVideoTypes(videos: Video[]): string[] {
   return ["All", ...Array.from(types)];
 }
 
+/**
+ * YouTube does NOT 404 the thumbnail of a deleted / private / region-removed
+ * video in a way the browser treats as an error: `img.youtube.com/vi/<id>/
+ * mqdefault.jpg` answers with a 120×90 grey "missing" placeholder image, so
+ * `onError` never fires and the tile renders as a blank grey/black box. Real
+ * thumbnails are far wider (mqdefault 320×180, hqdefault 480×360), so a
+ * decoded width of ≤120px identifies the placeholder.
+ */
+export function isYouTubePlaceholderThumb(img: HTMLImageElement): boolean {
+  return img.naturalWidth > 0 && img.naturalWidth <= 120;
+}
+
 interface VideoThumbnailProps {
   video: Video;
   isActive: boolean;
   onClick: () => void;
+  /** The video is gone on YouTube (placeholder or failed thumbnail): drop its tile. */
+  onUnavailable: (key: string) => void;
   metadata?: VideoMetadata;
 }
 
-function VideoThumbnail({ video, isActive, onClick, metadata }: VideoThumbnailProps) {
-  const thumbnailUrl = `https://img.youtube.com/vi/${video.key}/mqdefault.jpg`;
-
+/**
+ * One tile, ONE markup for both breakpoints: a 140px card in the mobile
+ * horizontal strip, a thumbnail + info row in the desktop sidebar. (It used to
+ * be rendered twice, in `hidden md:flex` + `md:hidden` blocks — see the
+ * pwa-mobile rule on duplicating elements across CSS-hidden layouts.)
+ */
+function VideoThumbnail({ video, isActive, onClick, onUnavailable, metadata }: VideoThumbnailProps) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={cn(
-        "group w-full flex gap-3 p-2 rounded-lg transition-all text-left",
-        isActive ? "bg-white/10" : "hover:bg-white/5"
+        "group flex-shrink-0 w-[140px] flex flex-col gap-1 rounded-lg text-left transition-all",
+        "md:w-full md:flex-row md:gap-3 md:p-2",
+        isActive ? "md:bg-white/10" : "md:hover:bg-white/5"
       )}
     >
       {/* Thumbnail */}
-      <div className="relative w-[120px] flex-shrink-0 aspect-video rounded overflow-hidden">
+      <div
+        className={cn(
+          "relative w-full md:w-[120px] flex-shrink-0 aspect-video rounded-lg md:rounded overflow-hidden bg-muted",
+          isActive && "ring-2 ring-brand md:ring-0"
+        )}
+      >
         <Image
-          src={thumbnailUrl}
-          // A removed YouTube video's thumbnail 404s for everyone: hide it so the
-          // card shows its background, not a broken-image icon.
-          onError={(e) => {
-            e.currentTarget.style.visibility = "hidden";
+          src={`https://img.youtube.com/vi/${video.key}/mqdefault.jpg`}
+          onLoad={(e) => {
+            if (isYouTubePlaceholderThumb(e.currentTarget)) onUnavailable(video.key);
           }}
+          onError={() => onUnavailable(video.key)}
           alt={video.name}
           fill
           className="object-cover"
-          sizes="120px"
+          sizes="(max-width: 767px) 140px, 120px"
           unoptimized
         />
-        {/* Play icon on hover */}
+        {/* Play icon on hover (pointer devices) */}
         {!isActive && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute inset-0 hidden md:flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
             <div className="rounded-full bg-white/90 p-1.5">
               <Play className="h-3 w-3 text-black fill-black" />
             </div>
@@ -114,26 +136,33 @@ function VideoThumbnail({ video, isActive, onClick, metadata }: VideoThumbnailPr
       </div>
 
       {/* Info */}
-      <div className="flex-1 min-w-0 py-1">
+      <div className="flex-1 min-w-0 px-0.5 md:px-0 md:py-1">
         <p
           className={cn(
-            "text-sm font-medium line-clamp-2 transition-colors",
-            isActive ? "text-brand" : "text-foreground group-hover:text-brand"
+            "text-[11px] line-clamp-1 transition-colors",
+            "md:text-sm md:font-medium md:line-clamp-2",
+            isActive
+              ? "text-brand"
+              : "text-muted-foreground md:text-foreground md:group-hover:text-brand"
           )}
         >
           {metadata?.title || video.name}
         </p>
 
-        {/* View count and publish date */}
-        <div className="flex items-center gap-1.5 text-muted-foreground mt-1 text-xs">
+        {/* View count (+ publish date on desktop) */}
+        <div className="flex items-center gap-1 md:gap-1.5 text-muted-foreground mt-0.5 md:mt-1 text-[10px] md:text-xs">
           {metadata?.viewCount ? (
             <>
-              <Eye className="h-3 w-3" />
+              <Eye className="h-2.5 w-2.5 md:h-3 md:w-3" />
               <span>{formatViewCount(metadata.viewCount)}</span>
             </>
           ) : null}
-          {metadata?.viewCount && video.published_at && <span>•</span>}
-          {video.published_at && <span>{formatRelativeTime(video.published_at)}</span>}
+          {metadata?.viewCount && video.published_at ? (
+            <span className="hidden md:inline">•</span>
+          ) : null}
+          {video.published_at && (
+            <span className="hidden md:inline">{formatRelativeTime(video.published_at)}</span>
+          )}
         </div>
       </div>
     </button>
@@ -145,11 +174,18 @@ function VideoThumbnail({ video, isActive, onClick, metadata }: VideoThumbnailPr
  * base.js + ytembeds, ~2.5MB of decoded JS) is NOT loaded until the viewer
  * asks for it — the section sits far below the fold and most visitors never
  * press play. A thumbnail + play button stands in until then (perf audit Oct
- * 2026: every detail view eagerly loaded the player, TWICE on mobile, because
- * `useMobile()` is false on the server/first render so the desktop iframe was
- * SSR'd and started loading before the effect swapped in the mobile one).
+ * 2026: every detail view eagerly loaded the player, TWICE on mobile, back
+ * when the desktop and mobile layouts each had their own player slot).
  */
-function PlayerFacade({ video, onPlay }: { video: Video; onPlay: () => void }) {
+function PlayerFacade({
+  video,
+  onPlay,
+  onUnavailable,
+}: {
+  video: Video;
+  onPlay: () => void;
+  onUnavailable: (key: string) => void;
+}) {
   return (
     <button
       type="button"
@@ -161,6 +197,10 @@ function PlayerFacade({ video, onPlay }: { video: Video; onPlay: () => void }) {
     >
       <Image
         src={`https://i.ytimg.com/vi/${video.key}/hqdefault.jpg`}
+        onLoad={(e) => {
+          if (isYouTubePlaceholderThumb(e.currentTarget)) onUnavailable(video.key);
+        }}
+        onError={() => onUnavailable(video.key)}
         alt=""
         fill
         className="object-cover"
@@ -181,34 +221,45 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
   const wakeLock = useWakeLock();
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  // Only ONE <iframe> may exist at a time. The desktop (`hidden md:flex`) and
-  // mobile (`md:hidden`) layouts are BOTH always in the DOM — Tailwind `hidden`
-  // is `display:none`, which does NOT unload an iframe or stop its audio. With
-  // the same `autoplay=1` src in both, clicking play started TWO YouTube players:
-  // one visible, one inaudible-but-playing, so you heard double audio and pausing
-  // the visible one left the hidden copy running. Matches the 768px `md` breakpoint.
-  const isMobile = useMobile();
+  // ONE layout for both breakpoints (responsive classes, no `hidden md:flex` +
+  // `md:hidden` twins), so there is exactly one player slot and one thumbnail
+  // list. Tailwind `hidden` is `display:none`, which does NOT unload an iframe
+  // or stop its audio: the old twin layouts once played two YouTube players at
+  // once (double audio, Aug 2026). See .claude/rules/pwa-mobile.md.
   const [filter, setFilter] = useState("All");
   const mainPlayerRef = useRef<HTMLDivElement>(null);
   const [playerHeight, setPlayerHeight] = useState(0);
+  // Keys of videos YouTube no longer serves (deleted/private): their tiles are dropped.
+  const [unavailableKeys, setUnavailableKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const markUnavailable = useCallback((key: string) => {
+    setUnavailableKeys((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+  }, []);
 
   // YouTube metadata state
   const [videoMetadata, setVideoMetadata] = useState<Map<string, VideoMetadata>>(new Map());
   const [activeVideoData, setActiveVideoData] = useState<FullVideoData | null>(null);
   const [isLoadingActive, setIsLoadingActive] = useState(false);
 
-  // Filter only YouTube videos
+  // Filter only YouTube videos (metadata is fetched for all of them, once)
   const youtubeVideos = useMemo(
     () => sortVideos(videos.filter((v) => v.site === "YouTube")),
     [videos]
   );
 
-  const filteredVideos = useMemo(
-    () => (filter === "All" ? youtubeVideos : youtubeVideos.filter((v) => v.type === filter)),
-    [youtubeVideos, filter]
+  const liveVideos = useMemo(
+    () => youtubeVideos.filter((v) => !unavailableKeys.has(v.key)),
+    [youtubeVideos, unavailableKeys]
   );
 
-  const videoTypes = useMemo(() => getVideoTypes(youtubeVideos), [youtubeVideos]);
+  const videoTypes = useMemo(() => getVideoTypes(liveVideos), [liveVideos]);
+  // A type whose every video turned out to be gone disappears from the chips.
+  const activeFilter = videoTypes.includes(filter) ? filter : "All";
+
+  const filteredVideos = useMemo(
+    () =>
+      activeFilter === "All" ? liveVideos : liveVideos.filter((v) => v.type === activeFilter),
+    [liveVideos, activeFilter]
+  );
 
   // Keep screen on during video playback
   useEffect(() => {
@@ -219,8 +270,10 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
     }
   }, [isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Initialize with first video
-  const activeVideo = currentVideo || filteredVideos[0];
+  // Initialize with first (still available) video
+  const activeVideo: Video | undefined =
+    (currentVideo && !unavailableKeys.has(currentVideo.key) ? currentVideo : undefined) ??
+    filteredVideos[0];
 
   // Fetch batch metadata for all videos
   const fetchBatchMetadata = useCallback(
@@ -302,7 +355,7 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
     return () => window.removeEventListener("resize", updateHeight);
   }, []);
 
-  if (!youtubeVideos.length) return null;
+  if (!activeVideo) return null;
 
   const handleVideoSelect = (video: Video) => {
     if (mediaId && mediaType) {
@@ -320,7 +373,7 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
   const activeStats = activeVideoData?.stats;
   const activeComments = activeVideoData?.comments?.comments || [];
 
-  // Total height = player + info below (approx 120px for title/stats)
+  // Desktop sidebar height = player + info below (approx 120px for title/stats)
   const sidebarHeight = playerHeight > 0 ? playerHeight + 120 : 450;
 
   return (
@@ -341,9 +394,12 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
               {videoTypes.map((type) => (
                 <Button
                   key={type}
-                  variant={filter === type ? "secondary" : "ghost"}
+                  variant={activeFilter === type ? "secondary" : "ghost"}
                   size="sm"
-                  className={cn("text-xs h-7 px-3 shrink-0", filter === type && "bg-secondary")}
+                  className={cn(
+                    "text-xs h-7 px-3 shrink-0",
+                    activeFilter === type && "bg-secondary"
+                  )}
                   onClick={() => setFilter(type)}
                 >
                   {type}
@@ -355,19 +411,18 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
         )}
       </div>
 
-      {/* Desktop: Main video + thumbnails sidebar - synced heights */}
-      <div className="hidden md:flex gap-4 px-4 md:px-8 lg:px-12">
-        {/* Main video player - takes remaining space after sidebar */}
-        <div className="flex-1 min-w-0">
+      {/* Mobile: player, then a horizontal strip of thumbnails.
+          Desktop: player + a thumbnails sidebar with synced height. */}
+      <div className="flex flex-col gap-4 md:flex-row md:px-8 lg:px-12">
+        {/* Main video player - takes remaining space after the sidebar */}
+        <div className="flex-1 min-w-0 px-4 md:px-0">
           <div
             ref={mainPlayerRef}
-            className="relative aspect-video rounded-xl overflow-hidden bg-black"
+            className="relative aspect-video rounded-lg md:rounded-xl overflow-hidden bg-black"
           >
             {/* The iframe mounts only once the viewer presses play (facade
-                until then) and ONLY on desktop — see the isMobile note above.
-                isPlaying can only flip after hydration, so useMobile() has
-                settled by then and exactly one layout ever mounts a player. */}
-            {isPlaying && !isMobile ? (
+                until then), in the gallery's single player slot. */}
+            {isPlaying ? (
               <iframe
                 src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?rel=0&autoplay=1`}
                 loading="lazy"
@@ -377,15 +432,18 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
                 className="absolute inset-0 w-full h-full"
               />
             ) : (
-              <PlayerFacade video={activeVideo} onPlay={handlePlayActive} />
+              <PlayerFacade
+                video={activeVideo}
+                onPlay={handlePlayActive}
+                onUnavailable={markUnavailable}
+              />
             )}
           </div>
 
           {/* Video info with stats */}
-          <div className="mt-2 space-y-1.5">
-            <h3 className="font-medium line-clamp-1">{activeVideo.name}</h3>
+          <div className="mt-2 space-y-2 md:space-y-1.5">
+            <h3 className="font-medium line-clamp-1 text-sm md:text-base">{activeVideo.name}</h3>
 
-            {/* Video stats - compact with channel image */}
             {isLoadingActive ? (
               <VideoStatsSkeleton />
             ) : activeStats ? (
@@ -400,131 +458,38 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
               />
             ) : null}
 
-            {/* Comments in card */}
+            {/* Comments card - desktop only (the mobile layout stays compact) */}
             {activeComments.length > 0 && (
-              <VideoComments comments={activeComments} isLoading={isLoadingActive} />
+              <div className="hidden md:block">
+                <VideoComments comments={activeComments} isLoading={isLoadingActive} />
+              </div>
             )}
           </div>
         </div>
 
-        {/* Thumbnails sidebar - 35-40% width on larger screens */}
-        <div className="w-[35%] lg:w-[40%] min-w-[320px] flex-shrink-0">
-          <ScrollArea style={{ height: `${sidebarHeight}px` }}>
-            <div className="space-y-1 pr-3">
-              {filteredVideos.map((video) => (
-                <VideoThumbnail
-                  key={video.id}
-                  video={video}
-                  isActive={video.id === activeVideo.id}
-                  onClick={() => handleVideoSelect(video)}
-                  metadata={videoMetadata.get(video.key)}
-                />
-              ))}
-            </div>
-          </ScrollArea>
-        </div>
-      </div>
-
-      {/* Mobile: Horizontal scroll of thumbnails */}
-      <div className="md:hidden">
-        {/* Current video player */}
-        <div className="px-4 mb-4">
-          <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
-            {/* Facade until play; iframe ONLY on mobile — see the notes above. */}
-            {isPlaying && isMobile ? (
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?rel=0&autoplay=1`}
-                loading="lazy"
-                title={activeVideo.name}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="absolute inset-0 w-full h-full"
-              />
-            ) : (
-              <PlayerFacade video={activeVideo} onPlay={handlePlayActive} />
+        {/* Thumbnails: horizontal strip on mobile, scrolling sidebar
+            (35-40% width, player-synced height) on desktop. */}
+        <div className="md:w-[35%] lg:w-[40%] md:min-w-[320px] md:flex-shrink-0">
+          <div
+            data-testid="video-thumbnails"
+            className={cn(
+              "flex gap-3 overflow-x-auto scrollbar-thin touch-manipulation px-4 pb-4",
+              "md:flex-col md:gap-1 md:overflow-x-hidden md:overflow-y-auto md:px-0 md:pr-3 md:pb-0 md:h-[var(--video-sidebar-h)]"
             )}
-          </div>
-
-          {/* Mobile video info */}
-          <div className="mt-2 space-y-2">
-            <h3 className="font-medium line-clamp-1 text-sm">{activeVideo.name}</h3>
-
-            {/* Mobile stats */}
-            {isLoadingActive ? (
-              <VideoStatsSkeleton />
-            ) : activeStats ? (
-              <VideoStats
-                viewCount={activeStats.viewCount}
-                likeCount={activeStats.likeCount}
-                dislikeCount={activeStats.dislikeCount}
-                publishedAt={activeStats.publishedAt}
-                channelTitle={activeStats.channelTitle}
-                channelThumbnail={activeStats.channelThumbnail}
-              />
-            ) : null}
-          </div>
-        </div>
-
-        {/* Horizontal scroll of other videos */}
-        <ScrollContainer gap="gap-3" padding="px-4" showControls={false}>
-          {filteredVideos.map((video) => {
-            const meta = videoMetadata.get(video.key);
-            return (
-              <button
-                key={video.id}
+            style={{ "--video-sidebar-h": `${sidebarHeight}px` } as CSSProperties}
+          >
+            {filteredVideos.map((video) => (
+              <VideoThumbnail
+                key={video.id ?? video.key}
+                video={video}
+                isActive={video.key === activeVideo.key}
                 onClick={() => handleVideoSelect(video)}
-                className={cn(
-                  "relative flex-shrink-0 w-[140px] rounded-lg overflow-hidden transition-all text-left",
-                  video.id === activeVideo.id && "ring-2 ring-brand"
-                )}
-              >
-                <div className="relative aspect-video">
-                  <Image
-                    src={`https://img.youtube.com/vi/${video.key}/mqdefault.jpg`}
-                    // A removed YouTube video's thumbnail 404s for everyone: hide it so the
-                    // card shows its background, not a broken-image icon.
-                    onError={(e) => {
-                      e.currentTarget.style.visibility = "hidden";
-                    }}
-                    alt={video.name}
-                    fill
-                    className="object-cover"
-                    sizes="140px"
-                    unoptimized
-                  />
-                  {/* Duration badge */}
-                  {meta?.duration && (
-                    <Badge
-                      variant="secondary"
-                      className="absolute bottom-1 right-1 text-[8px] px-1 py-0 bg-black/80 text-white border-0 font-mono"
-                    >
-                      {formatDuration(meta.duration)}
-                    </Badge>
-                  )}
-                  <Badge
-                    variant="secondary"
-                    className="absolute bottom-1 left-1 text-[9px] px-1 py-0 bg-black/70 text-white border-0"
-                  >
-                    {video.type}
-                  </Badge>
-                </div>
-                <div className="mt-1 px-0.5">
-                  <p className="text-[11px] text-muted-foreground line-clamp-1">
-                    {meta?.title || video.name}
-                  </p>
-                  {meta?.viewCount ? (
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <Eye className="h-2.5 w-2.5 text-muted-foreground" />
-                      <span className="text-[10px] text-muted-foreground">
-                        {formatViewCount(meta.viewCount)}
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
-              </button>
-            );
-          })}
-        </ScrollContainer>
+                onUnavailable={markUnavailable}
+                metadata={videoMetadata.get(video.key)}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -533,6 +498,9 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
 // Compact version for use in scrollers (if needed elsewhere)
 export function VideoCard({ video, onClick }: { video: Video; onClick: () => void }) {
   const thumbnailUrl = `https://img.youtube.com/vi/${video.key}/mqdefault.jpg`;
+  // Deleted/private video: render nothing rather than a blank tile.
+  const [unavailable, setUnavailable] = useState(false);
+  if (unavailable) return null;
 
   return (
     <button
@@ -542,11 +510,10 @@ export function VideoCard({ video, onClick }: { video: Video; onClick: () => voi
       <div className="relative aspect-video rounded-lg overflow-hidden">
         <Image
           src={thumbnailUrl}
-          // A removed YouTube video's thumbnail 404s for everyone: hide it so the
-          // card shows its background, not a broken-image icon.
-          onError={(e) => {
-            e.currentTarget.style.visibility = "hidden";
+          onLoad={(e) => {
+            if (isYouTubePlaceholderThumb(e.currentTarget)) setUnavailable(true);
           }}
+          onError={() => setUnavailable(true)}
           alt={video.name}
           fill
           className="object-cover transition-transform group-hover:scale-105"

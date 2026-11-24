@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { mergeSearch, pickParam, withSearch } from "@/lib/url-state";
 import { useScrollRestorationGate } from "@/components/features/layout/scroll-restoration";
 import { HubThreadCard } from "./hub-thread-card";
+import { HubEmptyState } from "./hub-empty-state";
 import { AudienceFilterSlot } from "@/components/features/discussion/audience-filter-slot";
 import { getHubFollowing, type HubTab } from "@/server/actions/discussions-hub";
 import type { HubThreadCard as Card } from "@/server/db/postgres/social/discussion-hub";
@@ -91,9 +92,7 @@ export function HubTabs({ initialHot, initialNew }: { initialHot: Card[]; initia
       {loading ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
       ) : cards.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          {tab === "following" ? "Follow people or track shows to see their discussions here." : "No discussions yet."}
-        </p>
+        <HubEmptyState tab={tab} />
       ) : (
         <div className="space-y-2">
           {cards.map((c) => (

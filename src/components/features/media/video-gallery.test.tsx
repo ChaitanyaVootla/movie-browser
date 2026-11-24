@@ -9,7 +9,8 @@
  * were permanently in the DOM — Tailwind `hidden` is `display:none`, which does
  * NOT unload an iframe or stop its audio. Fix: gate each iframe on
  * `useMobile()` (same 768px `md` breakpoint) so only the visible layout mounts
- * a player.
+ * a player. Since Nov 2026 the gallery is ONE responsive layout (no twin
+ * blocks at all), so there is a single player slot by construction.
  *
  * BUG 2 (perf audit Oct 2026): every detail-page view eagerly loaded the
  * YouTube player (base.js + ytembeds, ~2.5MB decoded JS) far below the fold —
@@ -19,7 +20,7 @@
  * JS, TBT 1.7s). Fix: a thumbnail click-to-play facade; the iframe mounts only
  * on play, by which point the layout is known.
  */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -83,8 +84,8 @@ async function renderGallery() {
 
 /** Press the facade's play button in whichever layout is visible. */
 function pressPlay() {
-  // Both responsive layouts render a (stateless) facade; either starts playback.
-  fireEvent.click(screen.getAllByRole("button", { name: "Play Official Trailer" })[0]);
+  // One responsive layout = one facade (asserted below).
+  fireEvent.click(screen.getByRole("button", { name: "Play Official Trailer" }));
 }
 
 describe("VideoGallery — no player until play", () => {
@@ -134,5 +135,96 @@ describe("VideoGallery — exactly one YouTube player once playing", () => {
     );
     expect(keys.length).toBeGreaterThan(0);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+/**
+ * One thumbnail list, not two: the strip used to be rendered in BOTH a
+ * `hidden md:flex` desktop block and an `md:hidden` mobile block — every tile
+ * (and its image request) twice in the DOM.
+ */
+describe("VideoGallery — single responsive layout", () => {
+  it.each([
+    ["desktop", false],
+    ["mobile", true],
+  ])("renders each thumbnail and the player facade exactly once (%s)", async (_label, mobile) => {
+    isMobileMock.mockReturnValue(mobile);
+    await renderGallery();
+    for (const key of ["abc123", "def456"]) {
+      expect(document.querySelectorAll(`img[src*="img.youtube.com/vi/${key}/mqdefault.jpg"]`)).toHaveLength(1);
+    }
+    expect(screen.getAllByRole("button", { name: "Play Official Trailer" })).toHaveLength(1);
+    expect(document.querySelectorAll('[data-testid="video-thumbnails"]')).toHaveLength(1);
+  });
+
+  it("server-renders one thumbnail list", async () => {
+    const { VideoGallery } = await import("./video-gallery");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const html = renderToString(<VideoGallery videos={VIDEOS as any} />);
+    expect(html.match(/img\.youtube\.com\/vi\/def456\/mqdefault\.jpg/g)).toHaveLength(1);
+  });
+});
+
+/** Simulate the browser finishing an image load with a given decoded width. */
+function loadImage(img: HTMLImageElement, naturalWidth: number) {
+  Object.defineProperty(img, "naturalWidth", { configurable: true, value: naturalWidth });
+  // next/image dedupes onLoad per src; clear its marker so this load is handled.
+  delete (img as unknown as Record<string, unknown>)["data-loaded-src"];
+  fireEvent.load(img);
+}
+
+const thumb = (key: string) =>
+  document.querySelector<HTMLImageElement>(`img[src*="img.youtube.com/vi/${key}/mqdefault.jpg"]`);
+
+/**
+ * A deleted/private YouTube video's thumbnail is a 120×90 grey placeholder
+ * served WITHOUT an error, so the old onError-only handling left a blank tile.
+ */
+describe("VideoGallery — unavailable YouTube videos", () => {
+  it("isYouTubePlaceholderThumb: 120px-wide placeholder vs real thumbnails", async () => {
+    const { isYouTubePlaceholderThumb } = await import("./video-gallery");
+    const img = (w: number) => ({ naturalWidth: w }) as HTMLImageElement;
+    expect(isYouTubePlaceholderThumb(img(120))).toBe(true);
+    expect(isYouTubePlaceholderThumb(img(320))).toBe(false); // mqdefault
+    expect(isYouTubePlaceholderThumb(img(480))).toBe(false); // hqdefault
+    expect(isYouTubePlaceholderThumb(img(0))).toBe(false); // not decoded yet
+  });
+
+  it("drops a tile whose thumbnail is YouTube's placeholder", async () => {
+    await renderGallery();
+    loadImage(thumb("def456")!, 120);
+    await waitFor(() => expect(thumb("def456")).toBeNull());
+    expect(thumb("abc123")).not.toBeNull();
+  });
+
+  it("keeps a tile whose thumbnail is real", async () => {
+    await renderGallery();
+    loadImage(thumb("def456")!, 320);
+    // Let next/image's decode() promise settle before asserting.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(thumb("def456")).not.toBeNull();
+  });
+
+  it("drops a tile whose thumbnail fails to load", async () => {
+    await renderGallery();
+    fireEvent.error(thumb("def456")!);
+    await waitFor(() => expect(thumb("def456")).toBeNull());
+  });
+
+  it("moves the main player to the next available video when the first is gone", async () => {
+    await renderGallery();
+    loadImage(thumb("abc123")!, 120);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Play Teaser" })).toBeInTheDocument()
+    );
+    expect(screen.queryByRole("button", { name: "Play Official Trailer" })).toBeNull();
+  });
+
+  it("renders nothing when every video is gone", async () => {
+    await renderGallery();
+    loadImage(thumb("abc123")!, 120);
+    await waitFor(() => expect(thumb("abc123")).toBeNull());
+    loadImage(thumb("def456")!, 120);
+    await waitFor(() => expect(document.querySelector('[data-testid="video-thumbnails"]')).toBeNull());
   });
 });

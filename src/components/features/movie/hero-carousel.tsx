@@ -253,8 +253,11 @@ export function HeroCarousel({
 
         {/* Content - stacked below image on mobile, overlay on desktop. Mounted
             slides share one grid cell so the block's height is the max of the
-            window (no collapse/regrow shift on swap, unlike mode="wait"). */}
-        <div className="relative z-10 bg-black px-4 -mt-8 pb-10 min-h-[160px] md:min-h-0 md:absolute md:inset-0 md:mt-0 md:pb-0 md:bg-transparent md:flex md:flex-col md:justify-end md:px-8 lg:px-12">
+            window (no collapse/regrow shift on swap, unlike mode="wait").
+            Mobile spacing is tight on purpose: the dots row below carries its
+            own p-3 tap padding, so a bottom pad here (was pb-10) only stacked
+            empty space under the hero (DESIGN.md: hero content bottom-anchored). */}
+        <div className="relative z-10 bg-black px-4 -mt-8 pb-1 min-h-[160px] md:min-h-0 md:absolute md:inset-0 md:mt-0 md:pb-0 md:bg-transparent flex flex-col justify-end md:px-8 lg:px-12">
           <div className="grid">
             {items.map((item, index) => {
               if (!isInWindow(index)) return null;
@@ -272,9 +275,12 @@ export function HeroCarousel({
                   initial="hidden"
                   animate={isCurrent ? "visible" : "hidden"}
                   className={cn(
-                    // md: bottom-pin content within the cell so the visible slide
-                    // stays hero-bottom-anchored even when a hidden sibling is taller
-                    "[grid-area:1/1] md:pb-6 lg:pb-8 md:flex md:flex-col md:justify-end",
+                    // Bottom-pin content within the cell (all breakpoints) so the
+                    // visible slide stays hero-bottom-anchored even when a hidden
+                    // sibling is taller. On mobile the cell's spare height then
+                    // sits under the backdrop's fade instead of as an empty band
+                    // between the slide and the dots.
+                    "[grid-area:1/1] flex flex-col justify-end md:pb-6 lg:pb-8",
                     !isCurrent && "pointer-events-none"
                   )}
                   aria-hidden={!isCurrent}
@@ -306,7 +312,7 @@ export function HeroCarousel({
         </div>
 
         {/* Progress dots - centered below content on mobile, right-aligned on desktop */}
-        <div className="relative z-20 flex justify-center pb-4 bg-black md:bg-transparent md:absolute md:bottom-6 md:pb-0 md:right-8 lg:right-12">
+        <div className="relative z-20 flex justify-center pb-1 bg-black md:bg-transparent md:absolute md:bottom-6 md:pb-0 md:right-8 lg:right-12">
           <div className="flex gap-0 items-center">
             {items.map((_, index) => (
               <button
