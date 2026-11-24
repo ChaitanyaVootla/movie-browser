@@ -1,7 +1,7 @@
 /**
  * YouTube API Service
  *
- * Handles YouTube Data API v3 and Return YouTube Dislike API calls.
+ * Handles YouTube Data API v3 calls (Return YouTube Dislike lives in ./youtube-dislike).
  * Uses unified L1+L2 cache with age-based TTL:
  * - Recent videos (<30 days): 24 hour cache
  * - Older videos (>30 days): 7 day cache (stats stabilize after ~30 days)
@@ -12,6 +12,7 @@
 
 import { cachedFetch, cacheGet, cacheSet } from "@/lib/cache";
 import { dataLogger } from "@/lib/logger";
+import { getVideoDislike } from "./youtube-dislike";
 import type {
   YouTubeVideoStats,
   YouTubeComment,
@@ -21,7 +22,6 @@ import type {
 
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
-const RETURN_YOUTUBE_DISLIKE_API = "https://returnyoutubedislikeapi.com";
 
 // Age-based cache TTL configuration (in seconds)
 const CACHE_TTL = {
@@ -361,73 +361,11 @@ export async function getSingleVideoStats(videoId: string): Promise<YouTubeVideo
 }
 
 // ============================================
-// Dislike Data (Return YouTube Dislike API)
+// Dislike Data (Return YouTube Dislike API) — see ./youtube-dislike.ts
 // ============================================
 
-/**
- * Fetch dislike data from Return YouTube Dislike API
- * Rate limits: 100 requests/minute, 10,000 requests/day
- *
- * Uses 3-day cache since:
- * - Dislike counts change slowly
- * - The API has strict rate limits
- * - We don't have publishedAt to determine video age here
- */
-export async function getVideoDislike(videoId: string): Promise<YouTubeDislikeData | null> {
-  const cacheKey = `dislike:${videoId}`;
-  const DISLIKE_CACHE_TTL = 259200; // 3 days - moderate since dislikes change slowly
-
-  try {
-    const data = await cachedFetch<YouTubeDislikeData>(
-      "youtube",
-      cacheKey,
-      async () => {
-        const url = `${RETURN_YOUTUBE_DISLIKE_API}/votes?videoId=${videoId}`;
-        const response = await fetch(url, { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error(`Dislike API error: ${response.status}`);
-        }
-        return response.json();
-      },
-      DISLIKE_CACHE_TTL
-    );
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch dislike data:", error);
-    return null;
-  }
-}
-
-/**
- * Batch fetch dislike data for multiple videos
- */
-export async function getVideoDislikes(
-  videoIds: string[]
-): Promise<Map<string, YouTubeDislikeData>> {
-  const results = new Map<string, YouTubeDislikeData>();
-
-  // Return YouTube Dislike API doesn't support batch requests
-  // Fetch in parallel with a small delay to avoid rate limiting
-  const BATCH_SIZE = 10;
-
-  for (let i = 0; i < videoIds.length; i += BATCH_SIZE) {
-    const batch = videoIds.slice(i, i + BATCH_SIZE);
-    const promises = batch.map(async (videoId) => {
-      const data = await getVideoDislike(videoId);
-      if (data) {
-        results.set(videoId, data);
-      }
-    });
-    await Promise.all(promises);
-
-    // Small delay between batches to respect rate limits
-    if (i + BATCH_SIZE < videoIds.length) {
-      await new Promise((r) => setTimeout(r, 100));
-    }
-  }
-
-  return results;
-}
+export { getVideoDislike, getVideoDislikes, lookupVideoDislike } from "./youtube-dislike";
+export type { DislikeLookup } from "./youtube-dislike";
 
 // ============================================
 // Comments

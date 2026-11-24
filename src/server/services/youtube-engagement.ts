@@ -18,7 +18,8 @@
  */
 
 import { prisma } from "@/server/db/postgres";
-import { getVideoStats, getVideoDislike, getVideoComments } from "./youtube";
+import { getVideoStats, lookupVideoDislike, getVideoComments } from "./youtube";
+import { dislikeCountToStore } from "./youtube-dislike";
 import type { YouTubeVideoStats, YouTubeComment } from "@/types";
 import { dataLogger } from "@/lib/logger";
 
@@ -234,9 +235,9 @@ async function fetchAndStoreEngagement(video: VideoDbRecord): Promise<VideoEngag
   const { key: videoKey, id: videoDbId, publishedAt } = video;
 
   // Fetch stats, dislikes, and comments in parallel
-  const [statsMap, dislikeData, commentsData] = await Promise.all([
+  const [statsMap, dislikeLookup, commentsData] = await Promise.all([
     getVideoStats([videoKey]),
-    getVideoDislike(videoKey),
+    lookupVideoDislike(videoKey),
     getVideoComments(videoKey, 20, undefined, publishedAt?.toISOString()),
   ]);
 
@@ -252,8 +253,10 @@ async function fetchAndStoreEngagement(video: VideoDbRecord): Promise<VideoEngag
     return null;
   }
 
-  // Merge dislike count
-  const dislikeCount = dislikeData?.dislikes ?? 0;
+  // Merge dislike count. A transient RYD failure keeps the stored value instead of
+  // overwriting it with 0.
+  const dislikeUpdate = dislikeCountToStore(dislikeLookup);
+  const dislikeCount = dislikeUpdate ?? video.dislikeCount ?? 0;
 
   // Prepare top comments for storage (serializable JSON)
   const topCommentsJson = commentsData.comments.map((c) => ({
@@ -285,7 +288,7 @@ async function fetchAndStoreEngagement(video: VideoDbRecord): Promise<VideoEngag
       name: stats.title || undefined, // Override TMDB name with YouTube title
       viewCount: BigInt(stats.viewCount),
       likeCount: stats.likeCount,
-      dislikeCount,
+      dislikeCount: dislikeUpdate,
       commentCount: stats.commentCount,
       topComments: topCommentsJson,
       metadata: metadataJson,
@@ -327,12 +330,15 @@ async function fetchAndStoreDislikesAndComments(
   const { key: videoKey, id: videoDbId, publishedAt } = video;
 
   // Fetch dislikes (free API) and comments in parallel
-  const [dislikeData, commentsData] = await Promise.all([
-    getVideoDislike(videoKey),
+  const [dislikeLookup, commentsData] = await Promise.all([
+    lookupVideoDislike(videoKey),
     getVideoComments(videoKey, 20, undefined, publishedAt?.toISOString()),
   ]);
 
-  const dislikeCount = dislikeData?.dislikes ?? 0;
+  // On a transient RYD failure leave dislikeCount NULL so the next selection retries
+  // (a stored 0 would mark the video "attempted" until its stats go stale).
+  const dislikeUpdate = dislikeCountToStore(dislikeLookup);
+  const dislikeCount = dislikeUpdate ?? 0;
 
   // Prepare top comments for storage
   const topCommentsJson = commentsData.comments.map((c) => ({
@@ -351,7 +357,7 @@ async function fetchAndStoreDislikesAndComments(
   await prisma.video.update({
     where: { id: videoDbId },
     data: {
-      dislikeCount,
+      dislikeCount: dislikeUpdate,
       topComments: topCommentsJson,
       // Don't update engagementScrapedAt - stats timestamp is still valid
     },

@@ -39,12 +39,17 @@ interface GoogleButtonOptions {
   width?: string | number;
 }
 
+/**
+ * The FedCM-era PromptMomentNotification surface. Under FedCM Google REMOVED the
+ * display-moment methods (`isDisplayMoment`, `isDisplayed`, `isNotDisplayed`,
+ * `getNotDisplayedReason`) and no longer provides a detailed skipped reason
+ * (`getSkippedReason`) — calling them logs GSI deprecation warnings and returns
+ * nothing useful. They are deliberately left out of this type so they cannot be
+ * reintroduced. See developers.google.com/identity/gsi/web/guides/fedcm-migration.
+ */
 interface GoogleNotification {
-  isNotDisplayed: () => boolean;
   isSkippedMoment: () => boolean;
   isDismissedMoment: () => boolean;
-  getNotDisplayedReason: () => string;
-  getSkippedReason: () => string;
   getDismissedReason: () => string;
 }
 
@@ -140,24 +145,7 @@ export function GoogleOneTap({ delay = 1500, promptParentId }: GoogleOneTapProps
       promptShown.current = true;
 
       window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed()) {
-          const reason = notification.getNotDisplayedReason();
-          // These are expected scenarios, not errors. Whatever the reason,
-          // the answer won't change within this session — don't re-attempt
-          // on every hard navigation.
-          try {
-            sessionStorage.setItem(ONE_TAP_SESSION_KEY, "1");
-          } catch {
-            // Storage unavailable (private mode) — retrying is harmless
-          }
-          if (reason === "suppressed_by_user" || reason === "opt_out_or_no_session") {
-            console.debug("One Tap not shown:", reason);
-          } else if (reason === "browser_not_supported") {
-            console.debug("Browser does not support One Tap");
-          } else {
-            console.debug("One Tap not displayed:", reason);
-          }
-        } else if (notification.isDismissedMoment()) {
+        if (notification.isDismissedMoment()) {
           const reason = notification.getDismissedReason();
           // User intentionally closed - set cooldown
           if (reason === "user_cancel" || reason === "cancel_called") {
@@ -165,11 +153,17 @@ export function GoogleOneTap({ delay = 1500, promptParentId }: GoogleOneTapProps
             console.debug("User dismissed One Tap, cooldown set");
           }
         } else if (notification.isSkippedMoment()) {
-          const reason = notification.getSkippedReason();
-          if (reason === "tap_outside") {
-            // Tapped outside - shorter cooldown might be appropriate
-            console.debug("One Tap skipped:", reason);
+          // Under FedCM a prompt that is never shown (no Google session,
+          // opt-out, FedCM blocked/unsupported) and one the user closes both
+          // surface as a skipped moment, with no reason available. These are
+          // expected, not errors, and the answer won't change within this
+          // session — don't re-attempt on every hard navigation.
+          try {
+            sessionStorage.setItem(ONE_TAP_SESSION_KEY, "1");
+          } catch {
+            // Storage unavailable (private mode) — retrying is harmless
           }
+          console.debug("One Tap skipped");
         }
       });
     } catch (error) {
