@@ -73,13 +73,13 @@ export function ProfileHero({ profile }: { profile: PublicProfileDTO }) {
           <UserModerationMenu username={profile.username} />
           <span className="text-xs font-medium text-white/70">
             <strong className="text-white">{profile.counts.followers.toLocaleString()}</strong>{" "}
-            followers ·{" "}
+            {profile.counts.followers === 1 ? "follower" : "followers"} ·{" "}
             <strong className="text-white">{profile.counts.following.toLocaleString()}</strong>{" "}
             following
           </span>
         </div>
 
-        {backdrop && (
+        {backdrop?.titleName && (
           <Link
             href={getMediaPath(backdrop.mediaType, backdrop.tmdbId, backdrop.titleName)}
             prefetch={false}

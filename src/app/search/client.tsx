@@ -227,7 +227,7 @@ export function SearchClient({ initialQuery }: SearchClientProps) {
     <div className="space-y-6">
       {/* Search Header */}
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Search</h1>
+        <h2 className="text-2xl font-bold tracking-tight md:text-3xl">Search</h2>
 
         {/* Search Input */}
         <form onSubmit={handleSubmit} className="relative">

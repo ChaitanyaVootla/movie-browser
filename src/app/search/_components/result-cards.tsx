@@ -24,7 +24,7 @@ export function HybridResultCard({ result }: { result: HybridSearchResult }) {
 
   return (
     <Link href={href} prefetch={false}>
-      <Card className="overflow-hidden transition-colors hover:bg-accent/50">
+      <Card className="gap-0 overflow-hidden py-0 transition-colors hover:bg-accent/50">
         <CardContent className="flex gap-4 p-3">
           {/* Poster */}
           <div className="relative h-28 w-20 flex-shrink-0 overflow-hidden rounded-md bg-muted">
@@ -52,8 +52,10 @@ export function HybridResultCard({ result }: { result: HybridSearchResult }) {
 
           {/* Info */}
           <div className="flex flex-1 flex-col justify-center overflow-hidden">
-            <div className="flex items-center gap-2">
-              <h3 className="truncate font-semibold">{result.title}</h3>
+            {/* Badges wrap under the title on narrow screens instead of
+                squeezing it to "Du…" (flex-shrink-0 badges never give way). */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h3 className="line-clamp-2 font-semibold max-sm:w-full sm:truncate">{result.title}</h3>
               <Badge variant="outline" className="flex-shrink-0">
                 {isMovie ? "Movie" : "TV"}
               </Badge>
@@ -107,7 +109,7 @@ function PersonResultCard({ result }: { result: HybridSearchResult }) {
 
   return (
     <Link href={href} prefetch={false}>
-      <Card className="overflow-hidden transition-colors hover:bg-accent/50">
+      <Card className="gap-0 overflow-hidden py-0 transition-colors hover:bg-accent/50">
         <CardContent className="flex gap-4 p-3">
           {/* Profile Image */}
           <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-full bg-muted">
@@ -131,8 +133,10 @@ function PersonResultCard({ result }: { result: HybridSearchResult }) {
 
           {/* Info */}
           <div className="flex flex-1 flex-col justify-center overflow-hidden">
-            <div className="flex items-center gap-2">
-              <h3 className="truncate font-semibold">{result.title}</h3>
+            {/* Badges wrap under the title on narrow screens instead of
+                squeezing it to "Du…" (flex-shrink-0 badges never give way). */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h3 className="line-clamp-2 font-semibold max-sm:w-full sm:truncate">{result.title}</h3>
               <Badge variant="outline" className="flex-shrink-0">
                 Person
               </Badge>
@@ -150,7 +154,7 @@ export function ResultsSkeleton() {
   return (
     <div className="space-y-3">
       {Array.from({ length: 6 }).map((_, i) => (
-        <Card key={i}>
+        <Card key={i} className="gap-0 py-0">
           <CardContent className="flex gap-4 p-3">
             <Skeleton className="h-28 w-20 rounded-md" />
             <div className="flex-1 space-y-2 py-2">

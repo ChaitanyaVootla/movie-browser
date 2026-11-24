@@ -61,13 +61,12 @@ export function NavBar() {
     );
 
   // Detect OS for keyboard shortcut display (client-side only)
-  const [isMac, setIsMac] = useState(() => {
-    // Default to true for SSR, will be corrected on client
-    if (typeof window === "undefined") return true;
-    return navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-  });
+  // MUST start identical on server and client: a lazy initializer that read
+  // navigator here rendered "Ctrl" against the server's "⌘" for every non-Mac
+  // visitor → React #418 on every page and a full client re-render. The effect
+  // corrects it after hydration.
+  const [isMac, setIsMac] = useState(true);
   useEffect(() => {
-    // Re-check on client mount in case SSR value differs
     const isMacOS = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
     if (isMac !== isMacOS) {
       setIsMac(isMacOS);
