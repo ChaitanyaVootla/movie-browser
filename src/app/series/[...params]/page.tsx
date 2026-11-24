@@ -5,6 +5,7 @@ import { getSeries as getSeriesBase } from "@/server/actions/series";
 import { getSeasonEpisodesFromPostgres } from "@/server/db/postgres/season-episodes";
 import { getDefaultSeasonNumber } from "@/lib/series-default-season";
 import { watchDescription } from "@/lib/seo/meta-description";
+import { watchTitle } from "@/lib/seo/meta-title";
 import { seriesExists } from "@/server/services/media-exists";
 import { getMediaPath } from "@/lib/utils";
 import {
@@ -157,11 +158,8 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
   const year = series.first_air_date?.split("-")[0];
   const titleBase = year ? `${series.name} (${year})` : series.name;
   // "where to watch X" is the #1 query class for this site — bake the intent
-  // into the SERP title unless the name itself is already long.
-  const title =
-    series.name.length <= 35
-      ? `${titleBase} — Where to Watch, Ratings & Cast | ${SITE_NAME}`
-      : `${titleBase} | ${SITE_NAME}`;
+  // into the SERP title, within Google's ~60-character display budget.
+  const title = watchTitle(titleBase, SITE_NAME);
   const watchIntro = `Where to watch ${titleBase} — streaming options, ratings, cast & episodes.`;
   // Prefer the AI hook over the TMDB overview: every TMDB-based site serves
   // the identical overview text (duplicate SERP snippets); the hook is unique

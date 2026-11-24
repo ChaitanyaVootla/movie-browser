@@ -19,6 +19,7 @@ import {
   getCachedSlug,
   resolveMediaSlug,
   decideMediaRoute,
+  legacyPersonPath,
   NOT_FOUND,
   type MediaType,
   type ResolvedSlug,
@@ -135,6 +136,10 @@ export default auth((req: NextRequest & { auth: Session | null }) => {
   // Any failure falls through to the page (fail open). See media-resolver.ts.
   if (req.method === "GET") {
     try {
+      // Legacy /person/<Name>/<id> (pre-2026 site) → canonical person URL.
+      const legacyPerson = legacyPersonPath(req.nextUrl.pathname);
+      if (legacyPerson) return canonicalRedirect(req, legacyPerson);
+
       const parsed = parseMediaDetailPath(req.nextUrl.pathname);
       if (parsed?.kind === "invalid") {
         // Non-numeric/garbage detail path — can never exist, real 404.
@@ -213,22 +218,7 @@ function applyMediaDecision(
     // slug) CROSS-ORIGIN to origin.* → App-Router client navigation broke. So
     // canonicalize the internal origin host back to the public site host. dev
     // (localhost) / beta / www keep their own host and just get the slug 308.
-    const proto =
-      req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
-    const host =
-      req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host;
-    const base = host === "origin.themoviebrowser.com" ? SITE_URL : `${proto}://${host}`;
-    maybeTrackPageView(req);
-    const redirect = NextResponse.redirect(
-      `${base}${decision.location}${req.nextUrl.search}`,
-      308,
-    );
-    // Let CloudFront cache the canonical-slug redirect — wrong-slug URLs
-    // (old indexed links) otherwise cost an origin round-trip per hit. Safe
-    // to cache long: the canonical slug only changes with a title rename,
-    // and the target page itself revalidates hourly.
-    redirect.headers.set("cache-control", "public, s-maxage=86400");
-    return redirect;
+    return canonicalRedirect(req, decision.location);
   }
 
   if (decision.action === "not_found") {
@@ -242,6 +232,26 @@ function applyMediaDecision(
   }
 
   return passThrough(req, decision.verified);
+}
+
+/** 308 to a canonical path on the host the client asked for (see above). */
+function canonicalRedirect(
+  req: NextRequest & { auth: Session | null },
+  location: string,
+): NextResponse {
+  const proto =
+    req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
+  const host =
+    req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host;
+  const base = host === "origin.themoviebrowser.com" ? SITE_URL : `${proto}://${host}`;
+  maybeTrackPageView(req);
+  const redirect = NextResponse.redirect(`${base}${location}${req.nextUrl.search}`, 308);
+  // Let the edge cache the canonical-slug redirect — wrong-slug URLs (old
+  // indexed links) otherwise cost an origin round-trip per hit. Safe to cache
+  // long: the canonical slug only changes with a title rename, and the target
+  // page itself revalidates hourly.
+  redirect.headers.set("cache-control", "public, s-maxage=86400");
+  return redirect;
 }
 
 /** LRU-miss path: resolve via PG → TMDB, then apply. Never throws. */

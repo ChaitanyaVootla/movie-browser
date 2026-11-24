@@ -11,6 +11,9 @@ clicks.
   `sc-domain:themoviebrowser.com`. Key file: **`gcp_service.json` at the repo
   root — GITIGNORED, local-only, never commit, never copy to the box.** If the
   key is missing, ask the user (they hold the GCP console).
+- **Node helper (use this on Windows)**: `node scripts/gsc.mjs sitemaps | query
+  '<json>' | inspect <url>...` — same API, no python3/openssl. `gsc.sh` fails on the
+  Windows dev box (`python3` is the Microsoft Store stub there).
 - **Helper**: `scripts/gsc.sh` (bash + openssl + python3, no npm deps):
   `sites` · `sitemaps` · `submit-sitemap <url>` · `inspect <page-url>` ·
   `query '<searchanalytics-json>'` · `token`. Property + endpoints are
@@ -315,9 +318,40 @@ interpreting any GSC number:
   hits/day. Cloudflare `bot_management.ai_bots_protection` reads `"block"` yet none of
   these are blocked — it is inert for them; neither fix it nor credit it.
 
+## Nov 25 2026 status — Google has effectively dropped the site; Bing family is the channel
+
+Measured with Search Console + Cloudflare GraphQL + ClickHouse:
+
+- **GSC 30 days: 5 clicks, ~40 impressions.** Every sitemap is fetched with 0 errors
+  (100,067 URLs submitted). URL Inspection: `/` indexed (crawled Nov 22);
+  `interstellar`, `matt-damon`, `/browse` = "Crawled - currently not indexed" with last
+  crawl **Jul 26 / Aug 5** (never re-crawled); `inception`, `breaking-bad`,
+  `rings-of-power`, `/topics` = "URL is unknown to Google". Nothing technical blocks it
+  (robots ALLOWED, self-canonical, 200s). It is Google's quality/trust decision.
+- **Googlebot at the EDGE (Cloudflare, all of it, not just origin): 100-210 req/day**
+  vs bingbot ~7,800/day (~40-70x). 30% of Googlebot's requests were 404s, and ~25% of
+  its origin hits were **legacy pre-2026 URLs** (`/movie/Airheads/13595`,
+  `/person/Dominic%20Raacke/32822`). Those now 308 to the canonical URL
+  (`LEGACY_NAME_FIRST_RE` + `legacyPersonPath` in `media-resolver.ts`, pinned in its
+  test) instead of 404ing, so the old URLs' signal passes to the new ones. The other
+  404 class is old root-level TMDB image paths (`/<hash>.jpg`), not worth redirecting.
+- Google also asks for `sitemap_series_4.xml` / `sitemap_persons_4.xml` from an older,
+  larger generation; they 404. Harmless (not in the index), noted so nobody chases it.
+- **Our referrer numbers are an undercount, worst for popular pages.** Page views are
+  logged at the ORIGIN; a Cloudflare HIT never reaches it, so a search visitor landing
+  on a cached page is not logged with that referrer. Of the confirmed-human sessions
+  over 10 days, 8.9k had our own domain as the FIRST referrer. Browser-side landing
+  attribution (`src/lib/analytics/landing.ts`, its own `landings` table so it never
+  counts as an interaction) fixes this once the table exists on prod.
+- Confirmed-human (web-vitals beacon) sessions by first referrer, 10d: bing 452,
+  duckduckgo 264, yahoo 96, brave 45, chatgpt 20, google 1. Same edge bias applies to
+  all of them, so the ratio stands: Google sends ~nothing.
+- SERP titles were 67-90 chars; now budgeted to 60 (`watchTitle`,
+  `src/lib/seo/meta-title.ts`).
+
 ## Monitoring recipe (do this when asked about SEO health)
 
-1. `scripts/gsc.sh sitemaps` — all fetched? indexed counts moving?
+1. `node scripts/gsc.mjs sitemaps` (or `scripts/gsc.sh`) — all fetched?
 2. `scripts/gsc.sh query '{"startDate":"<30d ago>","endDate":"<today>","dimensions":["date"]}'`
    — clicks/impressions trend.
 3. `scripts/gsc.sh inspect <a-top-movie-url>` — spot-check coverageState.

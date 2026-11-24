@@ -69,6 +69,34 @@ const DISCUSS_PREFIX_RE = /^\/(movie|series)\/\d+(?:\/[^/]+)?\/discuss(\/|$)/;
 // canonicalization (the generic detail regex would otherwise 308 it away).
 const DISCUSSIONS_RE = /^\/(movie|series)\/(\d+)(?:\/[a-z0-9-]+)?\/discussions$/;
 
+// The legacy (pre-2026 Nuxt) site put the NAME first: /movie/Airheads/13595,
+// /series/Breaking-Bad/1396. Google still crawls those from its old index
+// (~25% of Googlebot's origin hits in Nov 2026), and they 404'd, throwing away
+// whatever signal the old URLs had. The first segment must contain a non-digit,
+// so the current /movie/<id>/<slug> form (and a numeric slug like "1917") never
+// matches here.
+const LEGACY_NAME_FIRST_RE = /^\/(movie|series)\/([^/]*[^0-9/][^/]*)\/(\d+)\/?$/;
+const LEGACY_PERSON_RE = /^\/person\/([^/]*[^0-9/][^/]*)\/(\d+)\/?$/;
+
+/**
+ * Canonical target for a legacy /person/<Name>/<id> URL, or null. The slug is
+ * rebuilt from the legacy name; if the person was renamed since, the person
+ * page's own canonicalization takes the last hop.
+ */
+export function legacyPersonPath(pathname: string): string | null {
+  const m = LEGACY_PERSON_RE.exec(pathname);
+  if (!m) return null;
+  const id = Number(m[2]);
+  if (!Number.isSafeInteger(id) || id <= 0 || id > PG_INT4_MAX) return null;
+  let slug = "";
+  try {
+    slug = getSlug(decodeURIComponent(m[1]));
+  } catch {
+    // Malformed escape: let the person page pick the slug.
+  }
+  return slug ? `/person/${id}/${slug}` : `/person/${id}`;
+}
+
 export function parseMediaDetailPath(pathname: string): ParsedMediaPath | null {
   // Discuss suffixes MUST be parsed before MEDIA_DETAIL_RE — that generic regex
   // matches /series/123/anything and would 308 the discuss path away to the
@@ -99,6 +127,14 @@ export function parseMediaDetailPath(pathname: string): ParsedMediaPath | null {
 
   const match = MEDIA_DETAIL_RE.exec(pathname);
   if (!match) {
+    // Legacy name-first URL: resolve like a detail path; decideMediaRoute then
+    // 308s it to the canonical /<type>/<id>/<slug> (or 404s a dead id).
+    const legacy = LEGACY_NAME_FIRST_RE.exec(pathname);
+    if (legacy) {
+      const id = Number(legacy[3]);
+      if (!Number.isSafeInteger(id) || id <= 0 || id > PG_INT4_MAX) return { kind: "invalid" };
+      return { kind: "media", mediaType: legacy[1] as MediaType, id };
+    }
     // Media-prefixed but unparseable (/movie/abc, /movie/null, /series/12abc):
     // these can never be valid detail URLs — real 404, pre-render.
     return MEDIA_PREFIX_RE.test(pathname) ? { kind: "invalid" } : null;

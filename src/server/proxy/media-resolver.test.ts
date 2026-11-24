@@ -5,6 +5,7 @@ import {
   SlugLru,
   resolveMediaSlug,
   decideMediaRoute,
+  legacyPersonPath,
   lruKey,
   NOT_FOUND,
   type ResolverDeps,
@@ -402,5 +403,52 @@ describe("discuss paths", () => {
       { season: 2, episode: 5 },
     );
     expect(decision).toEqual({ action: "next", verified: true });
+  });
+});
+
+describe("legacy name-first URLs (pre-2026 site)", () => {
+  it("parses /movie/<Name>/<id> and redirects it to the canonical slug", () => {
+    expect(parseMediaDetailPath("/movie/Airheads/13595")).toEqual({
+      kind: "media",
+      mediaType: "movie",
+      id: 13595,
+    });
+    expect(decideMediaRoute("/movie/Airheads/13595", "movie", 13595, "airheads")).toEqual({
+      action: "redirect",
+      location: "/movie/13595/airheads",
+    });
+  });
+
+  it("parses legacy series URLs with punctuation in the name", () => {
+    expect(parseMediaDetailPath("/series/Breaking-Bad/1396")).toEqual({
+      kind: "media",
+      mediaType: "series",
+      id: 1396,
+    });
+    expect(parseMediaDetailPath("/movie/Buffalo-'66/9464")).toMatchObject({ id: 9464 });
+  });
+
+  it("does not take the current /<id>/<numeric-slug> form for a legacy URL", () => {
+    // "1917" (id 530915) — canonical form, id comes first.
+    expect(parseMediaDetailPath("/movie/530915/1917")).toEqual({
+      kind: "media",
+      mediaType: "movie",
+      id: 530915,
+    });
+  });
+
+  it("still 404s garbage that is not the legacy shape", () => {
+    expect(parseMediaDetailPath("/movie/abc")).toEqual({ kind: "invalid" });
+    expect(parseMediaDetailPath("/movie/Airheads/0")).toEqual({ kind: "invalid" });
+  });
+
+  it("maps legacy person URLs to the canonical person path", () => {
+    expect(legacyPersonPath("/person/Dominic%20Raacke/32822")).toBe("/person/32822/dominic-raacke");
+    expect(legacyPersonPath("/person/Shang-guan%20Liang/1581410")).toBe(
+      "/person/1581410/shang-guan-liang"
+    );
+    expect(legacyPersonPath("/person/1892/matt-damon")).toBeNull();
+    expect(legacyPersonPath("/person/%E0%A4/5")).toBe("/person/5");
+    expect(legacyPersonPath("/person/Name/0")).toBeNull();
   });
 });

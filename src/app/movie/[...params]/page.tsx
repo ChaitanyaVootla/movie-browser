@@ -28,6 +28,7 @@ import { getMovieCollection } from "@/server/services/tmdb";
 import { movieExists } from "@/server/services/media-exists";
 import { getMediaPath } from "@/lib/utils";
 import { watchDescription } from "@/lib/seo/meta-description";
+import { watchTitle } from "@/lib/seo/meta-title";
 import {
   breadcrumbList,
   trailerVideoObject,
@@ -147,11 +148,8 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
   const year = movie.release_date?.split("-")[0];
   const titleBase = year ? `${movie.title} (${year})` : movie.title;
   // "where to watch X" is the #1 query class for this site — bake the intent
-  // into the SERP title unless the name itself is already long.
-  const title =
-    movie.title.length <= 35
-      ? `${titleBase} — Where to Watch, Ratings & Cast | ${SITE_NAME}`
-      : `${titleBase} | ${SITE_NAME}`;
+  // into the SERP title, within Google's ~60-character display budget.
+  const title = watchTitle(titleBase, SITE_NAME);
   const watchIntro = `Where to watch ${titleBase} — streaming options, ratings, cast & reviews.`;
   // Prefer the AI hook over the TMDB overview: every TMDB-based site serves
   // the identical overview text (duplicate SERP snippets); the hook is unique
