@@ -164,7 +164,8 @@ export async function getVideoEngagement(
     });
 
     if (!video) {
-      dataLogger.warn({
+      // Expected: the client lists TMDB's videos, which can be ahead of PG's copy.
+      dataLogger.info({
         event: "youtube_engagement_video_not_found",
         videoKey,
         mediaId,
@@ -242,7 +243,9 @@ async function fetchAndStoreEngagement(video: VideoDbRecord): Promise<VideoEngag
   const stats = statsMap.get(videoKey);
 
   if (!stats) {
-    dataLogger.warn({
+    // Expected for a deleted/private video (the API answers 200 with no items).
+    // Real API failures (quota, 5xx) are already logged inside getVideoStats.
+    dataLogger.info({
       event: "youtube_engagement_fetch_failed",
       videoKey,
     });

@@ -28,6 +28,7 @@
 
 import type { EnrichedData, EnrichedRatings, MediaType, ScrapedWatchLink } from "../types";
 import { trackAPICall } from "@/lib/analytics/track";
+import { hydrationDebug } from "../debug-log";
 
 // =============================================================================
 // Configuration
@@ -285,7 +286,7 @@ async function invokeScraper(
     );
     const line = `[Hydration/Lambda] ${mediaType} ${id}: ${raw.durationMs}ms ${summary} links=${raw.watchLinks.length}`;
     if (broken) console.warn(line);
-    else console.log(line);
+    else hydrationDebug(line);
     return raw;
   } catch (error: unknown) {
     const name =

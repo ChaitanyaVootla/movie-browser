@@ -15,6 +15,7 @@ import {
 } from "@/server/services/tmdb";
 import pLimit from "p-limit";
 import type { MediaType } from "../types";
+import { hydrationDebug } from "../debug-log";
 
 // =============================================================================
 // Types
@@ -402,7 +403,7 @@ export async function fetchAllSeasonEpisodes(
   // Filter out seasons with no episodes
   const seasonsToFetch = seasons.filter((s) => s.episode_count > 0);
 
-  console.log(`[Hydration/TMDB] Fetching ${seasonsToFetch.length} seasons for series ${seriesId}`);
+  hydrationDebug(`[Hydration/TMDB] Fetching ${seasonsToFetch.length} seasons for series ${seriesId}`);
 
   // Fetch all seasons in parallel using the central TMDB service (has retry logic)
   const seasonPromises = seasonsToFetch.map((season) =>
@@ -411,7 +412,7 @@ export async function fetchAllSeasonEpisodes(
         const data = await getTmdbSeasonDetails(seriesId, season.season_number);
         const episodes = (data.episodes as TmdbEpisode[]) || [];
 
-        console.log(`[Hydration/TMDB] Season ${season.season_number}: ${episodes.length} episodes`);
+        hydrationDebug(`[Hydration/TMDB] Season ${season.season_number}: ${episodes.length} episodes`);
 
         return {
           id: data.id as number,
@@ -436,7 +437,7 @@ export async function fetchAllSeasonEpisodes(
 
   const results = await Promise.all(seasonPromises);
   const totalEpisodes = results.reduce((sum, s) => sum + (s.episodes?.length ?? 0), 0);
-  console.log(`[Hydration/TMDB] Total: ${totalEpisodes} episodes across ${results.length} seasons`);
+  hydrationDebug(`[Hydration/TMDB] Total: ${totalEpisodes} episodes across ${results.length} seasons`);
 
   return results;
 }

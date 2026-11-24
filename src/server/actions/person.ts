@@ -9,6 +9,8 @@ import {
 } from "@/server/services/tmdb";
 import type { Person } from "@/types";
 import { persistPersonDetails } from "@/server/services/person-persist";
+import { isTmdbNotFound } from "@/server/services/hydration/tmdb-gone";
+import { dataLogger } from "@/lib/logger";
 
 const GetPersonSchema = z.object({
   id: z.number().positive(),
@@ -57,7 +59,13 @@ export async function getPerson(id: number): Promise<Person | null> {
       external_ids: data.external_ids as Person["external_ids"],
       tagged_images: data.tagged_images as Person["tagged_images"],
     };
-  } catch (error) {
+  } catch (error: unknown) {
+    // A deleted/merged TMDB person id 404s: expected (crawlers follow old links),
+    // not an error. The page renders its not-found state either way.
+    if (isTmdbNotFound(error)) {
+      dataLogger.info({ event: "person_tmdb_not_found", id });
+      return null;
+    }
     console.error("Error fetching person:", error);
     return null;
   }

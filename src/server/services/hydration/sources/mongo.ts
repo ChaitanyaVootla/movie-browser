@@ -13,6 +13,7 @@
 import mongoose from "mongoose";
 import { isDataStale, parseDate } from "@/lib/data-freshness";
 import type { EnrichedData, MediaType, MongoEnrichedDocument } from "../types";
+import { hydrationDebug } from "../debug-log";
 
 // =============================================================================
 // Configuration
@@ -76,14 +77,14 @@ export async function fetchFromMongo(
 ): Promise<MongoFetchResult | null> {
   // Check if MongoDB is enabled
   if (!MONGODB_ENABLED) {
-    console.log(`[Hydration/Mongo] MongoDB disabled via env`);
+    hydrationDebug(`[Hydration/Mongo] MongoDB disabled via env`);
     return null;
   }
 
   // Check if MongoDB is connected
   // readyState: 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
   if (mongoose.connection.readyState !== 1) {
-    console.log(`[Hydration/Mongo] Not connected (state=${mongoose.connection.readyState})`);
+    hydrationDebug(`[Hydration/Mongo] Not connected (state=${mongoose.connection.readyState})`);
     return null;
   }
 
@@ -107,7 +108,7 @@ export async function fetchFromMongo(
     )) as MongoEnrichedDocument | null;
 
     if (!doc) {
-      console.log(`[Hydration/Mongo] ${mediaType} ${id}: not found in MongoDB`);
+      hydrationDebug(`[Hydration/Mongo] ${mediaType} ${id}: not found in MongoDB`);
       return {
         enriched: emptyEnriched("mongodb"),
         updatedAt: null,
@@ -121,7 +122,7 @@ export async function fetchFromMongo(
     const isMigrated = !!doc.migratedToPostgres;
     const migratedAt = parseDate(doc.migratedAt);
     const migrated = isMigrated ? ` (migrated ${migratedAt?.toISOString() ?? "unknown"})` : "";
-    console.log(
+    hydrationDebug(
       `[Hydration/Mongo] ${mediaType} ${id}: found${migrated}, updatedAt=${doc.updatedAt}`
     );
 
@@ -293,7 +294,7 @@ export function transformMongoToEnriched(doc: MongoEnrichedDocument): EnrichedDa
   // Log what we found for debugging
   const foundRatings = Object.keys(enrichedRatings);
   if (foundRatings.length > 0) {
-    console.log(`[Hydration/Mongo] Ratings found: ${foundRatings.join(", ")}`);
+    hydrationDebug(`[Hydration/Mongo] Ratings found: ${foundRatings.join(", ")}`);
   }
 
   return {

@@ -13,6 +13,7 @@ import type { EnrichedData } from "../../types";
 import type { TmdbMovieData } from "../tmdb";
 import type { PrismaTx, UpsertOutcome, RowStamps } from "./types";
 import { isPrismaError, getErrorMessage } from "./error-utils";
+import { hydrationDebug } from "../../debug-log";
 import {
   ensureCompanies,
   ensureCountries,
@@ -123,7 +124,7 @@ export async function upsertMovieToPostgres(
       { timeout: 30000 }
     ); // 30s timeout for large movies
 
-    console.log(`[Hydration/Postgres] Upserted movie ${tmdb.id}: ${tmdb.title}`);
+    hydrationDebug(`[Hydration/Postgres] Upserted movie ${tmdb.id}: ${tmdb.title}`);
     return { written: true, contentChanged: displayedChanged > 0 };
   } catch (error: unknown) {
     if (isPrismaError(error) && error.code === "P2022") {

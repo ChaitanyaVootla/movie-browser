@@ -25,6 +25,7 @@
 import { seriesHasEpisodeGap } from "./episode-backfill";
 import { isSeriesCoreStale } from "@/lib/data-freshness";
 import { hydrationDebug } from "./debug-log";
+import { dataLogger } from "@/lib/logger";
 import {
   fetchMovieFromTmdb,
   fetchSeriesFromTmdb,
@@ -174,7 +175,8 @@ function backgroundRefreshMovie(
     } catch (e) {
       if (isTmdbNotFound(e)) {
         tmdbGone.mark("movie", movieId);
-        console.warn(`[Hydration] Movie ${movieId}: TMDB 404, skipping refreshes for 24h`);
+        // Expected (TMDB deleted/merged the id) — not an error; next-error.log got ~90/day.
+        dataLogger.info({ mediaType: "movie", tmdbId: movieId }, "hydration_tmdb_gone_skip_refresh_24h");
         return;
       }
       console.error(`[Hydration] Background movie refresh ${movieId} failed:`, e);
@@ -228,7 +230,7 @@ function backgroundRefreshSeries(
     } catch (e) {
       if (isTmdbNotFound(e)) {
         tmdbGone.mark("series", seriesId);
-        console.warn(`[Hydration] Series ${seriesId}: TMDB 404, skipping refreshes for 24h`);
+        dataLogger.info({ mediaType: "series", tmdbId: seriesId }, "hydration_tmdb_gone_skip_refresh_24h");
         return;
       }
       console.error(`[Hydration] Background series refresh ${seriesId} failed:`, e);
@@ -317,13 +319,13 @@ async function hydrateMovieImpl(
     const pgData = await getMovieFromPostgres(movieId);
     if (pgData) {
       tmdbData = pgData as unknown as TmdbMovieData;
-      console.log(`[Hydration] Movie ${movieId}: using PostgreSQL for TMDB data`);
+      hydrationDebug(`[Hydration] Movie ${movieId}: using PostgreSQL for TMDB data`);
     } else {
-      console.log(`[Hydration] Movie ${movieId}: fetching from TMDB`);
+      hydrationDebug(`[Hydration] Movie ${movieId}: fetching from TMDB`);
       tmdbData = await fetchMovieFromTmdb(movieId);
     }
   } else {
-    console.log(
+    hydrationDebug(
       `[Hydration] Movie ${movieId}: ${forceRefresh ? "FORCE REFRESH - " : ""}fetching from TMDB` +
         `${forceRefresh ? "" : ` (PostgreSQL ${pgRaw ? "incomplete" : "miss"})`}`
     );
@@ -356,11 +358,11 @@ async function hydrateMovieImpl(
     { forceRefresh, pgData: pgRaw, skipLambda }
   );
 
-  console.log(`[Hydration] Movie ${movieId}: enriched from ${enrichedSource}`);
+  hydrationDebug(`[Hydration] Movie ${movieId}: enriched from ${enrichedSource}`);
 
   // 4. FAST PATH: If both TMDB and enriched data came from PostgreSQL, skip upsert
   if (pgFresh && enrichedSource === "postgres") {
-    console.log(
+    hydrationDebug(
       `[Hydration] Movie ${movieId}: PostgreSQL fully fresh, skipping upsert (fast path)`
     );
     return {
@@ -376,7 +378,7 @@ async function hydrateMovieImpl(
   try {
     const outcome = await upsertMovieToPostgres(tmdbData, enriched);
     notifyIfContentChanged(outcome, "movie", movieId, tmdbData.title);
-    console.log(`[Hydration] Movie ${movieId}: PostgreSQL upsert complete`);
+    hydrationDebug(`[Hydration] Movie ${movieId}: PostgreSQL upsert complete`);
 
     // Trigger progressive AI enrichment in background (fire-and-forget)
     // Only when fresh enriched data was fetched (Lambda or MongoDB) — not the PG fast path
@@ -397,7 +399,7 @@ async function hydrateMovieImpl(
         ? transformPostgresRatingsToEnriched(pgRawAfterUpsert)
         : enriched;
 
-      console.log(`[Hydration] Movie ${movieId}: returning data from PostgreSQL (full round-trip)`);
+      hydrationDebug(`[Hydration] Movie ${movieId}: returning data from PostgreSQL (full round-trip)`);
       return {
         data: pgData as unknown as TmdbMovieData,
         enriched: pgEnriched,
@@ -410,7 +412,7 @@ async function hydrateMovieImpl(
   }
 
   // Fallback: Return merged data if PostgreSQL read fails
-  console.log(`[Hydration] Movie ${movieId}: returning merged data (PostgreSQL read failed)`);
+  hydrationDebug(`[Hydration] Movie ${movieId}: returning merged data (PostgreSQL read failed)`);
   return {
     data: tmdbData,
     enriched,
@@ -513,14 +515,14 @@ async function hydrateSeriesImpl(
     const pgData = await getSeriesFromPostgres(seriesId);
     if (pgData) {
       tmdbData = pgData as unknown as TmdbSeriesData;
-      console.log(`[Hydration] Series ${seriesId}: using PostgreSQL for TMDB data`);
+      hydrationDebug(`[Hydration] Series ${seriesId}: using PostgreSQL for TMDB data`);
     } else {
-      console.log(`[Hydration] Series ${seriesId}: fetching from TMDB`);
+      hydrationDebug(`[Hydration] Series ${seriesId}: fetching from TMDB`);
       tmdbData = await fetchSeriesFromTmdb(seriesId);
       needsEpisodeFetch = true;
     }
   } else {
-    console.log(
+    hydrationDebug(
       `[Hydration] Series ${seriesId}: ${forceRefresh ? "FORCE REFRESH - " : ""}fetching from TMDB` +
         `${forceRefresh ? "" : ` (PostgreSQL ${pgRaw ? "incomplete" : "miss"})`}`
     );
@@ -556,7 +558,7 @@ async function hydrateSeriesImpl(
   // response — run them in parallel instead of sequentially.
   const fetchEpisodes = needsEpisodeFetch && tmdbData.seasons?.length > 0;
   if (fetchEpisodes) {
-    console.log(
+    hydrationDebug(
       `[Hydration] Series ${seriesId}: fetching episodes for ${tmdbData.seasons.length} seasons`
     );
   }
@@ -571,11 +573,11 @@ async function hydrateSeriesImpl(
     }),
   ]);
 
-  console.log(`[Hydration] Series ${seriesId}: enriched from ${enrichedSource}`);
+  hydrationDebug(`[Hydration] Series ${seriesId}: enriched from ${enrichedSource}`);
 
   // 4. FAST PATH: If TMDB + enriched data came from PostgreSQL AND no new episodes fetched, skip upsert
   if (pgFresh && enrichedSource === "postgres" && !needsEpisodeFetch) {
-    console.log(
+    hydrationDebug(
       `[Hydration] Series ${seriesId}: PostgreSQL fully fresh, skipping upsert (fast path)`
     );
     return {
@@ -593,7 +595,7 @@ async function hydrateSeriesImpl(
     const tmdbDataWithEpisodes = { ...tmdbData, seasons: seasonsWithEpisodes };
     const outcome = await upsertSeriesToPostgres(tmdbDataWithEpisodes, enriched);
     notifyIfContentChanged(outcome, "series", seriesId, tmdbData.name);
-    console.log(`[Hydration] Series ${seriesId}: PostgreSQL upsert complete`);
+    hydrationDebug(`[Hydration] Series ${seriesId}: PostgreSQL upsert complete`);
     triggerUserEpisodeReconcile(seriesId);
 
     // Trigger progressive AI enrichment in background (fire-and-forget)
@@ -615,7 +617,7 @@ async function hydrateSeriesImpl(
         ? transformPostgresRatingsToEnriched(pgRawAfterUpsert)
         : enriched;
 
-      console.log(
+      hydrationDebug(
         `[Hydration] Series ${seriesId}: returning data from PostgreSQL (full round-trip)`
       );
       return {
@@ -630,7 +632,7 @@ async function hydrateSeriesImpl(
   }
 
   // Fallback: Return merged data if PostgreSQL read fails
-  console.log(`[Hydration] Series ${seriesId}: returning merged data (PostgreSQL read failed)`);
+  hydrationDebug(`[Hydration] Series ${seriesId}: returning merged data (PostgreSQL read failed)`);
   return {
     data: tmdbData,
     enriched,
@@ -663,7 +665,7 @@ export async function hydrateMoviePartial(
   if (pgRaw) {
     const pgData = await getMovieFromPostgres(movieId);
     if (pgData) {
-      console.log(`[Hydration/Partial] Movie ${movieId}: returning PostgreSQL data`);
+      hydrationDebug(`[Hydration/Partial] Movie ${movieId}: returning PostgreSQL data`);
       return {
         data: pgData as unknown as TmdbMovieData,
         enriched: transformPostgresRatingsToEnriched(pgRaw),
@@ -674,7 +676,7 @@ export async function hydrateMoviePartial(
   }
 
   // 2. Fetch from TMDB
-  console.log(`[Hydration/Partial] Movie ${movieId}: fetching from TMDB`);
+  hydrationDebug(`[Hydration/Partial] Movie ${movieId}: fetching from TMDB`);
   const tmdbData = await fetchMovieFromTmdb(movieId);
 
   // 3. Background: Upsert core data to PostgreSQL (no enriched data)
@@ -703,7 +705,7 @@ export async function hydrateSeriesPartial(
   if (pgRaw) {
     const pgData = await getSeriesFromPostgres(seriesId);
     if (pgData) {
-      console.log(`[Hydration/Partial] Series ${seriesId}: returning PostgreSQL data`);
+      hydrationDebug(`[Hydration/Partial] Series ${seriesId}: returning PostgreSQL data`);
       return {
         data: pgData as unknown as TmdbSeriesData,
         enriched: transformPostgresRatingsToEnriched(pgRaw),
@@ -714,7 +716,7 @@ export async function hydrateSeriesPartial(
   }
 
   // 2. Fetch from TMDB
-  console.log(`[Hydration/Partial] Series ${seriesId}: fetching from TMDB`);
+  hydrationDebug(`[Hydration/Partial] Series ${seriesId}: fetching from TMDB`);
   const tmdbData = await fetchSeriesFromTmdb(seriesId);
 
   // 3. Background: Upsert core data
@@ -795,7 +797,7 @@ async function getEnrichedData(
     let existingEnriched: EnrichedData | null = null;
     if (pgData) {
       existingEnriched = transformPostgresRatingsToEnriched(pgData);
-      console.log(
+      hydrationDebug(
         `[Hydration] ${mediaType} ${id}: FORCE REFRESH - found existing ratings to merge`
       );
     } else {
@@ -803,13 +805,13 @@ async function getEnrichedData(
       const pgRaw = mediaType === "movie" ? await fetchMovieRaw(id) : await fetchSeriesRaw(id);
       if (pgRaw) {
         existingEnriched = transformPostgresRatingsToEnriched(pgRaw);
-        console.log(
+        hydrationDebug(
           `[Hydration] ${mediaType} ${id}: FORCE REFRESH - fetched existing ratings to merge`
         );
       }
     }
 
-    console.log(
+    hydrationDebug(
       `[Hydration] ${mediaType} ${id}: FORCE REFRESH - calling Lambda (will merge with existing)`
     );
     const lambdaEnriched = await fetchFromLambda(mediaType, id, tmdbData, existingEnriched, {
@@ -824,7 +826,7 @@ async function getEnrichedData(
 
   // 2. PostgreSQL has fresh enriched data → Use it, skip MongoDB
   if (pgData && isPostgresEnrichedFresh(pgData, releaseDate)) {
-    console.log(
+    hydrationDebug(
       `[Hydration] ${mediaType} ${id}: PostgreSQL enriched data is fresh, skipping MongoDB`
     );
     return {
@@ -842,12 +844,12 @@ async function getEnrichedData(
       // 3a. Document is migrated + after cutoff → Skip MongoDB, use Lambda (unless skipLambda)
       if (isMigratedAfterCutoff(mongoResult.isMigrated, mongoResult.migratedAt)) {
         if (skipLambda) {
-          console.log(
+          hydrationDebug(
             `[Hydration] ${mediaType} ${id}: migrated after cutoff, skipping Lambda (skipLambda=true)`
           );
           return { enriched: emptyEnriched(), enrichedSource: "none", mongoDocExists: true };
         }
-        console.log(
+        hydrationDebug(
           `[Hydration] ${mediaType} ${id}: migrated after cutoff (${MONGODB_MIGRATION_CUTOFF.toISOString()}), ` +
             `using Lambda instead of MongoDB`
         );
@@ -861,7 +863,7 @@ async function getEnrichedData(
 
       // 3b. Not migrated (or before cutoff) + MongoDB fresh → Use MongoDB
       if (isMongoFresh(mongoResult.updatedAt, releaseDate)) {
-        console.log(
+        hydrationDebug(
           `[Hydration] ${mediaType} ${id}: using MongoDB (not migrated or before cutoff)`
         );
         return {
@@ -875,7 +877,7 @@ async function getEnrichedData(
       if (skipLambda) {
         // IMPORTANT: For bulk migration, use stale MongoDB data rather than nothing!
         // Stale data is still valuable (ratings, watch links) - better than empty.
-        console.log(
+        hydrationDebug(
           `[Hydration] ${mediaType} ${id}: MongoDB stale but using it anyway (skipLambda=true)`
         );
         return {
@@ -884,14 +886,14 @@ async function getEnrichedData(
           mongoDocExists: true,
         };
       }
-      console.log(
+      hydrationDebug(
         `[Hydration] ${mediaType} ${id}: MongoDB stale (${mongoResult.updatedAt?.toISOString()}), calling Lambda`
       );
     }
 
     // MongoDB not found or stale - use Lambda (unless skipLambda)
     if (skipLambda) {
-      console.log(
+      hydrationDebug(
         `[Hydration] ${mediaType} ${id}: MongoDB not found, skipping Lambda (skipLambda=true)`
       );
       return {
@@ -910,7 +912,7 @@ async function getEnrichedData(
 
   // MongoDB disabled - use Lambda directly (unless skipLambda)
   if (skipLambda) {
-    console.log(
+    hydrationDebug(
       `[Hydration] ${mediaType} ${id}: MongoDB disabled, skipping Lambda (skipLambda=true)`
     );
     return { enriched: emptyEnriched(), enrichedSource: "none", mongoDocExists: false };

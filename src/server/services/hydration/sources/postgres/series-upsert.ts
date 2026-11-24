@@ -15,6 +15,7 @@ import type { EnrichedData } from "../../types";
 import type { TmdbSeriesData } from "../tmdb";
 import type { PrismaTx, SeasonWithEpisodes, UpsertOutcome, RowStamps } from "./types";
 import { isPrismaError, getErrorMessage } from "./error-utils";
+import { hydrationDebug } from "../../debug-log";
 import { ensurePersons } from "./lookup-upserts";
 import { hasSeasonWrites, reconcileSeasons } from "./season-upserts";
 import { diffChildRows, hasChanges, keyPart } from "./diff-reconcile";
@@ -112,7 +113,7 @@ export async function upsertSeriesToPostgres(
       { timeout: 60000 }
     ); // 60s timeout for large series with many seasons/episodes
 
-    console.log(`[Hydration/Postgres] Upserted series ${tmdb.id}: ${tmdb.name}`);
+    hydrationDebug(`[Hydration/Postgres] Upserted series ${tmdb.id}: ${tmdb.name}`);
     return { written: true, contentChanged: displayedChanged > 0 };
   } catch (error: unknown) {
     if (isPrismaError(error) && error.code === "P2022") {

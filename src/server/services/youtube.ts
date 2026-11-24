@@ -11,6 +11,7 @@
  */
 
 import { cachedFetch, cacheGet, cacheSet } from "@/lib/cache";
+import { dataLogger } from "@/lib/logger";
 import type {
   YouTubeVideoStats,
   YouTubeComment,
@@ -31,6 +32,86 @@ const CACHE_TTL = {
 
 if (!YOUTUBE_API_KEY) {
   console.warn("YOUTUBE_API_KEY not set. YouTube API calls will fail.");
+}
+
+// ============================================
+// Error classification + quota backoff
+// ============================================
+
+/**
+ * How a non-2xx YouTube Data API response should be treated.
+ * - `unavailable`: permanent for this video (comments disabled, video deleted /
+ *   private). Expected; cache the empty result, no error log.
+ * - `quota`: the API key is out of quota / rate limited. Not the video's fault;
+ *   back off all Data API calls for a while and warn once per window.
+ * - `error`: anything else (5xx, bad request, network) — a real failure.
+ *
+ * Note 403 is ambiguous: `commentsDisabled` AND `quotaExceeded` both return 403,
+ * so the `error.errors[0].reason` from the body decides.
+ */
+export type YouTubeErrorKind = "unavailable" | "quota" | "error";
+
+const QUOTA_REASONS = new Set([
+  "quotaExceeded",
+  "dailyLimitExceeded",
+  "rateLimitExceeded",
+  "userRateLimitExceeded",
+]);
+
+export function classifyYouTubeError(status: number, reason: string | null): YouTubeErrorKind {
+  if (status === 429 || (reason !== null && QUOTA_REASONS.has(reason))) return "quota";
+  if (status === 404) return "unavailable"; // videoNotFound
+  // 403 without a quota reason: commentsDisabled / forbidden (private video).
+  if (status === 403) return "unavailable";
+  return "error";
+}
+
+/** Reads `error.errors[0].reason` from a YouTube API error body (null if absent). */
+async function readYouTubeErrorReason(response: Response): Promise<string | null> {
+  try {
+    const body: unknown = await response.json();
+    if (typeof body !== "object" || body === null || !("error" in body)) return null;
+    const err = (body as { error: unknown }).error;
+    if (typeof err !== "object" || err === null || !("errors" in err)) return null;
+    const errors = (err as { errors: unknown }).errors;
+    if (!Array.isArray(errors) || errors.length === 0) return null;
+    const first: unknown = errors[0];
+    if (typeof first !== "object" || first === null || !("reason" in first)) return null;
+    const reason = (first as { reason: unknown }).reason;
+    return typeof reason === "string" ? reason : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Data API calls are skipped for this long after a quota/rate-limit response. */
+const QUOTA_BACKOFF_MS = 30 * 60 * 1000;
+let quotaBackoffUntil = 0;
+
+class YouTubeQuotaError extends Error {}
+
+function isYouTubeQuotaBackoff(): boolean {
+  return Date.now() < quotaBackoffUntil;
+}
+
+/** Starts (or extends) the quota backoff; warns only when a new window opens. */
+function noteYouTubeQuotaExhausted(api: string, status: number, reason: string | null): void {
+  const opening = !isYouTubeQuotaBackoff();
+  quotaBackoffUntil = Date.now() + QUOTA_BACKOFF_MS;
+  if (opening) {
+    dataLogger.warn({
+      event: "youtube_api_quota_backoff",
+      api,
+      status,
+      reason,
+      backoffMinutes: QUOTA_BACKOFF_MS / 60000,
+    });
+  }
+}
+
+/** Test-only: reset module state between tests. */
+export function __resetYouTubeQuotaBackoffForTests(): void {
+  quotaBackoffUntil = 0;
 }
 
 // ============================================
@@ -134,7 +215,7 @@ export { formatDuration, formatViewCount, formatRelativeTime } from "@/lib/youtu
  * Fetch channel thumbnails from YouTube Data API
  */
 async function getChannelThumbnails(channelIds: string[]): Promise<Map<string, string>> {
-  if (!YOUTUBE_API_KEY || channelIds.length === 0) {
+  if (!YOUTUBE_API_KEY || channelIds.length === 0 || isYouTubeQuotaBackoff()) {
     return new Map();
   }
 
@@ -155,6 +236,11 @@ async function getChannelThumbnails(channelIds: string[]): Promise<Map<string, s
 
         const response = await fetch(url.toString(), { cache: "no-store" });
         if (!response.ok) {
+          const reason = await readYouTubeErrorReason(response);
+          if (classifyYouTubeError(response.status, reason) === "quota") {
+            noteYouTubeQuotaExhausted("channels", response.status, reason);
+            throw new YouTubeQuotaError("YouTube quota exhausted");
+          }
           throw new Error(`YouTube Channels API error: ${response.status}`);
         }
         return response.json();
@@ -164,7 +250,9 @@ async function getChannelThumbnails(channelIds: string[]): Promise<Map<string, s
         results.set(item.id, item.snippet.thumbnails.default.url);
       }
     } catch (error) {
-      console.error("Failed to fetch channel thumbnails:", error);
+      if (!(error instanceof YouTubeQuotaError)) {
+        console.error("Failed to fetch channel thumbnails:", error);
+      }
     }
   }
 
@@ -176,7 +264,7 @@ async function getChannelThumbnails(channelIds: string[]): Promise<Map<string, s
  * Supports batch fetching up to 50 video IDs at once
  */
 export async function getVideoStats(videoIds: string[]): Promise<Map<string, YouTubeVideoStats>> {
-  if (!YOUTUBE_API_KEY || videoIds.length === 0) {
+  if (!YOUTUBE_API_KEY || videoIds.length === 0 || isYouTubeQuotaBackoff()) {
     return new Map();
   }
 
@@ -201,6 +289,11 @@ export async function getVideoStats(videoIds: string[]): Promise<Map<string, You
 
         const response = await fetch(url.toString(), { cache: "no-store" });
         if (!response.ok) {
+          const reason = await readYouTubeErrorReason(response);
+          if (classifyYouTubeError(response.status, reason) === "quota") {
+            noteYouTubeQuotaExhausted("videos", response.status, reason);
+            throw new YouTubeQuotaError("YouTube quota exhausted");
+          }
           throw new Error(`YouTube API error: ${response.status}`);
         }
         return response.json();
@@ -223,7 +316,9 @@ export async function getVideoStats(videoIds: string[]): Promise<Map<string, You
         });
       }
     } catch (error) {
-      console.error("Failed to fetch video stats:", error);
+      if (!(error instanceof YouTubeQuotaError)) {
+        console.error("Failed to fetch video stats:", error);
+      }
     }
   }
 
@@ -363,6 +458,8 @@ export async function getVideoComments(
   const cached = cacheGet<YouTubeCommentsResponse>("youtube", cacheKey);
   if (cached) return cached;
 
+  if (isYouTubeQuotaBackoff()) return { comments: [], totalCount: 0 };
+
   try {
     const url = new URL(`${YOUTUBE_API_BASE}/commentThreads`);
     url.searchParams.set("part", "snippet");
@@ -376,13 +473,22 @@ export async function getVideoComments(
 
     const response = await fetch(url.toString(), { cache: "no-store" });
     if (!response.ok) {
-      // Comments might be disabled
-      if (response.status === 403) {
-        const emptyResult = { comments: [], totalCount: 0 };
-        cacheSet("youtube", cacheKey, emptyResult, CACHE_TTL.OLD); // Cache disabled comments for longer
+      const reason = await readYouTubeErrorReason(response);
+      const kind = classifyYouTubeError(response.status, reason);
+      const emptyResult: YouTubeCommentsResponse = { comments: [], totalCount: 0 };
+      if (kind === "unavailable") {
+        // Comments disabled / video deleted or private: expected, permanent for
+        // this video. Cache the empty result long so it is not re-requested.
+        cacheSet("youtube", cacheKey, emptyResult, CACHE_TTL.OLD);
+        dataLogger.debug({ event: "youtube_comments_unavailable", videoId, status: response.status, reason });
         return emptyResult;
       }
-      throw new Error(`YouTube Comments API error: ${response.status}`);
+      if (kind === "quota") {
+        // NOT cached: the video's comments are fine, the API key is out of quota.
+        noteYouTubeQuotaExhausted("commentThreads", response.status, reason);
+        return emptyResult;
+      }
+      throw new Error(`YouTube Comments API error: ${response.status}${reason ? ` (${reason})` : ""}`);
     }
 
     const data = (await response.json()) as YouTubeCommentThreadsResponse;

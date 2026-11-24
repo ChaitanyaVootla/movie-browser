@@ -69,13 +69,15 @@ export async function GET(request: NextRequest) {
           });
         }
 
-        // Fall through to file-based if video not found in DB
-        dataLogger.warn({
+        // Fall through to file-based when PG gave nothing: the video is not in PG
+        // yet (TMDB's list can be ahead of PG's) or YouTube no longer has it.
+        // Expected, so info, not warn.
+        dataLogger.info({
           event: "youtube_api_postgres_fallback",
           videoId,
           mediaId,
           mediaType: mediaTypeParam,
-          reason: "video_not_found_in_db",
+          reason: "no_engagement_from_db",
         });
       }
 
@@ -121,8 +123,9 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ videos: result });
         }
 
-        // Fall through to file-based if no videos found in DB
-        dataLogger.warn({
+        // Fall through to file-based if no videos found in DB (expected: title not
+        // hydrated yet, or none of its videos exist on YouTube any more).
+        dataLogger.info({
           event: "youtube_api_batch_postgres_fallback",
           mediaId,
           mediaType: mediaTypeParam,
