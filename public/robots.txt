@@ -99,6 +99,37 @@ User-agent: PetalBot
 Disallow: /
 
 # ---------------------------------------------------------------------------
+# TIER 3 — BULK AI-SEARCH INDEXERS: steered to the markdown layer only
+# ---------------------------------------------------------------------------
+# Nov 24 2026 — ShapBot (Parallel Web Systems' search-index crawler, UA
+# "...compatible; ShapBot/0.1.0") sent ~920k requests from Nov 19 and ~21k/hour
+# from 04:00 UTC on Nov 24, spread over ~100k distinct HTML paths (movie 428k,
+# person 351k, series 92k, browse 48k). Nearly every hit was a cold SSR render
+# plus an ISR write: it doubled origin renders and churned the ISR cache at
+# ~20%/hour. It honours robots.txt (and already obeyed the discussion Disallow),
+# so it is sent to the cheap .md twins (one read-only Postgres query, no SSR, no
+# ISR write) instead of being blocked outright.
+#
+# A group naming a crawler REPLACES the `*` group for it, so every rule that still
+# matters is restated here. Order is for first-match parsers: RFC 9309 and Google
+# use the longest match, so the order does not matter to them, but a parser that
+# takes the first matching line still gets the discussion Disallows before the
+# .md Allows, and `Disallow: /` comes last.
+#   - `/*.md$` covers every twin (`/movie/{id}/{slug}.md`, `/index.md`, `/browse.md`,
+#     `/topics/{key}.md`). `$` anchors the end of path+query, so `/*.md?` is added
+#     for the paginated and search forms (`/browse.md?page=2`, `/search.md?q=`).
+#   - A parser without wildcard support ignores the Allows and is fully disallowed:
+#     it fails closed, never open.
+User-agent: ShapBot
+Disallow: /*/discussions
+Disallow: /*/discuss/
+Allow: /llms.txt
+Allow: /search.md
+Allow: /*.md$
+Allow: /*.md?
+Disallow: /
+
+# ---------------------------------------------------------------------------
 # DEFAULT — everyone else: index public pages, never the API/SSE or private
 # user content.
 # ---------------------------------------------------------------------------

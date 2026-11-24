@@ -26,7 +26,8 @@ export async function generateStaticParams(): Promise<{ params: string[] }[]> {
 }
 import { getMovieCollection } from "@/server/services/tmdb";
 import { movieExists } from "@/server/services/media-exists";
-import { getMediaPath, truncateAtWord } from "@/lib/utils";
+import { getMediaPath } from "@/lib/utils";
+import { watchDescription } from "@/lib/seo/meta-description";
 import {
   breadcrumbList,
   trailerVideoObject,
@@ -159,10 +160,8 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
     typeof aiData?.hook === "string" && aiData.hook.trim().length > 0
       ? aiData.hook.trim()
       : null;
-  const descriptionBody = aiHook ?? movie.overview;
-  const description = descriptionBody
-    ? truncateAtWord(`${watchIntro} ${descriptionBody}`, 160)
-    : watchIntro;
+  // watchDescription strips the markdown emphasis some hooks carry (*their*).
+  const description = watchDescription(watchIntro, aiHook ?? movie.overview);
   const backdropUrl = movie.backdrop_path
     ? `${TMDB_IMAGE_BASE}/w1280${movie.backdrop_path}`
     : undefined;

@@ -8,6 +8,7 @@ import { personExists } from "@/server/services/media-exists";
 // (generateMetadata + PersonContentAsync share the same cached result)
 const getPerson = cache(getPersonBase);
 import { getMediaPath, truncateAtWord } from "@/lib/utils";
+import { personDescription } from "@/lib/seo/meta-description";
 import { breadcrumbList } from "@/lib/seo/jsonld";
 
 // ISR: cache the rendered person page for 24h (person/filmography data is very
@@ -79,31 +80,25 @@ export async function generateMetadata({ params }: PersonPageProps): Promise<Met
     permanentRedirect(canonicalPath);
   }
 
-  // Build description from biography or known works
-  let description = person.biography ? truncateAtWord(person.biography, 160) : undefined;
-  if (!description && person.known_for_department) {
+  // Build description from biography or known works. A one-line bio ("X is a
+  // Japanese actor.", 4% of sitemapped people) is extended with known-for titles.
+  const description = personDescription({
+    name: person.name,
+    biography: person.biography,
     // Human job title, not the raw TMDB department ("Acting" read as "is a acting")
-    const job = (
-      DEPARTMENT_TO_JOB[person.known_for_department] ?? person.known_for_department
-    ).toLowerCase();
-    const article = /^[aeiou]/.test(job) ? "an" : "a";
-    const titles = (person.combined_credits?.cast?.slice(0, 3) || [])
+    job: person.known_for_department
+      ? (
+          DEPARTMENT_TO_JOB[person.known_for_department] ?? person.known_for_department
+        ).toLowerCase()
+      : null,
+    // Adult credits dropped BEFORE the slice (seo-search-console.md: a mainstream
+    // person must never be described as "known for" an adult title).
+    knownFor: (person.combined_credits?.cast || [])
+      .filter((c) => c.adult !== true)
+      .slice(0, 3)
       .map((c) => c.title || c.name)
-      .filter((t): t is string => Boolean(t));
-    const knownFor =
-      titles.length > 1
-        ? ` known for ${titles.slice(0, -1).join(", ")} and ${titles[titles.length - 1]}`
-        : titles.length === 1
-          ? ` known for ${titles[0]}`
-          : "";
-    description = truncateAtWord(
-      `${person.name} is ${article} ${job}${knownFor}. Explore their full filmography, photos, and where to watch their movies and shows.`,
-      160,
-    );
-  }
-  if (!description) {
-    description = `View ${person.name}'s full filmography, biography and photos, and find where to watch their movies and TV shows.`;
-  }
+      .filter((t): t is string => Boolean(t)),
+  });
 
   const profileUrl = person.profile_path
     ? `${TMDB_IMAGE_BASE}/w500${person.profile_path}`

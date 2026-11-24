@@ -22,31 +22,45 @@ import {
   type SeriesResumeDetail,
 } from "@/lib/series-resume-event";
 import { EpisodeScroller } from "./episode-scroller";
+import { getDefaultSeasonNumber } from "@/lib/series-default-season";
 
 interface SeasonSelectorProps {
   seriesId: number;
   seriesName: string;
   /** Server-trimmed seasons (no overview/poster — the selector renders only name/count/date) */
   seasons: SeasonSelectorSeason[];
+  /**
+   * Episodes of the default season, read from Postgres during the (ISR-cached)
+   * server render. When present the row paints with the HTML and the mount-time
+   * server-action fetch is skipped. null/absent → fetch on mount as before.
+   */
+  initialEpisodes?: Episode[] | null;
   className?: string;
 }
 
-// Get the default season number from the seasons list (prefer latest regular season)
-function getDefaultSeasonNumber(seasons: SeasonSelectorSeason[]): number {
-  const regularSeasons = seasons.filter((s) => s.season_number > 0);
-  const defaultSeason = regularSeasons[regularSeasons.length - 1] || seasons[0];
-  return defaultSeason?.season_number ?? 1;
-}
-
-export function SeasonSelector({ seriesId, seriesName, seasons, className }: SeasonSelectorProps) {
-  // Compute default season number once - stable across renders
+export function SeasonSelector({
+  seriesId,
+  seriesName,
+  seasons,
+  initialEpisodes,
+  className,
+}: SeasonSelectorProps) {
+  // Compute default season number once - stable across renders. Must match the
+  // server's choice (same helper) so initialEpisodes belong to this season.
   const defaultSeasonNumber = useRef(getDefaultSeasonNumber(seasons)).current;
   const tracking = useSeriesTracking();
 
   // State for the selected season number - always controlled
   const [selectedSeasonNumber, setSelectedSeasonNumber] = useState(defaultSeasonNumber);
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [episodes, setEpisodes] = useState<Episode[]>(initialEpisodes ?? []);
   const [isPending, startTransition] = useTransition();
+  // Episodes already loaded per season: switching back to a season is instant.
+  const seasonCacheRef = useRef<Map<number, Episode[]>>(
+    new Map(initialEpisodes ? [[defaultSeasonNumber, initialEpisodes]] : [])
+  );
+  // The season the UI last asked for. A response for any other season is stale
+  // (the user switched while it was in flight) and must not overwrite the row.
+  const requestedSeasonRef = useRef(defaultSeasonNumber);
 
   // Resume affordances: the episode to scroll to (transient) + the persistent
   // "Up next" target. Driven by a ?s=&e= deep-link (Up Next / Continue Watching
@@ -60,7 +74,7 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
   // True once the initial mount fetch has resolved. Without this, the first render
   // flashed the "No episodes" empty state before episodes streamed in (isPending
   // isn't set yet on initial mount) and everything shifted when they arrived.
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(initialEpisodes != null);
 
   const isLoading = isPending || !hasLoadedOnce;
 
@@ -75,10 +89,12 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
   // action IDs trigger one guarded reload (what a user would do by hand);
   // other failures just leave the episodes section in its empty state.
   const fetchSeason = async (seasonNumber: number, onDone?: () => void) => {
+    requestedSeasonRef.current = seasonNumber;
     try {
       const seasonData = await getSeason(seriesId, seasonNumber);
       if (seasonData?.episodes) {
-        setEpisodes(seasonData.episodes);
+        seasonCacheRef.current.set(seasonNumber, seasonData.episodes);
+        if (requestedSeasonRef.current === seasonNumber) setEpisodes(seasonData.episodes);
       }
     } catch (error: unknown) {
       if (isStaleServerActionError(error)) {
@@ -90,6 +106,20 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
     } finally {
       onDone?.();
     }
+  };
+
+  // Switch the row to a season: from the per-season cache when we have it,
+  // otherwise fetch (with the skeleton, via the transition).
+  const showSeason = (seasonNumber: number) => {
+    const cached = seasonCacheRef.current.get(seasonNumber);
+    if (cached) {
+      requestedSeasonRef.current = seasonNumber;
+      setEpisodes(cached);
+      return;
+    }
+    startTransition(async () => {
+      await fetchSeason(seasonNumber);
+    });
   };
 
   // Load initial season episodes on mount. A ?s=&e= deep-link (from an Up Next /
@@ -111,11 +141,18 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
       }
     }
 
-    startTransition(async () => {
-      await fetchSeason(initialSeason, () => {
-        if (!cancelled) setHasLoadedOnce(true);
+    if (initialSeason === defaultSeasonNumber && initialEpisodes) {
+      // Server inlined this season. Refresh quietly (no skeleton) only when the
+      // stored rows look incomplete, e.g. an episode aired since the last sync.
+      const expected = seasons.find((s) => s.season_number === initialSeason)?.episode_count ?? 0;
+      if (initialEpisodes.length < expected) void fetchSeason(initialSeason);
+    } else {
+      startTransition(async () => {
+        await fetchSeason(initialSeason, () => {
+          if (!cancelled) setHasLoadedOnce(true);
+        });
       });
-    });
+    }
 
     return () => {
       cancelled = true;
@@ -141,9 +178,7 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
     setScrollMode("horizontal");
     if (target.seasonNumber !== selectedSeasonNumber) {
       setSelectedSeasonNumber(target.seasonNumber);
-      startTransition(async () => {
-        await fetchSeason(target.seasonNumber);
-      });
+      showSeason(target.seasonNumber);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- guarded one-shot on tracking load
   }, [tracking?.loading, tracking?.progress]);
@@ -155,9 +190,7 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
     userSelectedRef.current = true;
     setScrollToEpisode(null); // manual switch: don't auto-scroll
     setSelectedSeasonNumber(seasonNumber);
-    startTransition(async () => {
-      await fetchSeason(seasonNumber);
-    });
+    showSeason(seasonNumber);
   };
 
   // A "set position" elsewhere on the page (the Set Position sheet) asks us to
@@ -170,9 +203,7 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
       setScrollToEpisode(detail.episodeNumber);
       setScrollMode("page");
       setSelectedSeasonNumber(detail.seasonNumber);
-      startTransition(async () => {
-        await fetchSeason(detail.seasonNumber);
-      });
+      showSeason(detail.seasonNumber);
     }
     window.addEventListener(SERIES_RESUME_EVENT, onResume);
     return () => window.removeEventListener(SERIES_RESUME_EVENT, onResume);

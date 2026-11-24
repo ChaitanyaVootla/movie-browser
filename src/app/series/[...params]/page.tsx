@@ -2,8 +2,11 @@ import { Suspense, cache } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getSeries as getSeriesBase } from "@/server/actions/series";
+import { getSeasonEpisodesFromPostgres } from "@/server/db/postgres/season-episodes";
+import { getDefaultSeasonNumber } from "@/lib/series-default-season";
+import { watchDescription } from "@/lib/seo/meta-description";
 import { seriesExists } from "@/server/services/media-exists";
-import { getMediaPath, truncateAtWord } from "@/lib/utils";
+import { getMediaPath } from "@/lib/utils";
 import {
   breadcrumbList,
   trailerVideoObject,
@@ -167,10 +170,8 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
     typeof aiData?.hook === "string" && aiData.hook.trim().length > 0
       ? aiData.hook.trim()
       : null;
-  const descriptionBody = aiHook ?? series.overview;
-  const description = descriptionBody
-    ? truncateAtWord(`${watchIntro} ${descriptionBody}`, 160)
-    : watchIntro;
+  // watchDescription strips the markdown emphasis some hooks carry (*their*).
+  const description = watchDescription(watchIntro, aiHook ?? series.overview);
   const backdropUrl = series.backdrop_path
     ? `${TMDB_IMAGE_BASE}/w1280${series.backdrop_path}`
     : undefined;
@@ -435,6 +436,13 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
     series.videos?.results?.filter((v) => v.site === "YouTube") || []
   );
   const displaySeasons = series.seasons?.filter((s) => s.season_number >= 0) || [];
+  // Inline the opening season's episodes (one PG lookup) so they paint with the
+  // cached HTML instead of after a client server-action POST on every visit.
+  const initialSeasonNumber = getDefaultSeasonNumber(displaySeasons);
+  const initialEpisodes =
+    displaySeasons.length > 0
+      ? await getSeasonEpisodesFromPostgres(series.id, initialSeasonNumber)
+      : null;
 
   return (
     <SeriesTrackingProvider seriesId={series.id}>
@@ -517,6 +525,7 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
           seriesId={series.id}
           seriesName={series.name}
           seasons={extractSeasonSelectorSeasons(displaySeasons)}
+          initialEpisodes={initialEpisodes}
           className="mt-4 md:mt-6"
         />
       )}
