@@ -255,6 +255,24 @@ them all. Brave has an independent index with NO submission console. Apple
   decision — reconsider now that the `.md` layer + CDN absorb crawl cost);
   ClaudeBot/GPTBot training crawlers stay blocked (see cdn.md + robots.txt).
 
+## ShapBot steered to the `.md` layer (Nov 24 2026)
+
+ShapBot (Parallel Web Systems' AI web-search API crawler, documented to honour
+`User-agent: ShapBot`) reached ~21k req/hour over ~100k DISTINCT HTML paths, i.e.
+almost every hit a cold SSR render + ISR write: origin renders doubled (18k → 35k/h)
+and the ISR cache churned 20%/hour (the Aug 3 thrash mark was 10%). `robots.txt`
+now has a ShapBot group: restated discussion Disallows, `Allow: /llms.txt`,
+`/search.md`, `/*.md$`, `/*.md?` (robots match path+query, so `$` alone misses
+`?page=`), then `Disallow: /`. Validated against RFC 9309 longest-match over 34
+paths. Purge `/robots.txt` in Cloudflare after deploying a robots change (it is
+edge-cached 24h). **Trade-off:** `.md` twins send `X-Robots-Tag: noindex`, so if a
+steered AI crawler honours noindex we also leave its index. That is why
+ExaSearchBot (~3k/h, follows the Googlebot group) was NOT steered. If AI-engine
+indexing matters, scope the header to `googlebot:`/`bingbot:` (or send a
+`Link: <html>; rel="canonical"` header instead) before steering more bots there.
+Check the effect: ClickHouse `page_views` by `user_agent LIKE '%ShapBot%'` split
+by path ending in `.md`.
+
 ## Sep 2026 status — Google has cut the crawl; Bing/DDG is the channel (audit Sep 9 2026)
 
 Measured one hour after the Sep 3–9 outage (six days of Cloudflare 52x, ~810k

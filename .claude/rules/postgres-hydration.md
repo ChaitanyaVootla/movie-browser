@@ -30,9 +30,15 @@ The render path must NEVER await TMDB/Lambda for an entity that exists in PG —
 a TMDB round-trip is ~300-800ms (worse under load) and was the dominant
 per-movie latency on the 2-vCPU box. Series episode fetches
 (`fetchAllSeasonEpisodes`) also live in the background task: nested episodes
-are not part of the render payload (season pages fetch episodes from TMDB
-directly). `triggerProgressiveEnrichment()` fires after the background/sync
-upsert when enriched data came from Lambda/MongoDB; fire-and-forget, errors
+are not part of the hydration payload. EXCEPTION (Nov 24 2026): the series detail
+page inlines the DEFAULT season's episodes with ONE separate PK lookup
+(`getSeasonEpisodesFromPostgres`, `db/postgres/season-episodes.ts`, capped at 50,
+fail-open to null) so the episode row paints with the cached HTML instead of after
+a per-visit uncacheable `getSeason` server-action POST (~1.1-1.6s after every
+refresh, measured). Other seasons still load via `getSeason` (TMDB, 1h L1/L2).
+The default-season choice is shared (`lib/series-default-season.ts`) — server
+and `SeasonSelector` must agree or the inlined rows land on the wrong season.
+`triggerProgressiveEnrichment()` fires after the background/sync upsert when enriched data came from Lambda/MongoDB; fire-and-forget, errors
 swallowed. Contract is pinned by `src/server/services/hydration/index.test.ts`
 (deferred-promise tests fail if the render path ever awaits TMDB on a PG hit).
 

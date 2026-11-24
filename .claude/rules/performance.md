@@ -572,6 +572,25 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    Never grep the live log on the box; `tail -c 3M` it and analyse locally.
    Rule: anything that fires per render/refresh logs at `debug`, and never use
    `console.log` in server hot paths.
+   **Nov 24 2026 sweep:** every `console.log` under `services/hydration/**` now goes
+   through `hydrationDebug` (the `[Hydration/TMDB] Season N: X episodes` lines were
+   back at hundreds/hour); expected conditions left `next-error.log` (TMDB-404
+   refresh skip, person 404 → info). YouTube: a 403 is AMBIGUOUS — `commentsDisabled`
+   vs `quotaExceeded`/`rateLimitExceeded` — tell them apart by
+   `error.errors[0].reason` (`classifyYouTubeError` in `services/youtube.ts`). The
+   old code cached EVERY 403 as "comments disabled" for 7 days, so a quota blip
+   poisoned the cache; quota now opens a 30-min backoff with one warn.
+
+17b. **React #418 on EVERY page from one `useState` initializer (Nov 24 2026).** The
+   navbar's `isMac` lazy initializer returned `true` on the server and read
+   `navigator.platform` on the client, so every non-Mac visitor's first render said
+   "Ctrl" against the server's "⌘" → hydration error → React discards the server
+   HTML and re-renders the whole page client-side (a per-visit perf cost on every
+   route, invisible to typecheck/lint/unit tests). A `useState` initializer must
+   return the same value on server and client; read browser APIs in an effect (or
+   `useSyncExternalStore` with a server snapshot). Detect: prod console
+   `Minified React error #418`, or diff JS-off HTML against hydrated DOM text; the
+   tell that the whole tree re-rendered is `useId` values flipping `_R_…` → `_r_…`.
 
 18. **A page that reads `searchParams` is uncacheable everywhere — /browse was
    ~102k bypassed origin renders/day (Oct 2026).** Cloudflare `cacheStatus`
@@ -758,6 +777,33 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
      matches your own `ssh … bash -c` command line**. Kill by PID instead.
    - `ps -o pcpu` is the lifetime average, not instantaneous CPU. It reads the
      same "48%" every sample and tells you nothing about a hang.
+   - **ONE CAUSE FOUND (Nov 24 2026): a `Next-Router-Prefetch` header WITHOUT `RSC`.**
+     Signature: `pending: []`, `startedOps` == exactly the Prisma calls of that
+     route's `generateMetadata` (discuss: Series.findUnique + Comment.count; person:
+     the Person.findUnique write-back read), the page body issued nothing, and
+     `abandonedOutstanding` only ever grows (these never settle). Same keys again and
+     again in clusters (`/series/306391/discuss/s1e13..15` + `/discussions` ~60×/3
+     days) = the links on one discuss page, i.e. client prefetches. Chain, all read
+     from Next 16.1.0 source: base-server treats a request as RSC only with `RSC: 1`,
+     so the app-page handler does not strip the flight headers → `app-render`
+     `parseRequestHeaders` still reads the prefetch header → `create-component-tree`
+     skips the page segment at loading.tsx (or everywhere when the tree has none,
+     i.e. person) → `InnerLayoutRouter` hits `rsc === null` → `use(unresolvedThenable)`
+     → the ISR HTML render waits forever. How the shape arrives: the proxy 308s a
+     non-canonical slug, Next strips `_rsc` from the URL middleware sees and does NOT
+     re-add it on redirects, the browser follows with the router headers, and our
+     Cloudflare Transform Rule removes `rsc` when `_rsc` is absent but keeps the
+     others. The 308s came from the media-resolver LRU having NO TTL: renamed series
+     (197604 "Power Play"→"Body to Body", 115128, 336006 first resolved slugless)
+     kept their OLD slug as canonical, so every link the page itself renders was
+     308'd. Person pages get the same shape from `permanentRedirect()` in
+     generateMetadata. FIX: `server/observability/orphan-flight-headers.ts` strips
+     the router headers from any non-RSC request in a `handleResponse` patch (logs
+     `orphan_flight_headers_stripped`), the deadline report now carries `request`
+     (router-header shape of the request that started the render), and the slug LRU
+     expires (1h slug, 24h NOT_FOUND). Still worth doing at the edge: extend the
+     Cloudflare `rsc`-strip Transform Rule to also drop `next-router-prefetch`,
+     `next-router-state-tree`, `next-router-segment-prefetch` when `_rsc` is absent.
 
 22. **"Similar" for a title WITHOUT an embedding ran a whole-catalog popularity scan
    on every cold detail render (Nov 16 2026, web-1 at load 13-15 for a day).**
