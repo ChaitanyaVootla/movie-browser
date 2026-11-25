@@ -342,7 +342,8 @@ Measured with Search Console + Cloudflare GraphQL + ClickHouse:
   on a cached page is not logged with that referrer. Of the confirmed-human sessions
   over 10 days, 8.9k had our own domain as the FIRST referrer. Browser-side landing
   attribution (`src/lib/analytics/landing.ts`, its own `landings` table so it never
-  counts as an interaction) fixes this once the table exists on prod.
+  counts as an interaction) fixes this; live since Nov 25 2026. Query:
+  `SELECT ref_kind, uniq(session_id) FROM analytics.landings GROUP BY ref_kind`.
 - Confirmed-human (web-vitals beacon) sessions by first referrer, 10d: bing 452,
   duckduckgo 264, yahoo 96, brave 45, chatgpt 20, google 1. Same edge bias applies to
   all of them, so the ratio stands: Google sends ~nothing.
