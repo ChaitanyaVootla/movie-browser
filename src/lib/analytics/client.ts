@@ -451,7 +451,8 @@ type TableName =
   | "errors"
   | "cache_metrics"
   | "performance"
-  | "system_metrics";
+  | "system_metrics"
+  | "landings";
 
 /**
  * Insert analytics events with type safety

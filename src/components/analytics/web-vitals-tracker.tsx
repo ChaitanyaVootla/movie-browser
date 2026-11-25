@@ -19,6 +19,11 @@ import { onLCP, onCLS, onFCP, onTTFB, onINP } from "web-vitals";
 import type { Metric } from "web-vitals";
 // Import only from client-safe modules (avoid context.ts which imports server-only auth)
 import type { PageType } from "@/lib/analytics/types";
+import {
+  classifyReferrer,
+  referrerHost,
+  LANDING_SESSION_KEY,
+} from "@/lib/analytics/landing";
 
 /**
  * Detect page type from URL path (duplicated to avoid server-only imports)
@@ -236,6 +241,38 @@ export function WebVitalsTracker() {
     sentRef.current = false;
     pathRef.current = pathname;
   }, [pathname]);
+
+  /**
+   * Report the landing (entry page + external referrer) once per tab session.
+   * The origin cannot see it for edge-cached pages; see lib/analytics/landing.ts.
+   */
+  useEffect(() => {
+    if (isDNTEnabled()) return;
+    try {
+      if (sessionStorage.getItem(LANDING_SESSION_KEY)) return;
+      sessionStorage.setItem(LANDING_SESSION_KEY, "1");
+    } catch {
+      return; // no storage: can't dedupe, so don't report
+    }
+    const host = referrerHost(document.referrer);
+    const path = window.location.pathname;
+    void fetch("/api/analytics/ingest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        // Its own event type and table on purpose: a user_actions row would
+        // mark every JS-running fleet session as a confirmed human.
+        event_type: "landing",
+        ref_kind: classifyReferrer(host, window.location.hostname),
+        ref_host: host,
+        landing_path: path.slice(0, 300),
+        landing_type: getPageTypeFromPath(path),
+      }),
+      keepalive: true,
+    }).catch(() => {});
+    // Run once per mount of the root tracker (= once per full page load).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * Register web vitals observers

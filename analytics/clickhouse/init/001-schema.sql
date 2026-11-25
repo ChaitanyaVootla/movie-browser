@@ -436,6 +436,29 @@ PARTITION BY toYYYYMM(timestamp)
 ORDER BY timestamp
 TTL toDateTime(timestamp) + INTERVAL 7 DAY;  -- 7 days retention for granular data
 
+CREATE TABLE IF NOT EXISTS analytics.landings (
+    event_id UUID DEFAULT generateUUIDv4(),
+    timestamp DateTime64(3) DEFAULT now64(3),
+    session_id String DEFAULT '',
+    country LowCardinality(String) DEFAULT 'unknown',
+    device_type LowCardinality(String) DEFAULT '',
+    is_bot UInt8 DEFAULT 0,
+    bot_type LowCardinality(String) DEFAULT '',
+    user_agent String DEFAULT '',
+    is_authenticated UInt8 DEFAULT 0,
+
+    -- Browser-reported entry: the origin never sees the referrer of an
+    -- edge-cached landing page (src/lib/analytics/landing.ts, Nov 2026).
+    ref_kind LowCardinality(String),
+    ref_host Nullable(String),
+    landing_path String,
+    landing_type LowCardinality(String) DEFAULT ''
+)
+ENGINE = MergeTree()
+PARTITION BY toYYYYMM(timestamp)
+ORDER BY (timestamp, session_id, event_id)
+TTL toDateTime(timestamp) + INTERVAL 180 DAY;
+
 -- =============================================================================
 -- SCHEMA MIGRATIONS
 -- Run these manually if upgrading an existing database
@@ -450,3 +473,5 @@ TTL toDateTime(timestamp) + INTERVAL 7 DAY;  -- 7 days retention for granular da
 -- Migration: Add tokens column to api_calls for embedding tracking (2026-03-30)
 -- ALTER TABLE analytics.api_calls ADD COLUMN IF NOT EXISTS tokens UInt32 DEFAULT 0;
 
+-- Migration: Add landings table (2026-11-25)
+-- Run the CREATE TABLE analytics.landings statement above if upgrading

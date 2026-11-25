@@ -100,11 +100,23 @@ const ErrorSchema = z.object({
   severity: z.enum(["low", "medium", "high", "critical"]).optional(),
 });
 
+// Entry page + external referrer, reported by the browser once per tab session
+// (see src/lib/analytics/landing.ts). Kept OUT of user_actions: that table is the
+// confirmed-human signal, and a landing is not an interaction.
+const LandingSchema = z.object({
+  event_type: z.literal("landing"),
+  ref_kind: z.string().max(20),
+  ref_host: z.string().max(255).nullable().optional(),
+  landing_path: z.string().max(300),
+  landing_type: z.string().max(50),
+});
+
 const EventSchema = z.discriminatedUnion("event_type", [
   PageViewSchema,
   UserActionSchema,
   PerformanceSchema,
   ErrorSchema,
+  LandingSchema,
 ]);
 
 const BatchRequestSchema = z.object({
@@ -215,6 +227,7 @@ export async function POST(request: NextRequest) {
     const userActions = enrichedEvents.filter((e) => e.event_type === "user_action");
     const performance = enrichedEvents.filter((e) => e.event_type === "performance");
     const errors = enrichedEvents.filter((e) => e.event_type === "error");
+    const landings = enrichedEvents.filter((e) => e.event_type === "landing");
 
     // Insert into respective tables (fire-and-forget pattern with await for error detection)
     const insertPromises: Promise<void>[] = [];
@@ -230,6 +243,9 @@ export async function POST(request: NextRequest) {
     }
     if (errors.length > 0) {
       insertPromises.push(insertEvents("errors", errors));
+    }
+    if (landings.length > 0) {
+      insertPromises.push(insertEvents("landings", landings));
     }
 
     // Wait for all inserts (errors are handled inside insertEvents)
